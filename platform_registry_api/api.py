@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import re
+from dataclasses import dataclass
+from typing import Any, ClassVar, Tuple
 
 import aiohttp.web
 from aiohttp import BasicAuth, ClientSession
@@ -12,13 +15,84 @@ from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 logger = logging.getLogger(__name__)
 
 
-def convert_from_upstream_url(base_url: URL, upstream_url: URL) -> URL:
-    parts = upstream_url.parts[1:]
-    parts = parts[:1] + parts[2:]
-    path = '/' + '/'.join(parts)
-    url = base_url.join(
-        upstream_url.relative().with_path(path).with_query(upstream_url.query))
-    return url
+@dataclass(frozen=True)
+class RegistryRepoURL:
+    # TODO: ClassVar[re.Pattern] in 3.7
+    _path_re: ClassVar[Any] = re.compile(
+        r'/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)')
+
+    repo: str
+    url: URL
+
+    @classmethod
+    def from_url(cls, url: URL) -> 'RegistryRepoURL':
+        # validating the url
+        repo, _ = cls._parse(url)
+        return cls(repo=repo, url=url)  # type: ignore
+
+    @classmethod
+    def _parse(cls, url: URL) -> Tuple[str, URL]:
+        match = cls._path_re.fullmatch(url.path)
+        if not match:
+            raise ValueError(f'unexpected path in a registry URL: {url}')
+        path_suffix = URL.build(
+            path=match.group('path_suffix'), query=url.query)
+        assert not path_suffix.is_absolute()
+        return match.group('repo'), path_suffix
+
+    def with_repo(self, repo: str) -> 'RegistryRepoURL':
+        _, url_suffix = self._parse(self.url)
+        rel_url = URL(f'/v2/{repo}/').join(url_suffix)
+        url = self.url.join(rel_url)
+        # TODO: dataclasses.replace turns out out be buggy :D
+        return self.__class__(repo=repo, url=url)
+
+    def with_origin(self, origin_url: URL) -> 'RegistryRepoURL':
+        url = origin_url.join(self.url.relative())
+        return self.__class__(repo=self.repo, url=url)
+
+
+class URLFactory:
+    def __init__(
+            self, registry_endpoint_url: URL, upstream_endpoint_url: URL,
+            upstream_project: str) -> None:
+        self._registry_endpoint_url = registry_endpoint_url
+        self._upstream_endpoint_url = upstream_endpoint_url
+        self._upstream_project = upstream_project
+
+    @classmethod
+    def from_config(
+            cls, registry_endpoint_url: URL, config: Config) -> 'URLFactory':
+        return cls(
+            registry_endpoint_url=registry_endpoint_url,
+            upstream_endpoint_url=config.upstream_registry.endpoint_url,
+            upstream_project=config.upstream_registry.project,
+        )
+
+    def create_registry_version_check_url(self) -> URL:
+        return self._upstream_endpoint_url.with_path('/v2/')
+
+    def create_upstream_repo_url(
+            self, registry_url: RegistryRepoURL) -> RegistryRepoURL:
+        repo = f'{self._upstream_project}/{registry_url.repo}'
+        return (
+            registry_url
+            .with_repo(repo)
+            .with_origin(self._upstream_endpoint_url))
+
+    def create_registry_repo_url(
+            self, upstream_url: RegistryRepoURL) -> RegistryRepoURL:
+        upstream_repo = upstream_url.repo
+        # TODO: handle exceptions
+        upstream_project, repo = upstream_repo.split('/', 1)
+        if upstream_project != self._upstream_project:
+            raise ValueError(
+                f'Upstream project {upstream_project} does not match '
+                f'the one configured {self._upstream_project}')
+        return (
+            upstream_url
+            .with_repo(repo)
+            .with_origin(self._registry_endpoint_url))
 
 
 class UpstreamTokenManager:
@@ -84,45 +158,51 @@ class V2Handler:
             aiohttp.web.get('/', self.handle_version_check),
             aiohttp.web.get('/_catalog', self.handle_catalog),
             aiohttp.web.route(
-                '*', r'/{repo:.*}/{path:(tags|manifests|blobs)/.*}',
+                '*', r'/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}',
                 self.handle),
         ))
 
+    def _create_url_factory(self, request: Request) -> URLFactory:
+        return URLFactory.from_config(
+            registry_endpoint_url=request.url.origin(), config=self._config
+        )
+
     async def handle_version_check(self, request: Request) -> StreamResponse:
-        base_url = self._upstream_registry_config.endpoint_url
-        url = base_url.join(request.rel_url)
+        url_factory = self._create_url_factory(request)
+        url = url_factory.create_registry_version_check_url()
         token = await self._upstream_token_manager.get_token_without_scope()
-        return await self._proxy_request(request, url=url, token=token)
+        return await self._proxy_request(
+            request, url_factory=url_factory, url=url, token=token)
 
     async def handle_catalog(self, request: Request) -> StreamResponse:
+        # TODO: compose proper payload
+        # see https://docs.docker.com/registry/spec/api/#errors
         return Response(status=403)
 
     async def handle(self, request: Request) -> StreamResponse:
-        base_url = self._upstream_registry_config.endpoint_url
-
         logger.debug('REQUEST: %s, %s', request, request.headers)
 
-        # TODO: check whether the name is correct
-        downstream_repo = request.match_info['repo']
+        reg_repo_url = RegistryRepoURL.from_url(request.url)
+        downstream_repo = reg_repo_url.repo
+
+        url_factory = self._create_url_factory(request)
+
+        up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
+        upstream_repo = up_repo_url.repo
 
         logger.debug('DOWN REPO: %s', downstream_repo)
-
-        upstream_project = self._upstream_registry_config.project
-        upstream_repo = f'{upstream_project}/{downstream_repo}'
-
         logger.debug('UP REPO: %s', upstream_repo)
-
-        rest = request.match_info['path']
-        url = base_url.join(
-            URL(f'/v2/{upstream_repo}/{rest}').with_query(request.query))
 
         token = await self._upstream_token_manager.get_token_for_repo(
             upstream_repo)
 
-        return await self._proxy_request(request, url=url, token=token)
+        return await self._proxy_request(
+            request, url_factory=url_factory,
+            url=up_repo_url.url, token=token)
 
     async def _proxy_request(
-            self, request: Request, url: URL, token: str) -> StreamResponse:
+            self, request: Request, url_factory: URLFactory, url: URL,
+            token: str) -> StreamResponse:
         request_headers = request.headers.copy()
         request_headers.pop('Host', None)
         request_headers.pop('Transfer-Encoding', None)
@@ -151,10 +231,10 @@ class V2Handler:
             response_headers.pop('Content-Encoding', None)
             response_headers.pop('Connection', None)
             if 'Location' in response_headers:
+                up_repo_url = RegistryRepoURL.from_url(
+                    URL(response_headers['Location']))
                 response_headers['Location'] = str(
-                    convert_from_upstream_url(
-                        base_url=request.url,
-                        upstream_url=URL(response_headers['Location'])))
+                    url_factory.create_registry_repo_url(up_repo_url))
             logger.debug('Converted Response Headers: %s', response_headers)
             response = aiohttp.web.StreamResponse(
                 status=client_response.status,
