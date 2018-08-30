@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class RegistryRepoURL:
+class RepoURL:
     # TODO: ClassVar[re.Pattern] in 3.7
     _path_re: ClassVar[Any] = re.compile(
         r'/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)')
@@ -25,7 +25,7 @@ class RegistryRepoURL:
     url: URL
 
     @classmethod
-    def from_url(cls, url: URL) -> 'RegistryRepoURL':
+    def from_url(cls, url: URL) -> 'RepoURL':
         # validating the url
         repo, _ = cls._parse(url)
         return cls(repo=repo, url=url)  # type: ignore
@@ -40,14 +40,14 @@ class RegistryRepoURL:
         assert not path_suffix.is_absolute()
         return match.group('repo'), path_suffix
 
-    def with_repo(self, repo: str) -> 'RegistryRepoURL':
+    def with_repo(self, repo: str) -> 'RepoURL':
         _, url_suffix = self._parse(self.url)
         rel_url = URL(f'/v2/{repo}/').join(url_suffix)
         url = self.url.join(rel_url)
         # TODO: dataclasses.replace turns out out be buggy :D
         return self.__class__(repo=repo, url=url)
 
-    def with_origin(self, origin_url: URL) -> 'RegistryRepoURL':
+    def with_origin(self, origin_url: URL) -> 'RepoURL':
         url = origin_url.join(self.url.relative())
         return self.__class__(repo=self.repo, url=url)
 
@@ -72,16 +72,14 @@ class URLFactory:
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path('/v2/')
 
-    def create_upstream_repo_url(
-            self, registry_url: RegistryRepoURL) -> RegistryRepoURL:
+    def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
         repo = f'{self._upstream_project}/{registry_url.repo}'
         return (
             registry_url
             .with_repo(repo)
             .with_origin(self._upstream_endpoint_url))
 
-    def create_registry_repo_url(
-            self, upstream_url: RegistryRepoURL) -> RegistryRepoURL:
+    def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
         try:
             upstream_project, repo = upstream_repo.split('/', 1)
@@ -184,7 +182,7 @@ class V2Handler:
     async def handle(self, request: Request) -> StreamResponse:
         logger.debug('REQUEST: %s, %s', request, request.headers)
 
-        reg_repo_url = RegistryRepoURL.from_url(request.url)
+        reg_repo_url = RepoURL.from_url(request.url)
         downstream_repo = reg_repo_url.repo
 
         url_factory = self._create_url_factory(request)
@@ -233,7 +231,7 @@ class V2Handler:
             response_headers.pop('Content-Encoding', None)
             response_headers.pop('Connection', None)
             if 'Location' in response_headers:
-                up_repo_url = RegistryRepoURL.from_url(
+                up_repo_url = RepoURL.from_url(
                     URL(response_headers['Location']))
                 response_headers['Location'] = str(
                     url_factory.create_registry_repo_url(up_repo_url))
