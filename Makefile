@@ -14,3 +14,6 @@ test_e2e_built:
 	exit $$exit_code
 
 test_e2e: build test_e2e_built
+
+format:
+	isort -rc platform_registry_api tests
