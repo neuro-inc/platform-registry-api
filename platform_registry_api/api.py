@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Tuple
 import aiohttp.web
 from aiohttp import BasicAuth, ClientSession
 from aiohttp.web import Application, Request, Response, StreamResponse
+from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
@@ -180,35 +181,32 @@ class V2Handler:
         return Response(status=403)
 
     async def handle(self, request: Request) -> StreamResponse:
-        logger.debug('REQUEST: %s, %s', request, request.headers)
-
-        reg_repo_url = RepoURL.from_url(request.url)
-        downstream_repo = reg_repo_url.repo
-
         url_factory = self._create_url_factory(request)
 
-        up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
-        upstream_repo = up_repo_url.repo
+        # TODO: prevent leaking sensitive headers
+        logger.debug(
+            'registry request: %s; headers: %s', request, request.headers)
 
-        logger.debug('DOWN REPO: %s', downstream_repo)
-        logger.debug('UP REPO: %s', upstream_repo)
+        registry_repo_url = RepoURL.from_url(request.url)
+        upstream_repo_url = url_factory.create_upstream_repo_url(
+            registry_repo_url)
+
+        logger.info(
+            'converted registry repo URL to upstream repo URL: %s -> %s',
+            registry_repo_url, upstream_repo_url)
 
         token = await self._upstream_token_manager.get_token_for_repo(
-            upstream_repo)
+            upstream_repo_url.repo)
 
         return await self._proxy_request(
             request, url_factory=url_factory,
-            url=up_repo_url.url, token=token)
+            url=upstream_repo_url.url, token=token)
 
     async def _proxy_request(
             self, request: Request, url_factory: URLFactory, url: URL,
             token: str) -> StreamResponse:
-        request_headers = request.headers.copy()
-        request_headers.pop('Host', None)
-        request_headers.pop('Transfer-Encoding', None)
-        request_headers['Authorization'] = f'Bearer {token}'
-
-        logger.debug('REQUEST HEADERS: %s', request_headers)
+        request_headers = self._prepare_request_headers(
+            request.headers, token=token)
 
         async with self._registry_client.request(
                 method=request.method,
@@ -217,25 +215,12 @@ class V2Handler:
                 skip_auto_headers=('Content-Type',),
                 data=request.content.iter_any()) as client_response:
 
-            if client_response.status in (400, 403):
-                if client_response.content_type == 'application/json':
-                    logger.info('UPSTREAM RESPONSE BODY: %s', await client_response.json())
-                elif client_response.content_type == 'application/xml':
-                    logger.info('UPSTREAM RESPONSE BODY: %s', await client_response.text())
+            logger.debug(
+                'upstream response: %s; headers: %s',
+                client_response, client_response.headers)
 
-            logger.debug('UPSTREAM RESPONSE: %s', client_response)
-            logger.debug('Response Headers: %s', client_response.headers)
-
-            response_headers = client_response.headers.copy()
-            response_headers.pop('Transfer-Encoding', None)
-            response_headers.pop('Content-Encoding', None)
-            response_headers.pop('Connection', None)
-            if 'Location' in response_headers:
-                up_repo_url = RepoURL.from_url(
-                    URL(response_headers['Location']))
-                response_headers['Location'] = str(
-                    url_factory.create_registry_repo_url(up_repo_url))
-            logger.debug('Converted Response Headers: %s', response_headers)
+            response_headers = self._prepare_response_headers(
+                client_response.headers, url_factory)
             response = aiohttp.web.StreamResponse(
                 status=client_response.status,
                 headers=response_headers)
@@ -246,6 +231,39 @@ class V2Handler:
 
             await response.write_eof()
             return response
+
+    def _prepare_request_headers(
+            self, headers: CIMultiDictProxy, token: str) -> CIMultiDict:
+        request_headers: CIMultiDict = headers.copy()  # type: ignore
+
+        for name in ('Host', 'Transfer-Encoding', 'Connection'):
+            request_headers.pop(name, None)
+
+        request_headers['Authorization'] = f'Bearer {token}'
+        return request_headers
+
+    def _prepare_response_headers(
+            self, headers: CIMultiDictProxy, url_factory: URLFactory
+            ) -> CIMultiDict:
+        response_headers: CIMultiDict = headers.copy()  # type: ignore
+
+        for name in ('Transfer-Encoding', 'Content-Encoding', 'Connection'):
+            response_headers.pop(name, None)
+
+        if 'Location' in response_headers:
+            response_headers['Location'] = self._convert_location_header(
+                response_headers['Location'], url_factory)
+        return response_headers
+
+    def _convert_location_header(
+            self, url_str: str, url_factory: URLFactory) -> str:
+        upstream_repo_url = RepoURL.from_url(URL(url_str))
+        registry_repo_url = url_factory.create_registry_repo_url(
+            upstream_repo_url)
+        logger.info(
+            'converted upstream repo URL to registry repo URL: %s -> %s',
+            upstream_repo_url, registry_repo_url)
+        return str(registry_repo_url)
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:
