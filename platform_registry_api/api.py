@@ -83,12 +83,14 @@ class URLFactory:
     def create_registry_repo_url(
             self, upstream_url: RegistryRepoURL) -> RegistryRepoURL:
         upstream_repo = upstream_url.repo
-        # TODO: handle exceptions
-        upstream_project, repo = upstream_repo.split('/', 1)
+        try:
+            upstream_project, repo = upstream_repo.split('/', 1)
+        except ValueError:
+            upstream_project, repo = '', upstream_repo
         if upstream_project != self._upstream_project:
             raise ValueError(
-                f'Upstream project {upstream_project} does not match '
-                f'the one configured {self._upstream_project}')
+                f'Upstream project "{upstream_project}" does not match '
+                f'the one configured "{self._upstream_project}"')
         return (
             upstream_url
             .with_repo(repo)
