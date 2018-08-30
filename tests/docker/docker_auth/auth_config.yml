@@ -1,0 +1,18 @@
+server:
+  addr: ":5001"
+
+token:
+  issuer: "Test Auth Server"
+  expiration: 60  # seconds
+  certificate: "/config/server.pem"
+  key: "/config/server.key"
+
+users:
+  "testuser":
+    password: "$2y$05$TsnheZbqlvf.hzgekGxRCe4tQGcZM..YG61qVJmeuiIv8K6KWsN6e"
+
+acl:
+  - match:
+      account: "testuser"
+      name: "/testproject/.+/"
+    actions: ["*"]
