@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Tuple
+from typing import Any, Awaitable, Callable, ClassVar, Tuple
 
 import aiohttp.web
 from aiohttp import BasicAuth, ClientSession
@@ -269,8 +269,16 @@ class V2Handler:
         return str(registry_repo_url.url)
 
 
+@aiohttp.web.middleware
+async def auth_middleware(
+        request: Request,
+        handler: Callable[[Request], Awaitable[StreamResponse]]
+        ) -> StreamResponse:
+    return await handler(request)
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
-    app = aiohttp.web.Application()
+    app = aiohttp.web.Application(middlewares=[auth_middleware])
 
     async def _init_app(app: aiohttp.web.Application):
 
