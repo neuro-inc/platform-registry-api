@@ -215,16 +215,19 @@ class V2Handler:
                 skip_auto_headers=('Content-Type',),
                 data=request.content.iter_any()) as client_response:
 
-            logger.debug(
-                'upstream response: %s; headers: %s',
-                client_response, client_response.headers)
+            logger.debug('upstream response: %s', client_response)
 
             response_headers = self._prepare_response_headers(
                 client_response.headers, url_factory)
             response = aiohttp.web.StreamResponse(
                 status=client_response.status,
                 headers=response_headers)
+
             await response.prepare(request)
+
+            logger.debug(
+                'registry response: %s; headers: %s',
+                response, response.headers)
 
             async for chunk in client_response.content.iter_any():
                 await response.write(chunk)
@@ -263,7 +266,7 @@ class V2Handler:
         logger.info(
             'converted upstream repo URL to registry repo URL: %s -> %s',
             upstream_repo_url, registry_repo_url)
-        return str(registry_repo_url)
+        return str(registry_repo_url.url)
 
 
 async def create_app(config: Config) -> aiohttp.web.Application:
