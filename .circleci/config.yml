@@ -14,6 +14,16 @@ jobs:
       - checkout
 
       - run:
+          name: Running Static Code Analysis
+          command: |
+            make lint
+
+      - run:
+          name: Running Unit Test Suite
+          command: |
+            make test_unit
+
+      - run:
           name: Running E2E Test Suite
           command: |
             make test_e2e
