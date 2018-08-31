@@ -1,0 +1,33 @@
+version: "3"
+services:
+  auth:
+    image: cesanta/docker_auth:1.3.1
+    ports:
+    - "5001:5001"
+    volumes:
+    - ./tests/docker/docker_auth/:/config/
+
+  upstream:
+    image: registry:2
+    ports:
+    - "5002:5002"
+    volumes:
+    - ./tests/docker/registry/config.yml:/etc/docker/registry/config.yml
+    - ./tests/docker/docker_auth/server.pem:/etc/docker/registry/server.pem
+    links:
+    - auth
+
+  registry:
+    image: platformregistryapi:latest
+    ports:
+    - "5000:5000"
+    environment:
+    - NP_REGISTRY_API_PORT=5000
+    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
+    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
+    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
+    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
+    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    links:
+    - auth
+    - upstream
