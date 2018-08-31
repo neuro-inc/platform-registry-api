@@ -1,0 +1,76 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: platformregistryapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: platformregistryapi
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        service: platformregistryapi
+    spec:
+      containers:
+      - name: platformregistryapi
+        image: gcr.io/light-reality-205619/platformregistryapi:latest
+        imagePullPolicy: Always
+        env:
+        - name: NP_REGISTRY_UPSTREAM_URL
+          value: https://gcr.io
+        - name: NP_REGISTRY_UPSTREAM_PROJECT
+          value: light-reality-205619
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
+          value: https://gcr.io/v2/token
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: gcr-secret
+              key: username
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gcr-secret
+              key: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platformregistryapi
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    service: platformregistryapi
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: platformregistryapi-ingress
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.frontend.rule.type: PathPrefix
+spec:
+  rules:
+  - host: registry.dev.neuromation.io
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: platformregistryapi
+          servicePort: 8080
+  - host: registry.staging.neuromation.io
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: platformregistryapi
+          servicePort: 8080
