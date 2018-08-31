@@ -2,4 +2,9 @@
 !setup.py
 !setup.cfg
 !platform_registry_api
+
+!Makefile
+!tests
+!requirements-test.txt
+
 **/*.pyc
