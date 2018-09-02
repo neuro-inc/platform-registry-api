@@ -1,0 +1,4 @@
+IMAGE:
+  _default: gcr.io/light-reality-205619/platformregistryapi:latest
+  dev: gcr.io/light-reality-205619/platformregistryapi:latest
+  staging: gcr.io/light-reality-205619/platformregistryapi:latest
