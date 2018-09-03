@@ -1,0 +1,5 @@
+Dev :
+	- helm --set "global.env=dev" install platformregistryapi --name=platformregistryapi
+
+Stage :
+	- helm --set "global.env=stage" install platformregistryapi --name=platformregistryapi
