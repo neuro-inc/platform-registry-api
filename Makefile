@@ -42,7 +42,7 @@ _lint:
 format:
 	isort -rc platform_registry_api tests
 
-gke_login:
+gke_login: build
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
