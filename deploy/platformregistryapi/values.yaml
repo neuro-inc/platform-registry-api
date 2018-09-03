@@ -10,4 +10,3 @@ INGRESS_HOST:
   _default: registry.dev.neuromation.io
   dev: registry.dev.neuromation.io
   staging: registry.staging.neuromation.io
-  
