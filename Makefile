@@ -1,7 +1,12 @@
+IMAGE_NAME ?= platformregistryapi
+IMAGE_TAG ?= latest
+IMAGE_NAME_K8S ?= $(IMAGE_NAME)
+IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
+
 build:
 	docker build \
-	    -t platformregistryapi:latest \
-	    -t gcr.io/light-reality-205619/platformregistryapi:latest .
+	    -t $(IMAGE_NAME):$(IMAGE_TAG) \
+	    -t $(IMAGE_K8S):$(IMAGE_TAG) .
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
@@ -36,3 +41,28 @@ _lint:
 
 format:
 	isort -rc platform_registry_api tests
+
+gke_login: build
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
+	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
+	sudo /opt/google-cloud-sdk/bin/gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
+	sudo /opt/google-cloud-sdk/bin/gcloud config set project $(GKE_PROJECT_ID)
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
+	sudo /opt/google-cloud-sdk/bin/gcloud config set compute/zone $(GKE_COMPUTE_ZONE)
+	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+        
+gke_docker_push:
+	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
+	sudo /opt/google-cloud-sdk/bin/gcloud docker -- push $(IMAGE_K8S)        
+
+gke_k8s_deploy_dev:
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME)
+	sudo chown -R circleci: $(HOME)/.kube
+	helm --set "global.env=dev" --set "IMAGE.dev=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi        
+
+gke_k8s_deploy_staging:
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME)
+	sudo chown -R circleci: $(HOME)/.kube
+	helm --set "global.env=staging" --set "IMAGE.staging=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi        
+        

@@ -19,13 +19,13 @@ spec:
     spec:
       containers:
       - name: platformregistryapi
-        image: gcr.io/light-reality-205619/platformregistryapi:latest
+        image: {{ printf "%s" (pluck .Values.global.env .Values.IMAGE | first | default .Values.IMAGE._default) }}
         imagePullPolicy: Always
         env:
         - name: NP_REGISTRY_UPSTREAM_URL
           value: https://gcr.io
         - name: NP_REGISTRY_UPSTREAM_PROJECT
-          value: light-reality-205619
+          value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_UPSTREAM_PROJECT | first | default .Values.NP_REGISTRY_UPSTREAM_PROJECT._default) }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
           value: https://gcr.io/v2/token
         - name: NP_REGISTRY_UPSTREAM_TOKEN_USERNAME
@@ -60,14 +60,7 @@ metadata:
     traefik.frontend.rule.type: PathPrefix
 spec:
   rules:
-  - host: registry.dev.neuromation.io
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: platformregistryapi
-          servicePort: 8080
-  - host: registry.staging.neuromation.io
+  - host: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST | first | default .Values.INGRESS_HOST._default) }}
     http:
       paths:
       - path: /
