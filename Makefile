@@ -52,7 +52,7 @@ gke_login:
 	sudo /opt/google-cloud-sdk/bin/gcloud config set compute/zone $(GKE_COMPUTE_ZONE)
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
         
-gke_docker_push: build_api_k8s
+gke_docker_push:
 	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
 	sudo /opt/google-cloud-sdk/bin/gcloud docker -- push $(IMAGE_K8S)        
 
