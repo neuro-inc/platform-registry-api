@@ -14,6 +14,7 @@ function wait_for_registry() {
         fi
         sleep 2
     done
+    docker login -u neuromation -p neuromation localhost:5000
 }
 
 
