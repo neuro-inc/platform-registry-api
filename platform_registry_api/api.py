@@ -187,9 +187,8 @@ class V2Handler:
         return user
 
     def _raise_unauthorized(self) -> None:
-        # TODO: config.server.name
         raise HTTPUnauthorized(headers={
-            'WWW-Authenticate': 'Basic realm="Docker Registry"',
+            'WWW-Authenticate': f'Basic realm="{self._config.server.name}"',
         })
 
     async def handle_version_check(self, request: Request) -> StreamResponse:

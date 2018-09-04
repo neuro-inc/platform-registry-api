@@ -1,11 +1,11 @@
 import pytest
-from yarl import URL
 from aiohttp import BasicAuth
 from yarl import URL
 
 from platform_registry_api.api import create_app
 from platform_registry_api.config import (
-    Config, EnvironConfigFactory, ServerConfig, UpstreamRegistryConfig
+    AuthConfig, Config, EnvironConfigFactory, ServerConfig,
+    UpstreamRegistryConfig
 )
 
 
@@ -21,7 +21,9 @@ def config(in_docker):
         token_endpoint_username='testuser',
         token_endpoint_password='testpassword',
     )
-    return Config(server=ServerConfig(), upstream_registry=upstream_registry)
+    auth = AuthConfig(username='neuromation', password='neuromation')
+    return Config(
+        server=ServerConfig(), upstream_registry=upstream_registry, auth=auth)
 
 
 class TestV2Api:
@@ -48,7 +50,7 @@ class TestV2Api:
     async def test_version_check(self, aiohttp_client, config):
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login='neuromation', password='')
+        auth = BasicAuth(login='neuromation', password='neuromation')
         async with client.get('/v2/', auth=auth) as resp:
             assert resp.status == 200
 
