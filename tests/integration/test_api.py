@@ -1,10 +1,11 @@
 import pytest
 from yarl import URL
 from aiohttp import BasicAuth
+from yarl import URL
 
 from platform_registry_api.api import create_app
 from platform_registry_api.config import (
-    Config, ServerConfig, UpstreamRegistryConfig, EnvironConfigFactory
+    Config, EnvironConfigFactory, ServerConfig, UpstreamRegistryConfig
 )
 
 

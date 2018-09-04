@@ -28,8 +28,6 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
-    volumes:
-    - ./:/neuromation
     links:
     - auth
     - upstream
@@ -42,8 +40,6 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
-    volumes:
-    - ./:/neuromation
     links:
     - auth
     - upstream
