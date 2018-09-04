@@ -24,6 +24,11 @@ jobs:
             make test_unit
 
       - run:
+          name: Running Integration Test Suite
+          command: |
+            make test_integration
+
+      - run:
           name: Running E2E Test Suite
           command: |
             make test_e2e
