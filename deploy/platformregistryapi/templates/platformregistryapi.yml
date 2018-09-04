@@ -22,8 +22,20 @@ spec:
         image: {{ printf "%s" (pluck .Values.global.env .Values.IMAGE | first | default .Values.IMAGE._default) }}
         imagePullPolicy: Always
         env:
+        - name: NP_REGISTRY_AUTH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: platformregistryapi-secret
+              key: auth_username
+        - name: NP_REGISTRY_AUTH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: platformregistryapi-secret
+              key: auth_password
         - name: NP_REGISTRY_UPSTREAM_URL
           value: https://gcr.io
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
+          value: gcr.io
         - name: NP_REGISTRY_UPSTREAM_PROJECT
           value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_UPSTREAM_PROJECT | first | default .Values.NP_REGISTRY_UPSTREAM_PROJECT._default) }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
