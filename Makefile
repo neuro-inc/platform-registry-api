@@ -56,7 +56,6 @@ format:
 	isort -rc platform_registry_api tests
 
 gke_login: build
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG) .
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
@@ -67,6 +66,7 @@ gke_login: build
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
 
 gke_docker_push:
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG) .
 	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
 	sudo /opt/google-cloud-sdk/bin/gcloud docker -- push $(IMAGE_K8S)        
 
