@@ -193,6 +193,7 @@ class V2Handler:
 
     async def handle_version_check(self, request: Request) -> StreamResponse:
         await self._get_user_from_request(request)
+
         url_factory = self._create_url_factory(request)
         url = url_factory.create_registry_version_check_url()
         token = await self._upstream_token_manager.get_token_without_scope()
@@ -205,6 +206,8 @@ class V2Handler:
         return Response(status=403)
 
     async def handle(self, request: Request) -> StreamResponse:
+        await self._get_user_from_request(request)
+
         url_factory = self._create_url_factory(request)
 
         # TODO: prevent leaking sensitive headers

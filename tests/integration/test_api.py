@@ -61,3 +61,28 @@ class TestV2Api:
         client = await aiohttp_client(app)
         async with client.get('/v2/_catalog') as resp:
             assert resp.status == 403
+
+    @pytest.mark.asyncio
+    async def test_repo_unauthorized(self, aiohttp_client, config):
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        async with client.get('/v2/neuromation/unknown/tags/list') as resp:
+            assert resp.status == 401
+            assert resp.headers['WWW-Authenticate'] == (
+                'Basic realm="Docker Registry"')
+
+    @pytest.mark.asyncio
+    async def test_unknown_repo(self, aiohttp_client, config):
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        auth = BasicAuth(login='neuromation', password='neuromation')
+        async with client.get(
+                '/v2/neuromation/unknown/tags/list', auth=auth) as resp:
+            assert resp.status == 404
+            payload = await resp.json()
+            assert payload == {'errors': [{
+                'code': 'NAME_UNKNOWN',
+                # TODO: this has to be fixed ASAP:
+                'detail': {'name': 'testproject/neuromation/unknown'},
+                'message': 'repository name not known to registry',
+            }]}
