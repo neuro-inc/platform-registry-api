@@ -65,17 +65,3 @@ gke_k8s_deploy_staging:
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_STAGE_CLUSTER_NAME)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=staging" --set "IMAGE.staging=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi        
-
-GCR_USERNAME := _json_key
-GCR_PASSWORD := '$(shell cat ~/Downloads/Dev-Env-074eba562f8e.json)'
-
-test_shell:
-	docker run --rm -it -p 5000:5000 \
-	    -v `pwd`:/neuromation \
-	    -e NP_REGISTRY_API_PORT=5000 \
-	    -e NP_REGISTRY_UPSTREAM_URL=https://gcr.io \
-	    -e NP_REGISTRY_UPSTREAM_PROJECT=light-reality-205619 \
-	    -e NP_REGISTRY_UPSTREAM_TOKEN_URL=https://gcr.io/v2/token \
-	    -e NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=$(GCR_USERNAME) \
-	    -e NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=$(GCR_PASSWORD) \
-	    platformregistryapi:latest bash
