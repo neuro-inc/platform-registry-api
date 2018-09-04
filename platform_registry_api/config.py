@@ -9,6 +9,13 @@ from yarl import URL
 class ServerConfig:
     host: str = '0.0.0.0'
     port: int = 8080
+    name: str = 'Docker Registry'
+
+
+@dataclass(frozen=True)
+class AuthConfig:
+    username: str
+    password: str
 
 
 @dataclass(frozen=True)
@@ -30,6 +37,7 @@ class UpstreamRegistryConfig:
 class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
+    auth: AuthConfig
 
 
 class EnvironConfigFactory:
@@ -57,9 +65,18 @@ class EnvironConfigFactory:
             token_endpoint_password=token_endpoint_password,
             )
 
+    def create_auth(self) -> AuthConfig:
+        return AuthConfig(  # type: ignore
+            username=self._environ['NP_REGISTRY_AUTH_USERNAME'],
+            password=self._environ['NP_REGISTRY_AUTH_PASSWORD'],
+        )
+
     def create(self) -> Config:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
+        auth_config = self.create_auth()
         return Config(  # type: ignore
             server=server_config,
-            upstream_registry=upstream_registry_config)
+            upstream_registry=upstream_registry_config,
+            auth=auth_config,
+        )
