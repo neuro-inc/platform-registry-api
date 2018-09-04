@@ -300,7 +300,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     async def _init_app(app: aiohttp.web.Application):
 
         async def on_request_redirect(session, ctx, params):
-            logger.debug('REDIRECT %s', params.response)
+            logger.debug('upstream redirect response: %s', params.response)
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_redirect.append(on_request_redirect)
