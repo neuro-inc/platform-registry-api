@@ -28,6 +28,22 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    volumes:
+    - ./:/neuromation
+    links:
+    - auth
+    - upstream
+
+  test:
+    image: platformregistryapi-test
+    environment:
+    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
+    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
+    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
+    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
+    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    volumes:
+    - ./:/neuromation
     links:
     - auth
     - upstream
