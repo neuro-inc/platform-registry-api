@@ -18,6 +18,7 @@ def config(in_docker):
         endpoint_url=URL('http://localhost:5002'),
         project='testproject',
         token_endpoint_url=URL('http://localhost:5001/auth'),
+        token_service='upstream',
         token_endpoint_username='testuser',
         token_endpoint_password='testpassword',
     )

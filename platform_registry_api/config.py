@@ -24,13 +24,9 @@ class UpstreamRegistryConfig:
     project: str
     # TODO: should be derived from the WWW-Authenticate header instead
     token_endpoint_url: URL
+    token_service: str
     token_endpoint_username: str = field(repr=False)
     token_endpoint_password: str = field(repr=False)
-
-    @property
-    def token_service(self) -> str:
-        assert self.endpoint_url.host
-        return self.endpoint_url.host
 
 
 @dataclass(frozen=True)
@@ -53,6 +49,7 @@ class EnvironConfigFactory:
         project = self._environ['NP_REGISTRY_UPSTREAM_PROJECT']
         token_endpoint_url = URL(
             self._environ['NP_REGISTRY_UPSTREAM_TOKEN_URL'])
+        token_service = self._environ['NP_REGISTRY_UPSTREAM_TOKEN_SERVICE']
         token_endpoint_username = self._environ[
             'NP_REGISTRY_UPSTREAM_TOKEN_USERNAME']
         token_endpoint_password = self._environ[
@@ -61,6 +58,7 @@ class EnvironConfigFactory:
             endpoint_url=endpoint_url,
             project=project,
             token_endpoint_url=token_endpoint_url,
+            token_service=token_service,
             token_endpoint_username=token_endpoint_username,
             token_endpoint_password=token_endpoint_password,
             )
