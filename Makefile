@@ -4,16 +4,14 @@ IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
 
 build:
-	docker build \
-	    -t $(IMAGE_NAME):$(IMAGE_TAG) \
-	    -t $(IMAGE_K8S):$(IMAGE_TAG) .
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
 
 test_e2e_built:
 	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml up -d; \
+	    -f tests/docker/e2e.compose.yml up -d registry; \
 	tests/e2e/tests.sh; exit_code=$$?; \
 	docker-compose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml kill; \
@@ -36,6 +34,21 @@ test_unit_built:
 _test_unit:
 	pytest -vv tests/unit
 
+test_integration: build_test test_integration_built
+
+test_integration_built:
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
+	exit_code=$$?; \
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml kill; \
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml rm -f; \
+	exit $$exit_code
+
+_test_integration:
+	pytest -vv tests/integration
+
 _lint:
 	flake8 platform_registry_api tests
 
@@ -43,6 +56,7 @@ format:
 	isort -rc platform_registry_api tests
 
 gke_login: build
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG) .
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
