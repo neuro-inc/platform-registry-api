@@ -31,13 +31,9 @@ class UserService(metaclass=abc.ABCMeta):
 
 class InMemoryUserService(UserService):
     def __init__(self, config: Config) -> None:
-        self._users = {
-            user.name: user
-            for user in (
-                User(  # type: ignore
-                    name='neuromation', password='neuromation'),
-            )
-        }
+        user = User(  # type: ignore
+            name=config.auth.username, password=config.auth.password)
+        self._users = {user.name: user for user in (user,)}
 
     async def get_user_by_name(self, name: str) -> User:
         user = self._users.get(name)
