@@ -34,7 +34,8 @@ class InMemoryUserService(UserService):
         self._users = {
             user.name: user
             for user in (
-                User(name='neuromation', password=''),  # type: ignore
+                User(  # type: ignore
+                    name='neuromation', password='neuromation'),
             )
         }
 
