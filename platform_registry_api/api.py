@@ -1,16 +1,20 @@
 import asyncio
 import logging
 import re
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, ClassVar, Tuple
+from dataclasses import dataclass
+from typing import Any, ClassVar, Tuple
 
 import aiohttp.web
 from aiohttp import BasicAuth, ClientSession
-from aiohttp.web import Application, Request, Response, StreamResponse
+from aiohttp.web import (
+    Application, HTTPBadRequest, HTTPUnauthorized, Request, Response,
+    StreamResponse
+)
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
+from .user import InMemoryUserService, User, UserServiceException
 
 
 logger = logging.getLogger(__name__)
@@ -143,8 +147,7 @@ class V2Handler:
         self._config = config
         self._upstream_registry_config = config.upstream_registry
 
-        self._user = config.upstream_registry.token_endpoint_username
-        self._password = config.upstream_registry.token_endpoint_password
+        self._user_service = InMemoryUserService(config=config)
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
@@ -168,7 +171,29 @@ class V2Handler:
             registry_endpoint_url=request.url.origin(), config=self._config
         )
 
+    async def _get_user_from_request(self, request: Request) -> User:
+        auth_header = request.headers.get('Authorization')
+        if auth_header is None:
+            self._raise_unauthorized()
+        try:
+            basic_auth = BasicAuth.decode(auth_header)
+        except ValueError:
+            raise HTTPBadRequest()
+        try:
+            user = await self._user_service.get_user_with_credentials(
+                basic_auth)
+        except UserServiceException:
+            self._raise_unauthorized()
+        return user
+
+    def _raise_unauthorized(self) -> None:
+        # TODO: config.server.name
+        raise HTTPUnauthorized(headers={
+            'WWW-Authenticate': 'Basic realm="Docker Registry"',
+        })
+
     async def handle_version_check(self, request: Request) -> StreamResponse:
+        await self._get_user_from_request(request)
         url_factory = self._create_url_factory(request)
         url = url_factory.create_registry_version_check_url()
         token = await self._upstream_token_manager.get_token_without_scope()
@@ -269,105 +294,8 @@ class V2Handler:
         return str(registry_repo_url.url)
 
 
-import base64
-import binascii
-
-
-@dataclass
-class BasicCredentials:
-    username: str
-    password: str = field(repr=False)
-
-    @classmethod
-    def from_authorization_header(cls, value: str) -> 'BasicCredentials':
-        auth_type, credentials_payload = value.split(' ', 1)
-        if auth_type != 'Basic':
-            raise ValueError(f'unexpected authentication type "{auth_type}"')
-
-        try:
-            credentials = base64.b64decode(credentials_payload, validate=True)
-        except binascii.Error:
-            raise ValueError('invalid base64 credentials payload')
-        username, password = credentials.decode().split(':', 1)
-        return cls(username=username, password=password)  # type: ignore
-
-
-@dataclass
-class User:
-    credentials: BasicCredentials
-
-    @property
-    def name(self) -> str:
-        return self.credentials.username
-
-
-class UserService:
-    def __init__(self) -> None:
-        self._users = {
-            user.name: user
-            for user in User(name='neuromation')  # type: ignore
-        }
-
-    async def get_user_with_credentials(
-            self, credentials: BasicCredentials) -> User:
-        user = self._users.get(credentials.name)
-        if not user:
-            raise ValueError('user not found')
-        if user.credentials != credentials:
-            raise ValueError('user not found')
-        return user
-
-
-
-
-class AuthMiddleware:
-    def __init__(self, user_service: UserService) -> None:
-        self._user_service = user_service
-
-    def _parse_auth_header(self, value: str):
-        pass
-
-    async def __call__(
-            self, request: Request,
-            handler: Callable[[Request], Awaitable[StreamResponse]]
-            ) -> StreamResponse:
-        auth_header_value = request.headers.get('Authorization')
-        if auth_header_value is None:
-            return Response(status=401, headers={
-                'WWW-Authenticate': 'Basic realm="Docker Registry"',
-            })
-
-        try:
-            credentials = parse_auth_header(auth_header_value)
-        except ValueError:
-            # TODO: include description
-            return Response(status=400)
-
-        try:
-
-            user = await self._user_service.get_user_with_credentials(credentials)
-        except ValueError:
-            return Response(status=403)
-
-        return await handler(request)
-
-
-@aiohttp.web.middleware
-async def auth_middleware(
-        request: Request,
-        handler: Callable[[Request], Awaitable[StreamResponse]]
-        ) -> StreamResponse:
-
-    auth_header = request.headers.get('')
-
-    # TODO: get the header value, parse and query the user service;
-    # if such user exists and provided credentials are ok,
-    # instantiate the User class and pass to the request somehow.
-    return await handler(request)
-
-
 async def create_app(config: Config) -> aiohttp.web.Application:
-    app = aiohttp.web.Application(middlewares=[auth_middleware])
+    app = aiohttp.web.Application()
 
     async def _init_app(app: aiohttp.web.Application):
 
