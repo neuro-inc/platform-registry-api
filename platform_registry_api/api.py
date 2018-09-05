@@ -192,6 +192,10 @@ class V2Handler:
         })
 
     async def handle_version_check(self, request: Request) -> StreamResponse:
+        # TODO: prevent leaking sensitive headers
+        logger.debug(
+            'registry request: %s; headers: %s', request, request.headers)
+
         await self._get_user_from_request(request)
 
         url_factory = self._create_url_factory(request)
@@ -206,13 +210,13 @@ class V2Handler:
         return Response(status=403)
 
     async def handle(self, request: Request) -> StreamResponse:
-        await self._get_user_from_request(request)
-
-        url_factory = self._create_url_factory(request)
-
         # TODO: prevent leaking sensitive headers
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
+
+        await self._get_user_from_request(request)
+
+        url_factory = self._create_url_factory(request)
 
         registry_repo_url = RepoURL.from_url(request.url)
         upstream_repo_url = url_factory.create_upstream_repo_url(
