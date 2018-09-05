@@ -6,11 +6,15 @@ from typing import Any, ClassVar, Tuple
 
 import aiohttp.web
 from aiohttp import BasicAuth, ClientSession
-from aiohttp.web import Application, Request, Response, StreamResponse
+from aiohttp.web import (
+    Application, HTTPBadRequest, HTTPUnauthorized, Request, Response,
+    StreamResponse
+)
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
+from .user import InMemoryUserService, User, UserServiceException
 
 
 logger = logging.getLogger(__name__)
@@ -143,8 +147,7 @@ class V2Handler:
         self._config = config
         self._upstream_registry_config = config.upstream_registry
 
-        self._user = config.upstream_registry.token_endpoint_username
-        self._password = config.upstream_registry.token_endpoint_password
+        self._user_service = InMemoryUserService(config=config)
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
@@ -168,7 +171,29 @@ class V2Handler:
             registry_endpoint_url=request.url.origin(), config=self._config
         )
 
+    async def _get_user_from_request(self, request: Request) -> User:
+        auth_header = request.headers.get('Authorization')
+        if auth_header is None:
+            self._raise_unauthorized()
+        try:
+            basic_auth = BasicAuth.decode(auth_header)
+        except ValueError:
+            raise HTTPBadRequest()
+        try:
+            user = await self._user_service.get_user_with_credentials(
+                basic_auth)
+        except UserServiceException:
+            self._raise_unauthorized()
+        return user
+
+    def _raise_unauthorized(self) -> None:
+        raise HTTPUnauthorized(headers={
+            'WWW-Authenticate': f'Basic realm="{self._config.server.name}"',
+        })
+
     async def handle_version_check(self, request: Request) -> StreamResponse:
+        await self._get_user_from_request(request)
+
         url_factory = self._create_url_factory(request)
         url = url_factory.create_registry_version_check_url()
         token = await self._upstream_token_manager.get_token_without_scope()
@@ -181,6 +206,8 @@ class V2Handler:
         return Response(status=403)
 
     async def handle(self, request: Request) -> StreamResponse:
+        await self._get_user_from_request(request)
+
         url_factory = self._create_url_factory(request)
 
         # TODO: prevent leaking sensitive headers
@@ -275,7 +302,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     async def _init_app(app: aiohttp.web.Application):
 
         async def on_request_redirect(session, ctx, params):
-            logger.debug('REDIRECT %s', params.response)
+            logger.debug('upstream redirect response: %s', params.response)
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_redirect.append(on_request_redirect)

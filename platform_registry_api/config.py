@@ -9,6 +9,13 @@ from yarl import URL
 class ServerConfig:
     host: str = '0.0.0.0'
     port: int = 8080
+    name: str = 'Docker Registry'
+
+
+@dataclass(frozen=True)
+class AuthConfig:
+    username: str
+    password: str
 
 
 @dataclass(frozen=True)
@@ -17,19 +24,16 @@ class UpstreamRegistryConfig:
     project: str
     # TODO: should be derived from the WWW-Authenticate header instead
     token_endpoint_url: URL
+    token_service: str
     token_endpoint_username: str = field(repr=False)
     token_endpoint_password: str = field(repr=False)
-
-    @property
-    def token_service(self) -> str:
-        assert self.endpoint_url.host
-        return self.endpoint_url.host
 
 
 @dataclass(frozen=True)
 class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
+    auth: AuthConfig
 
 
 class EnvironConfigFactory:
@@ -45,6 +49,7 @@ class EnvironConfigFactory:
         project = self._environ['NP_REGISTRY_UPSTREAM_PROJECT']
         token_endpoint_url = URL(
             self._environ['NP_REGISTRY_UPSTREAM_TOKEN_URL'])
+        token_service = self._environ['NP_REGISTRY_UPSTREAM_TOKEN_SERVICE']
         token_endpoint_username = self._environ[
             'NP_REGISTRY_UPSTREAM_TOKEN_USERNAME']
         token_endpoint_password = self._environ[
@@ -53,13 +58,23 @@ class EnvironConfigFactory:
             endpoint_url=endpoint_url,
             project=project,
             token_endpoint_url=token_endpoint_url,
+            token_service=token_service,
             token_endpoint_username=token_endpoint_username,
             token_endpoint_password=token_endpoint_password,
             )
 
+    def create_auth(self) -> AuthConfig:
+        return AuthConfig(  # type: ignore
+            username=self._environ['NP_REGISTRY_AUTH_USERNAME'],
+            password=self._environ['NP_REGISTRY_AUTH_PASSWORD'],
+        )
+
     def create(self) -> Config:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
+        auth_config = self.create_auth()
         return Config(  # type: ignore
             server=server_config,
-            upstream_registry=upstream_registry_config)
+            upstream_registry=upstream_registry_config,
+            auth=auth_config,
+        )

@@ -4,16 +4,14 @@ IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
 
 build:
-	docker build \
-	    -t $(IMAGE_NAME):$(IMAGE_TAG) \
-	    -t $(IMAGE_K8S):$(IMAGE_TAG) .
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
 
 test_e2e_built:
 	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml up -d; \
+	    -f tests/docker/e2e.compose.yml up -d registry; \
 	tests/e2e/tests.sh; exit_code=$$?; \
 	docker-compose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml kill; \
@@ -36,6 +34,21 @@ test_unit_built:
 _test_unit:
 	pytest -vv tests/unit
 
+test_integration: build_test test_integration_built
+
+test_integration_built:
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
+	exit_code=$$?; \
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml kill; \
+	docker-compose --project-directory=`pwd` \
+	    -f tests/docker/e2e.compose.yml rm -f; \
+	exit $$exit_code
+
+_test_integration:
+	pytest -vv tests/integration
+
 _lint:
 	flake8 platform_registry_api tests
 
@@ -51,8 +64,9 @@ gke_login: build
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
 	sudo /opt/google-cloud-sdk/bin/gcloud config set compute/zone $(GKE_COMPUTE_ZONE)
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
-        
+
 gke_docker_push:
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG) .
 	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
 	sudo /opt/google-cloud-sdk/bin/gcloud docker -- push $(IMAGE_K8S)        
 
@@ -65,4 +79,3 @@ gke_k8s_deploy_staging:
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_STAGE_CLUSTER_NAME)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=staging" --set "IMAGE.staging=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi        
-        
