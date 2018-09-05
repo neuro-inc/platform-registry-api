@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 install_requires = (
     'aiodns==1.1.1',
-    'aiohttp==3.3.2',
+    'aiohttp==3.4.4',
     'cchardet==2.1.1',
     'dataclasses==0.6',  # backport from 3.7 stdlib
 )
