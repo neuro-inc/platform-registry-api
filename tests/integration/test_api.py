@@ -86,3 +86,16 @@ class TestV2Api:
                 'detail': {'name': 'testproject/neuromation/unknown'},
                 'message': 'repository name not known to registry',
             }]}
+
+    @pytest.mark.asyncio
+    async def test_x_forwarded_proto(self, aiohttp_client, config):
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        auth = BasicAuth(login='neuromation', password='neuromation')
+        headers = {'X-Forwarded-Proto': 'https'}
+        async with client.post(
+                '/v2/neuromation/image/blobs/uploads/', auth=auth,
+                headers=headers) as resp:
+            assert resp.status == 202
+            location_url = URL(resp.headers['Location'])
+            assert location_url.scheme == 'https'

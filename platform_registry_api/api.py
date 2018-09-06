@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Tuple
 
 import aiohttp.web
+import aiohttp_remotes
 from aiohttp import BasicAuth, ClientSession
 from aiohttp.web import (
     Application, HTTPBadRequest, HTTPUnauthorized, Request, Response,
@@ -302,6 +303,8 @@ class V2Handler:
 
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
+
+    await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
 
     async def _init_app(app: aiohttp.web.Application):
 
