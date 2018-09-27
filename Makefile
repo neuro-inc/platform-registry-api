@@ -62,8 +62,9 @@ format:
 	isort -rc platform_registry_api tests
 
 gke_login:
-	gcloud --quiet components update --version 204.0.0
-	gcloud --quiet components update --version 204.0.0 kubectl
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
+	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
+	sudo chown circleci:circleci -R $$HOME
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
