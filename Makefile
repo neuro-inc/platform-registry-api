@@ -10,7 +10,7 @@ else
 endif
 
 build:
-	-docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
@@ -62,9 +62,9 @@ format:
 	isort -rc platform_registry_api tests
 
 gke_login:
-	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
-	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
-	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
+	gcloud --quiet components update --version 204.0.0
+	gcloud --quiet components update --version 204.0.0 kubectl
+	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
 	gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
