@@ -236,6 +236,7 @@ class V2Handler:
         else:  # POST, PUT, PATCH, DELETE
             action = 'write'
         permission = Permission(uri=uri, action=action)
+        logger.info(f'Checking {permission}')
         try:
             await check_permission(request, action, [permission])
         except HTTPUnauthorized:
