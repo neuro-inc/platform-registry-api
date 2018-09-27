@@ -49,7 +49,7 @@ services:
     environment:
     - NP_REGISTRY_API_PORT=5000
     - NP_REGISTRY_AUTH_URL=http://auth_server:5003
-    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6InJlZ2lzdHJ5In0.Kcmj1HLhYgNcdj7PlvCbLNnnuZ-Hqgsa_kcn8GmNjw8
+    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6ImFkbWluIn0.ZWS9jwSdIbCxWfihvJfKwMkO27-R1Q5X7fQUwYbuO_E
     - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
     - NP_REGISTRY_UPSTREAM_PROJECT=testproject
     - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
