@@ -6,7 +6,8 @@ ARG PIP_INDEX_URL
 
 # installing dependencies ONLY
 COPY setup.py ./
-RUN pip install -e . && \
+RUN \
+    pip install -e . && \
     pip uninstall -y platform-registry-api
 
 # installing platform-registry-api

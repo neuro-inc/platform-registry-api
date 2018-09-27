@@ -11,11 +11,14 @@ from aiohttp.web import (
     Application, HTTPBadRequest, HTTPUnauthorized, Request, Response,
     StreamResponse
 )
+from aiohttp_security import check_authorized, check_permission
+from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
+from neuro_auth_client import AuthClient, Permission, User
+from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
-from .user import InMemoryUserService, User, UserServiceException
 
 
 logger = logging.getLogger(__name__)
@@ -148,8 +151,6 @@ class V2Handler:
         self._config = config
         self._upstream_registry_config = config.upstream_registry
 
-        self._user_service = InMemoryUserService(config=config)
-
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
         return self._app['registry_client']
@@ -173,19 +174,13 @@ class V2Handler:
         )
 
     async def _get_user_from_request(self, request: Request) -> User:
-        auth_header = request.headers.get('Authorization')
-        if auth_header is None:
-            self._raise_unauthorized()
         try:
-            basic_auth = BasicAuth.decode(auth_header)
+            user_name = await check_authorized(request)
         except ValueError:
             raise HTTPBadRequest()
-        try:
-            user = await self._user_service.get_user_with_credentials(
-                basic_auth)
-        except UserServiceException:
+        except HTTPUnauthorized:
             self._raise_unauthorized()
-        return user
+        return User(name=user_name)
 
     def _raise_unauthorized(self) -> None:
         raise HTTPUnauthorized(headers={
@@ -215,11 +210,11 @@ class V2Handler:
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
 
-        await self._get_user_from_request(request)
+        registry_repo_url = RepoURL.from_url(request.url)
+
+        await self._check_user_permissions(request, registry_repo_url.repo)
 
         url_factory = self._create_url_factory(request)
-
-        registry_repo_url = RepoURL.from_url(request.url)
         upstream_repo_url = url_factory.create_upstream_repo_url(
             registry_repo_url)
 
@@ -233,6 +228,18 @@ class V2Handler:
         return await self._proxy_request(
             request, url_factory=url_factory,
             url=upstream_repo_url.url, token=token)
+
+    async def _check_user_permissions(self, request, repo: str) -> None:
+        uri = 'image://' + repo
+        if request.method in ('HEAD', 'GET'):
+            action = 'read'
+        else:  # POST, PUT, PATCH, DELETE
+            action = 'write'
+        permission = Permission(uri=uri, action=action)
+        try:
+            await check_permission(request, action, [permission])
+        except HTTPUnauthorized:
+            self._raise_unauthorized()
 
     async def _proxy_request(
             self, request: Request, url_factory: URLFactory, url: URL,
@@ -307,20 +314,37 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
 
     async def _init_app(app: aiohttp.web.Application):
+        async with AsyncExitStack() as exit_stack:
 
-        async def on_request_redirect(session, ctx, params):
-            logger.debug('upstream redirect response: %s', params.response)
+            async def on_request_redirect(session, ctx, params):
+                logger.debug('upstream redirect response: %s', params.response)
 
-        trace_config = aiohttp.TraceConfig()
-        trace_config.on_request_redirect.append(on_request_redirect)
+            trace_config = aiohttp.TraceConfig()
+            trace_config.on_request_redirect.append(on_request_redirect)
 
-        async with aiohttp.ClientSession(
-                trace_configs=[trace_config]) as session:
+            logger.info('Initializing Registry Client Session')
+
+            session = await exit_stack.enter_async_context(
+                aiohttp.ClientSession(trace_configs=[trace_config])
+            )
+
             app['v2_app']['registry_client'] = session
             app['v2_app']['upstream_token_manager'] = UpstreamTokenManager(
                 client=session,
                 registry_config=config.upstream_registry,
             )
+
+            auth_client = await exit_stack.enter_async_context(AuthClient(
+                url=config.auth.server_endpoint_url,
+                token=config.auth.service_token,
+            ))
+
+            await setup_security(
+                app=app,
+                auth_client=auth_client,
+                auth_scheme=AuthScheme.BASIC
+            )
+
             yield
 
     app.cleanup_ctx.append(_init_app)
