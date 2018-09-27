@@ -1,5 +1,11 @@
+import uuid
+from dataclasses import dataclass
+from typing import Optional
+
 import pytest
 from aiohttp import BasicAuth
+from jose import jwt
+from neuro_auth_client import AuthClient, User
 from yarl import URL
 
 from platform_registry_api.api import create_app
@@ -10,7 +16,20 @@ from platform_registry_api.config import (
 
 
 @pytest.fixture
-def config(in_docker):
+def token_factory():
+    def _factory(name: str):
+        payload = {'identity': name}
+        return jwt.encode(payload, 'secret', algorithm='HS256')
+    return _factory
+
+
+@pytest.fixture
+def admin_token(token_factory):
+    return token_factory('admin')
+
+
+@pytest.fixture
+def config(in_docker, admin_token):
     if in_docker:
         return EnvironConfigFactory().create()
 
@@ -22,9 +41,39 @@ def config(in_docker):
         token_endpoint_username='testuser',
         token_endpoint_password='testpassword',
     )
-    auth = AuthConfig(username='neuromation', password='neuromation')
+    auth = AuthConfig(
+        server_endpoint_url=URL('http://localhost:5003'),
+        service_token=admin_token
+    )
     return Config(
         server=ServerConfig(), upstream_registry=upstream_registry, auth=auth)
+
+
+@dataclass
+class _User:
+    name: str
+    token: str
+
+
+@pytest.fixture
+async def auth_client(config, admin_token):
+    async with AuthClient(
+        url=config.auth.server_endpoint_url, token=admin_token
+    ) as client:
+        yield client
+
+
+@pytest.fixture
+async def regular_user_factory(auth_client, token_factory):
+    async def _factory(name: Optional[str] = None) -> User:
+        if not name:
+            name = str(uuid.uuid4())
+        user = User(name=name)
+        await auth_client.add_user(user)
+        return _User(  # type: ignore
+            name=user.name, token=token_factory(user.name)
+        )
+    return _factory
 
 
 class TestV2Api:
@@ -48,10 +97,13 @@ class TestV2Api:
             assert resp.status == 400
 
     @pytest.mark.asyncio
-    async def test_version_check(self, aiohttp_client, config):
+    async def test_version_check(
+        self, aiohttp_client, config, regular_user_factory
+    ):
+        user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login='neuromation', password='neuromation')
+        auth = BasicAuth(login=user.token, password='')
         async with client.get('/v2/', auth=auth) as resp:
             assert resp.status == 200
 
@@ -72,30 +124,35 @@ class TestV2Api:
                 'Basic realm="Docker Registry"')
 
     @pytest.mark.asyncio
-    async def test_unknown_repo(self, aiohttp_client, config):
+    async def test_unknown_repo(
+        self, aiohttp_client, config, regular_user_factory
+    ):
+        user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login='neuromation', password='neuromation')
-        async with client.get(
-                '/v2/neuromation/unknown/tags/list', auth=auth) as resp:
+        auth = BasicAuth(login=user.token, password='')
+        url = f'/v2/{user.name}/unknown/tags/list'
+        async with client.get(url, auth=auth) as resp:
             assert resp.status == 404
             payload = await resp.json()
             assert payload == {'errors': [{
                 'code': 'NAME_UNKNOWN',
                 # TODO: this has to be fixed ASAP:
-                'detail': {'name': 'testproject/neuromation/unknown'},
+                'detail': {'name': f'testproject/{user.name}/unknown'},
                 'message': 'repository name not known to registry',
             }]}
 
     @pytest.mark.asyncio
-    async def test_x_forwarded_proto(self, aiohttp_client, config):
+    async def test_x_forwarded_proto(
+        self, aiohttp_client, config, regular_user_factory
+    ):
+        user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login='neuromation', password='neuromation')
+        auth = BasicAuth(login=user.token, password='')
         headers = {'X-Forwarded-Proto': 'https'}
-        async with client.post(
-                '/v2/neuromation/image/blobs/uploads/', auth=auth,
-                headers=headers) as resp:
+        url = f'/v2/{user.name}/image/blobs/uploads/'
+        async with client.post(url, auth=auth, headers=headers) as resp:
             assert resp.status == 202
             location_url = URL(resp.headers['Location'])
             assert location_url.scheme == 'https'
