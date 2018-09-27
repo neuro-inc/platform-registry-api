@@ -15,7 +15,7 @@ class ServerConfig:
 @dataclass(frozen=True)
 class AuthConfig:
     server_endpoint_url: URL
-    service_token: str
+    service_token: str = field(repr=False)
 
 
 @dataclass(frozen=True)
