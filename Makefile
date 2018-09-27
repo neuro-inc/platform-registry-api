@@ -10,12 +10,16 @@ else
 endif
 
 build:
-	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) --no-cache .
+
+pull:
+	-docker-compose --project-directory=`pwd` -p platformregistryapi \
+	    -f tests/docker/e2e.compose.yml pull
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
 
-test_e2e_built:
+test_e2e_built: pull
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
 	    -f tests/docker/e2e.compose.yml up -d registry; \
 	tests/e2e/tests.sh; exit_code=$$?; \
@@ -42,7 +46,7 @@ _test_unit:
 
 test_integration: build_test test_integration_built
 
-test_integration_built:
+test_integration_built: pull
 	docker-compose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
