@@ -3,8 +3,15 @@ IMAGE_TAG ?= latest
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
 
+ifdef CIRCLECI
+    DEVPI_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)"
+else
+    DEVPI_URL ?= $(shell grep -e 'extra-index-url = ' ~/.pip/pip.conf | head | cut -d'=' -f2)
+endif
+PIP_INSTALL_OPTS ?= --extra-index-url $(DEVPI_URL)
+
 build:
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	-docker build --build-arg pip_install_opts="$(PIP_INSTALL_OPTS)" -t $(IMAGE_NAME):$(IMAGE_TAG) --no-cache .
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
