@@ -16,7 +16,7 @@ build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
 
 test_e2e_built:
-	docker-compose --project-directory=`pwd` \
+	docker-compose --project-directory=`pwd` -p platformregistryapi \
 	    -f tests/docker/e2e.compose.yml up -d registry; \
 	tests/e2e/tests.sh; exit_code=$$?; \
 	docker-compose --project-directory=`pwd` \

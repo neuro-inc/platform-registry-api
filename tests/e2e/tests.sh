@@ -7,7 +7,7 @@ export SHELLOPTS
 
 function generate_user_token() {
     local name=$1
-    docker exec platform-registry-api_auth_server_1 platform-auth-make-token $name
+    docker exec platformregistryapi_auth_server_1 platform-auth-make-token $name
 }
 
 function create_regular_user() {
