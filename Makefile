@@ -62,7 +62,7 @@ _lint:
 format:
 	isort -rc platform_registry_api tests
 
-gke_login: build
+gke_login:
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)//gcloud-service-key.json
@@ -70,19 +70,23 @@ gke_login: build
 	sudo /opt/google-cloud-sdk/bin/gcloud config set project $(GKE_PROJECT_ID)
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
 	sudo /opt/google-cloud-sdk/bin/gcloud config set compute/zone $(GKE_COMPUTE_ZONE)
+	sudo /opt/google-cloud-sdk/bin/gcloud auth configure-docker
+
+_helm:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
 
-gke_docker_push:
+
+gke_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
 	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
-	sudo /opt/google-cloud-sdk/bin/gcloud docker -- push $(IMAGE_K8S)
+	docker push $(IMAGE_K8S)
 
-gke_k8s_deploy_dev:
+gke_k8s_deploy_dev: _helm
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=dev" --set "IMAGE.dev=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi
 
-gke_k8s_deploy_staging:
+gke_k8s_deploy_staging: _helm
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet container clusters get-credentials $(GKE_STAGE_CLUSTER_NAME)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=staging" --set "IMAGE.staging=$(IMAGE_K8S):$(CIRCLE_SHA1)" --wait --timeout 600 upgrade platformregistryapi deploy/platformregistryapi
