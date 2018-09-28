@@ -54,6 +54,11 @@ class _User:
     name: str
     token: str
 
+    def to_basic_auth(self) -> BasicAuth:
+        return BasicAuth(  # type: ignore
+            login=self.name, password=self.token
+        )
+
 
 @pytest.fixture
 async def auth_client(config, admin_token):
@@ -103,7 +108,7 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login=user.token, password='')
+        auth = user.to_basic_auth()
         async with client.get('/v2/', auth=auth) as resp:
             assert resp.status == 200
 
@@ -130,7 +135,7 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login=user.token, password='')
+        auth = user.to_basic_auth()
         url = f'/v2/{user.name}/unknown/tags/list'
         async with client.get(url, auth=auth) as resp:
             assert resp.status == 404
@@ -149,7 +154,7 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = BasicAuth(login=user.token, password='')
+        auth = user.to_basic_auth()
         headers = {'X-Forwarded-Proto': 'https'}
         url = f'/v2/{user.name}/image/blobs/uploads/'
         async with client.post(url, auth=auth, headers=headers) as resp:
