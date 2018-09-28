@@ -8,7 +8,7 @@ install_requires = (
     'async-exit-stack==1.0.1',  # backport from 3.7 stdlib
     'cchardet==2.1.1',
     'dataclasses==0.6',  # backport from 3.7 stdlib
-    'neuro_auth_client==0.0.1b2',
+    'neuro_auth_client==0.0.1b3',
 )
 
 setup(

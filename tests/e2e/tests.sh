@@ -31,8 +31,9 @@ function wait_for_registry() {
 
 
 function log_into_registry() {
-    local token=$1
-    docker login -u $token -p '-' localhost:5000
+    local name=$1
+    local token=$2
+    docker login -u $name -p $token localhost:5000
 }
 
 
@@ -61,6 +62,6 @@ USER_TOKEN=$(generate_user_token $USER_NAME)
 
 wait_for_registry
 create_regular_user $USER_NAME
-log_into_registry $USER_TOKEN
+log_into_registry $USER_NAME $USER_TOKEN
 test_pull_non_existent $USER_NAME
 test_push_pull $USER_NAME
