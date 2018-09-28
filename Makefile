@@ -10,7 +10,7 @@ else
 endif
 
 build:
-	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) --no-cache .
+	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
