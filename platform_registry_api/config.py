@@ -14,8 +14,8 @@ class ServerConfig:
 
 @dataclass(frozen=True)
 class AuthConfig:
-    username: str
-    password: str
+    server_endpoint_url: URL
+    service_token: str = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -64,9 +64,11 @@ class EnvironConfigFactory:
             )
 
     def create_auth(self) -> AuthConfig:
+        url = URL(self._environ['NP_REGISTRY_AUTH_URL'])
+        token = self._environ['NP_REGISTRY_AUTH_TOKEN']
         return AuthConfig(  # type: ignore
-            username=self._environ['NP_REGISTRY_AUTH_USERNAME'],
-            password=self._environ['NP_REGISTRY_AUTH_PASSWORD'],
+            server_endpoint_url=url,
+            service_token=token,
         )
 
     def create(self) -> Config:

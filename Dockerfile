@@ -2,6 +2,8 @@ FROM python:3.6.6-stretch
 
 WORKDIR /neuromation
 
+ARG PIP_INDEX_URL
+
 # installing dependencies ONLY
 COPY setup.py ./
 RUN \

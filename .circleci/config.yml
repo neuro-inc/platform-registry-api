@@ -14,6 +14,11 @@ jobs:
       - checkout
 
       - run:
+          name: Configuring Docker Client
+          command: |
+            make -s gke_login
+
+      - run:
           name: Running Static Code Analysis
           command: |
             make lint

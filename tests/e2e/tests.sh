@@ -5,6 +5,19 @@ set -x
 export SHELLOPTS
 
 
+function generate_user_token() {
+    local name=$1
+    docker exec platformregistryapi_auth_server_1 platform-auth-make-token $name
+}
+
+function create_regular_user() {
+    local name=$1
+    local data="{\"name\": \"$name\"}"
+    curl --fail --data "$data" -H "Authorization: Bearer $ADMIN_TOKEN" \
+        http://localhost:5003/api/v1/users
+}
+
+
 function wait_for_registry() {
     local cmd="curl http://localhost:5000/v2/ &> /dev/null"
     # this for loop waits until the registry api is available
@@ -14,25 +27,40 @@ function wait_for_registry() {
         fi
         sleep 2
     done
-    docker login -u neuromation -p neuromation localhost:5000
+}
+
+
+function log_into_registry() {
+    local token=$1
+    docker login -u $token -p '-' localhost:5000
 }
 
 
 function test_pull_non_existent() {
-    local output=$(docker pull localhost:5000/unknown:latest 2>&1)
-    [[ $output == *"manifest for localhost:5000/unknown:latest not found"* ]]
+    local name=$1
+    local output=$(docker pull localhost:5000/$name/unknown:latest 2>&1)
+    [[ $output == *"manifest for localhost:5000/$name/unknown:latest not found"* ]]
 }
 
 
 function test_push_pull() {
-    docker rmi ubuntu:latest localhost:5000/ubuntu:latest || :
+    local name=$1
+    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
     docker pull ubuntu:latest
-    docker tag ubuntu:latest localhost:5000/ubuntu:latest
-    docker push localhost:5000/ubuntu:latest
-    docker rmi ubuntu:latest localhost:5000/ubuntu:latest
-    docker pull localhost:5000/ubuntu:latest
+    docker tag ubuntu:latest localhost:5000/$name/ubuntu:latest
+    docker push localhost:5000/$name/ubuntu:latest
+    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
+    docker pull localhost:5000/$name/ubuntu:latest
 }
 
+
+ADMIN_TOKEN=$(generate_user_token admin)
+
+USER_NAME=$(uuidgen | awk '{print tolower($0)}')
+USER_TOKEN=$(generate_user_token $USER_NAME)
+
 wait_for_registry
-test_pull_non_existent
-test_push_pull
+create_regular_user $USER_NAME
+log_into_registry $USER_TOKEN
+test_pull_non_existent $USER_NAME
+test_push_pull $USER_NAME
