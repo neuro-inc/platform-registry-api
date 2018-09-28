@@ -87,10 +87,6 @@ workflows:
           context: org-global
           requires:
             - test
-          filters:
-            branches:
-              only:
-                - master
       - gke_stage_deploy:
           context: org-global
           requires:
