@@ -10,3 +10,7 @@ INGRESS_HOST:
   _default: registry.dev.neuromation.io
   dev: registry.dev.neuromation.io
   staging: registry.staging.neuromation.io
+NP_REGISTRY_AUTH_URL:
+  _default: https://platform.dev.neuromation.io
+  dev: https://platform.dev.neuromation.io
+  staging: https://platform.staging.neuromation.io

@@ -23,7 +23,7 @@ spec:
         imagePullPolicy: Always
         env:
         - name: NP_REGISTRY_AUTH_URL
-          value: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST | first | default .Values.INGRESS_HOST._default) }}
+          value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_AUTH_URL | first | default .Values.NP_REGISTRY_AUTH_URL._default) }}
         - name: NP_REGISTRY_AUTH_TOKEN
           valueFrom:
             secretKeyRef:
