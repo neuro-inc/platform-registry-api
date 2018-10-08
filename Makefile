@@ -77,7 +77,7 @@ gke_login:
 	gcloud auth configure-docker
 
 _helm:
-	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash
+	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v v2.11.0
 
 
 gke_docker_push: build
