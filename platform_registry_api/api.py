@@ -326,7 +326,17 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             logger.info('Initializing Registry Client Session')
 
             session = await exit_stack.enter_async_context(
-                aiohttp.ClientSession(trace_configs=[trace_config])
+                aiohttp.ClientSession(
+                    trace_configs=[trace_config],
+                    timeout=aiohttp.ClientTimeout(
+                        total=None,
+                        connect=None,
+                        sock_connect=(
+                            config.upstream_registry.sock_connect_timeout_s),
+                        sock_read=(
+                            config.upstream_registry.sock_read_timeout_s),
+                    ),
+                )
             )
 
             app['v2_app']['registry_client'] = session

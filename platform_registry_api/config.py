@@ -28,6 +28,9 @@ class UpstreamRegistryConfig:
     token_endpoint_username: str = field(repr=False)
     token_endpoint_password: str = field(repr=False)
 
+    sock_connect_timeout_s: Optional[float] = 30.
+    sock_read_timeout_s: Optional[float] = 30.
+
 
 @dataclass(frozen=True)
 class Config:
