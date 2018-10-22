@@ -229,9 +229,12 @@ class V2Handler:
             request, url_factory=url_factory,
             url=upstream_repo_url.url, token=token)
 
+    def _is_pull_request(self, request: Request) -> bool:
+        return request.method in ('HEAD', 'GET')
+
     async def _check_user_permissions(self, request, repo: str) -> None:
         uri = 'image://' + repo
-        if request.method in ('HEAD', 'GET'):
+        if self._is_pull_request(request):
             action = 'read'
         else:  # POST, PUT, PATCH, DELETE
             action = 'write'
@@ -242,18 +245,36 @@ class V2Handler:
         except HTTPUnauthorized:
             self._raise_unauthorized()
 
+    def _create_registry_client_timeout(
+        self, request: Request
+    ) -> aiohttp.ClientTimeout:
+        sock_read_timeout_s = None
+        if self._is_pull_request(request):
+            sock_read_timeout_s = (
+                self._upstream_registry_config.sock_read_timeout_s
+            )
+        return aiohttp.ClientTimeout(
+            total=None,
+            connect=None,
+            sock_connect=self._upstream_registry_config.sock_connect_timeout_s,
+            sock_read=sock_read_timeout_s,
+        )
+
     async def _proxy_request(
             self, request: Request, url_factory: URLFactory, url: URL,
             token: str) -> StreamResponse:
         request_headers = self._prepare_request_headers(
             request.headers, token=token)
 
+        timeout = self._create_registry_client_timeout(request)
+
         async with self._registry_client.request(
                 method=request.method,
                 url=url,
                 headers=request_headers,
                 skip_auto_headers=('Content-Type',),
-                data=request.content.iter_any()) as client_response:
+                data=request.content.iter_any(),
+                timeout=timeout) as client_response:
 
             logger.debug('upstream response: %s', client_response)
 
@@ -328,14 +349,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             session = await exit_stack.enter_async_context(
                 aiohttp.ClientSession(
                     trace_configs=[trace_config],
-                    timeout=aiohttp.ClientTimeout(
-                        total=None,
-                        connect=None,
-                        sock_connect=(
-                            config.upstream_registry.sock_connect_timeout_s),
-                        sock_read=(
-                            config.upstream_registry.sock_read_timeout_s),
-                    ),
                 )
             )
 
