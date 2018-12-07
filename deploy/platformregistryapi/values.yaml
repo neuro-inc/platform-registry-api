@@ -14,3 +14,23 @@ NP_REGISTRY_AUTH_URL:
   _default: https://platform.dev.neuromation.io
   dev: https://platform.dev.neuromation.io
   staging: https://platform.staging.neuromation.io
+NP_STORAGE_REQUESTS_CPU:
+  _default: "0.1"
+  dev: "0.1"
+  staging: "0.1"
+NP_STORAGE_LIMITS_CPU:
+  _default: "0.3"
+  dev: "0.2"
+  staging: "0.1"
+NP_STORAGE_REQUESTS_MEMORY:
+  _default: "150Mi"
+  dev: "100Mi"
+  staging: "100Mi"
+NP_STORAGE_LIMITS_MEMORY:
+  _default: "300Mi"
+  dev: "150Mi"
+  staging: "200Mi"
+NP_STORAGE_REPLICAS:
+  _default: "2"
+  dev: "2"
+  staging: "2"
