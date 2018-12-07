@@ -21,7 +21,7 @@ NP_REGISTRY_REQUESTS_CPU:
 NP_REGISTRY_LIMITS_CPU:
   _default: "0.3"
   dev: "0.2"
-  staging: "0.1"
+  staging: "0.2"
 NP_REGISTRY_REQUESTS_MEMORY:
   _default: "150Mi"
   dev: "100Mi"
