@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Iterable, List, Tuple
+from typing import Any, ClassVar, List, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -80,6 +80,9 @@ class URLFactory:
 
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path('/v2/')
+
+    def create_upstream_catalog_url(self, request_url: URL) -> URL:
+        return self._upstream_endpoint_url.with_path(request_url.path)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
         repo = f'{self._upstream_project}/{registry_url.repo}'
@@ -204,7 +207,7 @@ class V2Handler:
             request, url_factory=url_factory, url=url, token=token)
 
     @classmethod
-    def _filter_images(cls, images: Iterable[str], repository: str) -> List[str]:
+    def _filter_images(cls, images: List[str], repository: str) -> List[str]:
         if images is None:
             return []
         if not repository:
@@ -218,13 +221,12 @@ class V2Handler:
 
         user = await self._get_user_from_request(request)
 
-        token = await self._upstream_token_manager.get_token_for_catalog()
         url_factory = self._create_url_factory(request)
-        url = url_factory._upstream_endpoint_url.with_path(request.url.path)
+        url = url_factory.create_upstream_catalog_url(request.url)
+        token = await self._upstream_token_manager.get_token_for_catalog()
 
         headers = self._prepare_request_headers(request.headers, token=token)
         timeout = self._create_registry_client_timeout(request)
-        logger.debug(f"upstream headers: '{headers}'")
 
         async with self._registry_client.request(
                 method=request.method,
@@ -237,6 +239,7 @@ class V2Handler:
 
             content_type = client_response.content_type
             assert content_type == 'application/json', content_type
+
             json = await client_response.json()
             json = self._filter_images(json.get('repositories'), user.name)
 
