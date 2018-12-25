@@ -177,7 +177,7 @@ class V2Handler:
         try:
             user_name = await check_authorized(request)
         except ValueError:
-            raise HTTPBadRequest()
+            raise HTTPBadRequest(text="Cannot authorize")
         except HTTPUnauthorized:
             self._raise_unauthorized()
         return User(name=user_name)
