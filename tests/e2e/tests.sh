@@ -63,17 +63,17 @@ function test_docker_catalog() {
     local token=$2
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
-    local output=$(curl -H "Authorization: Basic $auth_basic_token" $url)
-    echo $output | jq -r .repositories | grep "testproject/$name/ubuntu" || return 1
+    local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
+    echo $output | grep "testproject/$name/ubuntu" || return 1
 }
 
 function debug_test_docker_catalog_directly() {
     # the way to get auth token for accessing _catalog without using platform-registry-api:
     local auth_url="http://localhost:5001/auth?service=upstream&scope=registry:catalog:*"
     local auth_basic_token=$(echo -n testuser:testpassword | base64 -w 0)
-    local registry_token=`curl -H "Authorization: Basic $auth_basic_token" "$auth_url" | jq -r .token`
+    local registry_token=`curl -sH "Authorization: Basic $auth_basic_token" "$auth_url" | jq -r .token`
     # ...and then access the docker-registry directly:
-    curl -v -H "Authorization: Bearer $registry_token" "http://localhost:5002/v2/_catalog"
+    curl -vsH "Authorization: Bearer $registry_token" "http://localhost:5002/v2/_catalog"
     # NOTE (A Yushkovskiy, 25.12.2018) Read materials:
     # - on docker registry auth protocol:
     #   https://github.com/docker/distribution/blob/master/docs/spec/auth/token.md
