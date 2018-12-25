@@ -203,13 +203,16 @@ class V2Handler:
         return await self._proxy_request(
             request, url_factory=url_factory, url=url, token=token)
 
-    async def handle_catalog(self, request: Request) -> Response:
-        def filter_images(images: Iterable[str], repository: str) -> List[str]:
-            if images is None:
-                return []
-            start = repository + '/'
-            return [i for i in images if i.startswith(start)]
+    @classmethod
+    def _filter_images(cls, images: Iterable[str], repository: str) -> List[str]:
+        if images is None:
+            return []
+        if not repository:
+            raise ValueError('Empty repository name')
+        start = repository + '/'
+        return [i for i in images if i.startswith(start)]
 
+    async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
 
@@ -235,7 +238,7 @@ class V2Handler:
             content_type = client_response.content_type
             assert content_type == 'application/json', content_type
             json = await client_response.json()
-            json = filter_images(json.get('repositories'), user.name)
+            json = self._filter_images(json.get('repositories'), user.name)
 
             response = aiohttp.web.json_response(
                 data=json,

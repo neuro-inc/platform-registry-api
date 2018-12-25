@@ -1,7 +1,7 @@
 import pytest
 from yarl import URL
 
-from platform_registry_api.api import RepoURL, URLFactory
+from platform_registry_api.api import RepoURL, URLFactory, V2Handler
 
 
 class TestRepoURL:
@@ -91,3 +91,32 @@ class TestURLFactory:
         with pytest.raises(
                 ValueError, match='Upstream project "unknown" does not match'):
             url_factory.create_registry_repo_url(up_repo_url)
+
+
+class TestV2Handler:
+
+    def test_filter_images__empty(self):
+        images = []
+        expected = V2Handler._filter_images(images, 'repo')
+        assert expected == []
+
+    def test_filter_images__none(self):
+        images = None
+        expected = V2Handler._filter_images(images, 'repo')
+        assert expected == []
+
+    def test_filter_images__short_repository_name(self):
+        images = ['repo/image1:good', 'repo/image2:good', 'repo99/image3:bad']
+        expected = V2Handler._filter_images(images, 'repo')
+        assert expected == ['repo/image1:good', 'repo/image2:good']
+
+    def test_filter_images__wrong_repository_name(self):
+        images = ['repository/image_1:bad', 'rep/img_2:bad', 'repo/img_3:bad']
+        expected = V2Handler._filter_images(images, 'abrakadabra')
+        assert expected == []
+
+    def test_filter_images__empty_repository_name(self):
+        images = ['repository/image_1:bad', 'rep/img_2:bad', 'repo/img_3:bad']
+        with pytest.raises(ValueError, match='Empty repository name'):
+            V2Handler._filter_images(images, '')
+            V2Handler._filter_images(images, None)
