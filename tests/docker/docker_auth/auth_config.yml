@@ -14,5 +14,4 @@ users:
 acl:
   - match:
       account: "testuser"
-      name: "/testproject/.+/"
     actions: ["*"]
