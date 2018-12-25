@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Tuple
+from typing import Any, ClassVar, Iterable, List, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -122,10 +122,12 @@ class UpstreamTokenManager:
         )
 
     async def _request(self, url: URL) -> str:
+        logger.debug(f'auth get token url: {url}, auth: {self._auth.encode()}')
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
+            logger.debug(f'auth response: {response}')
             return payload['token']
 
     async def get_token_without_scope(self) -> str:
@@ -134,6 +136,7 @@ class UpstreamTokenManager:
 
     async def get_token_for_catalog(self) -> str:
         url = self._base_url.update_query({
+            'service': self._registry_config.token_service,
             'scope': 'registry:catalog:*',
         })
         return await self._request(url)
@@ -177,7 +180,7 @@ class V2Handler:
         try:
             user_name = await check_authorized(request)
         except ValueError:
-            raise HTTPBadRequest(text="Cannot authorize")
+            raise HTTPBadRequest(text='Cannot authorize')
         except HTTPUnauthorized:
             self._raise_unauthorized()
         return User(name=user_name)
@@ -200,10 +203,51 @@ class V2Handler:
         return await self._proxy_request(
             request, url_factory=url_factory, url=url, token=token)
 
-    async def handle_catalog(self, request: Request) -> StreamResponse:
-        # TODO: compose proper payload
-        # see https://docs.docker.com/registry/spec/api/#errors
-        return Response(status=403)
+    async def handle_catalog(self, request: Request) -> Response:
+        def filter_images(images: Iterable[str], repository: str) -> List[str]:
+            if images is None:
+                return []
+            start = repository + '/'
+            return [i for i in images if i.startswith(start)]
+
+        logger.debug(
+            'registry request: %s; headers: %s', request, request.headers)
+
+        user = await self._get_user_from_request(request)
+
+        token = await self._upstream_token_manager.get_token_for_catalog()
+        url_factory = self._create_url_factory(request)
+        url = url_factory._upstream_endpoint_url.with_path(request.url.path)
+
+        headers = self._prepare_request_headers(request.headers, token=token)
+        timeout = self._create_registry_client_timeout(request)
+        logger.debug(f"upstream headers: '{headers}'")
+
+        async with self._registry_client.request(
+                method=request.method,
+                url=url,
+                headers=headers,
+                skip_auto_headers=('Content-Type',),
+                data=request.content.iter_any(),
+                timeout=timeout) as client_response:
+            logger.debug('upstream response: %s', client_response)
+
+            content_type = client_response.content_type
+            assert content_type == 'application/json', content_type
+            json = await client_response.json()
+            json = filter_images(json.get('repositories'), user.name)
+
+            response = aiohttp.web.json_response(
+                data=json,
+                status=aiohttp.web.HTTPOk.status_code
+            )
+            await response.prepare(request)
+
+            logger.debug(
+                'registry response: %s; headers: %s',
+                response, response.headers)
+
+            return response
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers

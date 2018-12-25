@@ -113,11 +113,25 @@ class TestV2Api:
             assert resp.status == 200
 
     @pytest.mark.asyncio
-    async def test_catalog(self, aiohttp_client, config):
+    async def test_catalog(self, aiohttp_client, config, regular_user_factory):
+        user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        async with client.get('/v2/_catalog') as resp:
-            assert resp.status == 403
+        auth = user.to_basic_auth()
+        url = '/v2/_catalog'
+        async with client.get(url, auth=auth) as resp:
+            assert resp.status == 200, await resp.text()
+            data = await resp.json()
+            assert 'repositories' in data
+            assert type(data['repositories']) is list
+
+    @pytest.mark.asyncio
+    async def test_catalog__no_auth(self, aiohttp_client, config):
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        url = '/v2/_catalog'
+        async with client.get(url) as resp:
+            assert resp.status == 401, await resp.text()
 
     @pytest.mark.asyncio
     async def test_repo_unauthorized(self, aiohttp_client, config):
