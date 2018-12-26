@@ -212,8 +212,8 @@ class V2Handler:
             return []
         if not repository:
             raise ValueError('Empty repository name')
-        start = repository + '/'
-        return [i for i in images if i.startswith(start)]
+        substr = f'/{repository}/'
+        return [img for img in images if substr in img]
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
@@ -241,7 +241,9 @@ class V2Handler:
             assert content_type == 'application/json', content_type
 
             json = await client_response.json()
-            json = self._filter_images(json.get('repositories'), user.name)
+            json = {
+                'repositories': self._filter_images(json.get('repositories'), user.name)
+            }
 
             response = aiohttp.web.json_response(
                 data=json,

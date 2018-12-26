@@ -43,7 +43,6 @@ function test_pull_non_existent() {
     [[ $output == *"manifest for localhost:5000/$name/unknown:latest not found"* ]]
 }
 
-
 function test_push_ls_pull() {
     local name=$1
     local token=$2
@@ -64,7 +63,7 @@ function test_docker_catalog() {
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
-    echo $output | grep "testproject/$name/ubuntu" || return 1
+    echo $output | jq -r .repository | grep "testproject/$name/ubuntu"
 }
 
 function debug_test_docker_catalog_directly() {
