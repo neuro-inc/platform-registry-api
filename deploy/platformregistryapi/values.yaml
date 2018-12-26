@@ -11,9 +11,9 @@ INGRESS_HOST:
   dev: registry.dev.neuromation.io
   staging: registry.staging.neuromation.io
 NP_REGISTRY_AUTH_URL:
-  _default: https://platform.dev.neuromation.io
-  dev: https://platform.dev.neuromation.io
-  staging: https://platform.staging.neuromation.io
+  _default: http://platformauthapi:8080
+  dev: http://platformauthapi:8080
+  staging: http://platformauthapi:8080
 NP_REGISTRY_REQUESTS_CPU:
   _default: "0.1"
   dev: "0.1"
