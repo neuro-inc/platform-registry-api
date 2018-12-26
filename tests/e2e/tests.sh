@@ -46,12 +46,12 @@ function test_pull_non_existent() {
 
 function test_push_pull() {
     local name=$1
-    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
-    docker pull ubuntu:latest
-    docker tag ubuntu:latest localhost:5000/$name/ubuntu:latest
-    docker push localhost:5000/$name/ubuntu:latest
-    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
-    docker pull localhost:5000/$name/ubuntu:latest
+    docker rmi alpine:latest localhost:5000/$name/alpine:latest || :
+    docker pull alpine:latest
+    docker tag alpine:latest localhost:5000/$name/alpine:latest
+    docker push localhost:5000/$name/alpine:latest
+    docker rmi alpine:latest localhost:5000/$name/alpine:latest
+    docker pull localhost:5000/$name/alpine:latest
 }
 
 
