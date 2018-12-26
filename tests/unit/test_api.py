@@ -82,14 +82,14 @@ class TestURLFactory:
         up_repo_url = RepoURL.from_url(URL(
             'http://upstream:5000/v2/image/tags/list?what='))
         with pytest.raises(
-                ValueError, match='Upstream project '' does not match'):
+                ValueError, match='Upstream project "" does not match'):
             url_factory.create_registry_repo_url(up_repo_url)
 
     def test_create_registry_repo_url_wrong_project(self, url_factory):
         up_repo_url = RepoURL.from_url(URL(
             'http://upstream:5000/v2/unknown/image/tags/list?what='))
         with pytest.raises(
-                ValueError, match="Upstream project 'unknown' does not match"):
+                ValueError, match='Upstream project "unknown" does not match'):
             url_factory.create_registry_repo_url(up_repo_url)
 
 
