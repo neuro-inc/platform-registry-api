@@ -82,41 +82,63 @@ class TestURLFactory:
         up_repo_url = RepoURL.from_url(URL(
             'http://upstream:5000/v2/image/tags/list?what='))
         with pytest.raises(
-                ValueError, match='Upstream project "" does not match'):
+                ValueError, match='Upstream project '' does not match'):
             url_factory.create_registry_repo_url(up_repo_url)
 
     def test_create_registry_repo_url_wrong_project(self, url_factory):
         up_repo_url = RepoURL.from_url(URL(
             'http://upstream:5000/v2/unknown/image/tags/list?what='))
         with pytest.raises(
-                ValueError, match='Upstream project "unknown" does not match'):
+                ValueError, match="Upstream project 'unknown' does not match"):
             url_factory.create_registry_repo_url(up_repo_url)
 
 
 class TestV2Handler:
+    _filter = V2Handler._filter_images_by_repository
 
-    def test_filter_images__empty(self):
+    def test__filter_images__empty_input(self):
         images = []
-        expected = V2Handler._filter_images(images, 'repo')
+        expected = self._filter('project', 'repository', images)
         assert expected == []
 
-    def test_filter_images__none(self):
-        images = None
-        expected = V2Handler._filter_images(images, 'repo')
-        assert expected == []
+    def test__filter_images__by_project_name(self):
+        images = [
+            'project1/repository/image1:bad',
+            'project/repository/image2:good',
+            'proj/repository/image3:bad',
+            'abrakadabra/repository/image4:bad',
+        ]
+        expected = self._filter('project', 'repository', images)
+        assert expected == ['project/repository/image2:good']
 
-    def test_filter_images__short_repository_name(self):
-        images = ['repo/image1:good', 'repo/image2:good', 'repo99/image3:bad']
-        expected = V2Handler._filter_images(images, 'repo')
-        assert expected == ['repo/image1:good', 'repo/image2:good']
+    def test__filter_images__by_repository_name(self):
+        images = [
+            'project/repository1/image1:bad',
+            'project/repository/image2:good',
+            'project/repo/image3:bad',
+            'project/abrakadabra/image4:bad',
+        ]
+        expected = self._filter('project', 'repository', images)
+        assert expected == ['project/repository/image2:good']
 
-    def test_filter_images__wrong_repository_name(self):
-        images = ['repository/image_1:bad', 'rep/img_2:bad', 'repo/img_3:bad']
-        expected = V2Handler._filter_images(images, 'abrakadabra')
-        assert expected == []
+    def test__filter_images__none_or_empty_project_name(self):
+        images = [
+            'project1/repository/image1:bad',
+            'project/repository/image2:bad',
+            'proj/repository/image3:bad',
+            'abrakadabra/repository/image4:bad',
+        ]
+        with pytest.raises(ValueError, match='Empty project name'):
+            self._filter(None, 'repository', images)
+            self._filter('', 'repository', images)
 
-    def test_filter_images__empty_repository_name(self):
-        images = ['repository/image_1:bad', 'rep/img_2:bad', 'repo/img_3:bad']
+    def test__filter_images__none_or_empty_repository_name(self):
+        images = [
+            'project/project1/image1:bad',
+            'project/project/image2:bad',
+            'project/proj/image3:bad',
+            'project/abrakadabra/image4:bad',
+        ]
         with pytest.raises(ValueError, match='Empty repository name'):
-            V2Handler._filter_images(images, '')
-            V2Handler._filter_images(images, None)
+            self._filter('project', None, images)
+            self._filter('project', '', images)

@@ -67,7 +67,7 @@ class URLFactory:
             upstream_project: str) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
-        self._upstream_project = upstream_project
+        self.upstream_project = upstream_project
 
     @classmethod
     def from_config(
@@ -85,7 +85,7 @@ class URLFactory:
         return self._upstream_endpoint_url.with_path(request_url.path)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        repo = f'{self._upstream_project}/{registry_url.repo}'
+        repo = f'{self.upstream_project}/{registry_url.repo}'
         return (
             registry_url
             .with_repo(repo)
@@ -97,10 +97,10 @@ class URLFactory:
             upstream_project, repo = upstream_repo.split('/', 1)
         except ValueError:
             upstream_project, repo = '', upstream_repo
-        if upstream_project != self._upstream_project:
+        if upstream_project != self.upstream_project:
             raise ValueError(
                 f'Upstream project "{upstream_project}" does not match '
-                f'the one configured "{self._upstream_project}"')
+                f'the one configured "{self.upstream_project}"')
         return (
             upstream_url
             .with_repo(repo)
@@ -207,11 +207,18 @@ class V2Handler:
             request, url_factory=url_factory, url=url, token=token)
 
     @classmethod
-    def _filter_images(cls, images: List[str], repository: str) -> List[str]:
+    def _filter_images_by_repository(
+            cls,
+            project: str,
+            repository: str,
+            images: List[str],
+    ) -> List[str]:
+        if not project:
+            raise ValueError('Empty project name')
         if not repository:
             raise ValueError('Empty repository name')
-        substr = f'/{repository}/'
-        return [img for img in images if substr in img]
+        start = f'{project}/{repository}/'
+        return [img for img in images if img.startswith(start)]
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
@@ -239,10 +246,15 @@ class V2Handler:
             assert content_type == 'application/json', content_type
 
             json = await client_response.json()
-            repos = json.get('repositories')
-            if repos is not None:
+            repositories_list = json.get('repositories')
+            if repositories_list is not None:
+                filtered = self._filter_images_by_repository(
+                    url_factory.upstream_project,
+                    user.name,
+                    repositories_list,
+                )
                 json = {
-                    'repositories': self._filter_images(repos, user.name)
+                    'repositories': filtered
                 }
 
             response = aiohttp.web.json_response(
