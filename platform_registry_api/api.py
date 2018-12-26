@@ -67,7 +67,11 @@ class URLFactory:
             upstream_project: str) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
-        self.upstream_project = upstream_project
+        self._upstream_project = upstream_project
+
+    @property
+    def upstream_project(self):
+        return self._upstream_project
 
     @classmethod
     def from_config(
