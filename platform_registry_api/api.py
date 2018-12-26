@@ -208,8 +208,6 @@ class V2Handler:
 
     @classmethod
     def _filter_images(cls, images: List[str], repository: str) -> List[str]:
-        if images is None:
-            return []
         if not repository:
             raise ValueError('Empty repository name')
         substr = f'/{repository}/'
@@ -241,9 +239,11 @@ class V2Handler:
             assert content_type == 'application/json', content_type
 
             json = await client_response.json()
-            json = {
-                'repositories': self._filter_images(json.get('repositories'), user.name)
-            }
+            repos = json.get('repositories')
+            if repos is not None:
+                json = {
+                    'repositories': self._filter_images(repos, user.name)
+                }
 
             response = aiohttp.web.json_response(
                 data=json,
