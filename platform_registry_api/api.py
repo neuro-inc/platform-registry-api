@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import re
+
+from aiohttp_security.api import AUTZ_KEY
 from dataclasses import dataclass
 from typing import Any, ClassVar, List, Tuple
 
@@ -15,7 +17,7 @@ from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
-from neuro_auth_client.security import AuthScheme, setup_security
+from neuro_auth_client.security import AuthScheme, setup_security, AuthPolicy
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
@@ -89,7 +91,7 @@ class URLFactory:
         return self._upstream_endpoint_url.with_path(request_url.path)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        repo = f'{self.upstream_project}/{registry_url.repo}'
+        repo = f'{self._upstream_project}/{registry_url.repo}'
         return (
             registry_url
             .with_repo(repo)
@@ -101,10 +103,10 @@ class URLFactory:
             upstream_project, repo = upstream_repo.split('/', 1)
         except ValueError:
             upstream_project, repo = '', upstream_repo
-        if upstream_project != self.upstream_project:
+        if upstream_project != self._upstream_project:
             raise ValueError(
                 f'Upstream project "{upstream_project}" does not match '
-                f'the one configured "{self.upstream_project}"')
+                f'the one configured "{self._upstream_project}"')
         return (
             upstream_url
             .with_repo(repo)
@@ -129,12 +131,11 @@ class UpstreamTokenManager:
         )
 
     async def _request(self, url: URL) -> str:
-        logger.debug(f'auth get token url: {url}, auth: {self._auth.encode()}')
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
-            logger.debug(f'auth response: {response}')
+            logger.debug(f'sponse: {response}')
             return payload['token']
 
     async def get_token_without_scope(self) -> str:
@@ -160,6 +161,10 @@ class V2Handler:
         self._app = app
         self._config = config
         self._upstream_registry_config = config.upstream_registry
+
+    @property
+    def _auth_policy(self) -> AuthPolicy:
+        return self._app[AUTZ_KEY]
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
@@ -210,19 +215,28 @@ class V2Handler:
         return await self._proxy_request(
             request, url_factory=url_factory, url=url, token=token)
 
-    @classmethod
-    def _filter_images_by_repository(
-            cls,
-            project: str,
-            repository: str,
+    async def filter_images_by_repository(
+            self,
+            project_name: str,
+            user_name: str,
             images: List[str],
     ) -> List[str]:
-        if not project:
-            raise ValueError('Empty project name')
-        if not repository:
-            raise ValueError('Empty repository name')
-        start = f'{project}/{repository}/'
-        return [img for img in images if img.startswith(start)]
+        def image_to_url_string(image: str) -> str:
+            start_str = project_name + '/'
+            if not image.startswith(start_str):
+                raise ValueError(
+                    f'Invalid image name {image}: must start with '
+                    f'the project name {project_name}'
+                )
+            image = image[len(start_str):]
+            image_url = URL.build(scheme='image', host=image)
+            return str(image_url)
+        result = []
+        for image in images:
+            perm = Permission(uri=image_to_url_string(image), action='list')
+            if await self._auth_policy.permits(user_name, "", [perm]):
+                result.append(image)
+        return result
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
@@ -249,20 +263,19 @@ class V2Handler:
             content_type = client_response.content_type
             assert content_type == 'application/json', content_type
 
-            json = await client_response.json()
-            repositories_list = json.get('repositories')
-            if repositories_list is not None:
-                filtered = self._filter_images_by_repository(
-                    url_factory.upstream_project,
-                    user.name,
-                    repositories_list,
-                )
-                json = {
-                    'repositories': filtered
-                }
+            result_dict = await client_response.json()
+            repositories_list = result_dict.get('repositories')
+            filtered = await self.filter_images_by_repository(
+                url_factory.upstream_project,
+                user.name,
+                repositories_list,
+            ) if repositories_list else []
+            result_dict = {
+                'repositories': filtered
+            }
 
             response = aiohttp.web.json_response(
-                data=json,
+                data=result_dict,
                 status=aiohttp.web.HTTPOk.status_code
             )
             await response.prepare(request)

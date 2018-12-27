@@ -43,19 +43,21 @@ function test_pull_non_existent() {
     [[ $output == *"manifest for localhost:5000/$name/unknown:latest not found"* ]]
 }
 
+
 function test_push_ls_pull() {
     local name=$1
     local token=$2
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
-    test_docker_catalog $name $token || echo "ok"
+    test_docker_catalog $name $token || :
     docker pull ubuntu:latest
     docker tag ubuntu:latest localhost:5000/$name/ubuntu:latest
     docker push localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token && echo "ok"
+    test_docker_catalog $name $token
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
     docker pull localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token || echo "ok"
+    test_docker_catalog $name $token || :
 }
+
 
 function test_docker_catalog() {
     local name=$1
@@ -63,8 +65,9 @@ function test_docker_catalog() {
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
-    echo $output | jq -r .repository | grep "testproject/$name/ubuntu"
+    echo $output | jq -r .repositories | grep "testproject/$name/ubuntu"
 }
+
 
 function debug_test_docker_catalog_directly() {
     # the way to get auth token for accessing _catalog without using platform-registry-api:
@@ -93,4 +96,4 @@ create_regular_user $USER_NAME
 log_into_registry $USER_NAME $USER_TOKEN
 test_pull_non_existent $USER_NAME
 test_push_ls_pull $USER_NAME $USER_TOKEN
-echo "finished"
+echo "OK"
