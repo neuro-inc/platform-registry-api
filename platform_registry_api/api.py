@@ -250,18 +250,6 @@ class V2Handler:
                     result.append(str(url))
         return result
 
-    def _image_filter(
-        self, images: List[str], access_tree: ClientSubTreeViewRoot
-    ) -> Iterator[str]:
-        tree = access_tree.sub_tree
-        is_list_action = tree.action == 'list'
-
-        for image in images:
-            sub_tree = tree.children.get(image)
-            if is_list_action and not sub_tree:
-                continue
-            yield image
-
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
