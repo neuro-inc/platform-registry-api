@@ -1,9 +1,8 @@
 import asyncio
 import logging
 import re
-
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Tuple, Iterator
+from typing import Any, ClassVar, Iterator, List, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -262,7 +261,6 @@ class V2Handler:
             if is_list_action and not sub_tree:
                 continue
             yield image
-
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
