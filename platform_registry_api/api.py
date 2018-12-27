@@ -2,9 +2,8 @@ import asyncio
 import logging
 import re
 
-from aiohttp_security.api import AUTZ_KEY
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Tuple
+from typing import Any, ClassVar, List, Tuple, Iterator
 
 import aiohttp.web
 import aiohttp_remotes
@@ -18,7 +17,7 @@ from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
-from neuro_auth_client.security import AuthScheme, setup_security, AuthPolicy
+from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
@@ -222,26 +221,48 @@ class V2Handler:
             uname: str,
             images: List[str],
     ) -> List[str]:
-        def image_to_url_string(image: str) -> str:
-            start_str = project_name + '/'
-            if not image.startswith(start_str):
+
+        def split_image_name(image: str) -> Tuple[str, str, str]:
+            if image.count('/') != 2:
+                raise ValueError(
+                    f'Invalid image name {image}: '
+                    'must include project and repository delimited by slash'
+                )
+            split = image.split('/')
+            found_project_name = split[0]
+            if found_project_name != project_name:
                 raise ValueError(
                     f'Invalid image name {image}: must start with '
                     f'the project name {project_name}'
                 )
-            image = image[len(start_str):]
-            image_url = URL.build(scheme='image', host=image)
-            return str(image_url)
+            found_repo_name = split[1]
+            found_image_name = '/'.join(split[2:])
+            return found_project_name, found_repo_name, found_image_name
+
         result = []
-        for img in images:
-            img = image_to_url_string(img)
-            perm = Permission(img, 'list')
-            # tree = await self._auth_client.get_permissions_tree(uname, img)
-            # if tree.sub_tree.action != 'deny':
-            #     result.append(img)
-            if await self._auth_client.check_user_permissions(uname, [perm]):
-                result.append(img)
+        tree = await self._auth_client.get_permissions_tree(uname, 'image:')
+        tree = tree.sub_tree
+        for image_full_name in images:
+            proj, repo, img = split_image_name(image_full_name)
+            if repo in tree.children:
+                subtree = tree.children[repo]
+                if subtree.action != 'deny':
+                    url = URL.build(scheme='image', host=repo, path='/' + img)
+                    result.append(str(url))
         return result
+
+    def _image_filter(
+        self, images: List[str], access_tree: ClientSubTreeViewRoot
+    ) -> Iterator[str]:
+        tree = access_tree.sub_tree
+        is_list_action = tree.action == 'list'
+
+        for image in images:
+            sub_tree = tree.children.get(image)
+            if is_list_action and not sub_tree:
+                continue
+            yield image
+
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
