@@ -44,30 +44,50 @@ function test_pull_non_existent() {
 }
 
 
-function test_push_ls_pull() {
+function test_push_catalog_pull() {
     local name=$1
     local token=$2
-    local empty_output='{"repositories"\: \[\]}'
-    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
-    test_docker_catalog $name $token "$empty_output" || :
-    docker pull ubuntu:latest
-    docker tag ubuntu:latest localhost:5000/$name/ubuntu:latest
-    docker push localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token "$name/ubuntu"
-    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
-    docker pull localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token "$empty_output" || :
+    docker docker_remove $name "ubuntu" || :
+    docker docker_remove $name "alpine" || :
+    docker_catalog $name $token ""
+
+    docker_pull_tag_push_catalog $name $token "ubuntu"
+    expected="\"image://$name/ubuntu\""
+    docker_catalog $name $token "$expected"
+
+    docker_pull_tag_push_catalog $name $token "alpine"
+    expected="\"image://$name/alpine\", \"image://$name/ubuntu\""
+    docker_catalog $name $token "$expected"
+
+    docker_remove_locally $name "ubuntu"
+    docker_remove_locally $name "alpine"
 }
 
 
-function test_docker_catalog() {
+function docker_pull_tag_push_catalog() {
     local name=$1
     local token=$2
-    local grep_str=$3
+    local image=$3
+    docker pull $image:latest
+    docker tag $image:latest localhost:5000/$name/$image:latest
+    docker push localhost:5000/$name/$image:latest
+}
+
+function docker_remove_locally() {
+    name=$1
+    image=$2
+    docker rmi $image:latest localhost:5000/$name/$image:latest
+    docker pull localhost:5000/$name/$image:latest
+}
+
+function docker_catalog() {
+    local name=$1
+    local token=$2
+    local expected="$3"
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
-    echo $output | jq -r .repositories | grep $grep_str
+    echo $output | grep -w "{\"repositories\": \[""$expected""\]}"
 }
 
 
@@ -96,6 +116,8 @@ USER_TOKEN=$(generate_user_token $USER_NAME)
 wait_for_registry
 create_regular_user $USER_NAME
 log_into_registry $USER_NAME $USER_TOKEN
+
 test_pull_non_existent $USER_NAME
-test_push_ls_pull $USER_NAME $USER_TOKEN
+test_push_catalog_pull $USER_NAME $USER_TOKEN
+
 echo "OK"
