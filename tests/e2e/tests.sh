@@ -47,25 +47,27 @@ function test_pull_non_existent() {
 function test_push_ls_pull() {
     local name=$1
     local token=$2
+    local empty_output='{"repositories"\: \[\]}'
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
-    test_docker_catalog $name $token || :
+    test_docker_catalog $name $token "$empty_output" || :
     docker pull ubuntu:latest
     docker tag ubuntu:latest localhost:5000/$name/ubuntu:latest
     docker push localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token
+    test_docker_catalog $name $token "$name/ubuntu"
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
     docker pull localhost:5000/$name/ubuntu:latest
-    test_docker_catalog $name $token || :
+    test_docker_catalog $name $token "$empty_output" || :
 }
 
 
 function test_docker_catalog() {
     local name=$1
     local token=$2
+    local grep_str=$3
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
-    echo $output | jq -r .repositories | grep "testproject/$name/ubuntu"
+    echo $output | jq -r .repositories | grep $grep_str
 }
 
 

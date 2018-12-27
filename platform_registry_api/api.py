@@ -17,6 +17,7 @@ from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
+from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security, AuthPolicy
 from yarl import URL
 
@@ -163,8 +164,8 @@ class V2Handler:
         self._upstream_registry_config = config.upstream_registry
 
     @property
-    def _auth_policy(self) -> AuthPolicy:
-        return self._app[AUTZ_KEY]
+    def _auth_client(self) -> AuthClient:
+        return self._app['auth_client']
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
@@ -218,7 +219,7 @@ class V2Handler:
     async def filter_images_by_repository(
             self,
             project_name: str,
-            user_name: str,
+            uname: str,
             images: List[str],
     ) -> List[str]:
         def image_to_url_string(image: str) -> str:
@@ -232,10 +233,14 @@ class V2Handler:
             image_url = URL.build(scheme='image', host=image)
             return str(image_url)
         result = []
-        for image in images:
-            perm = Permission(uri=image_to_url_string(image), action='list')
-            if await self._auth_policy.permits(user_name, "", [perm]):
-                result.append(image)
+        for img in images:
+            img = image_to_url_string(img)
+            perm = Permission(img, 'list')
+            # tree = await self._auth_client.get_permissions_tree(uname, img)
+            # if tree.sub_tree.action != 'deny':
+            #     result.append(img)
+            if await self._auth_client.check_user_permissions(uname, [perm]):
+                result.append(img)
         return result
 
     async def handle_catalog(self, request: Request) -> Response:
@@ -443,6 +448,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 url=config.auth.server_endpoint_url,
                 token=config.auth.service_token,
             ))
+            app['v2_app']['auth_client'] = auth_client
 
             await setup_security(
                 app=app,
