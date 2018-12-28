@@ -51,20 +51,29 @@ function test_push_catalog_pull() {
     docker docker_remove $name "alpine" || :
     docker_catalog $name $token ""
 
-    docker_pull_tag_push_catalog $name $token "ubuntu"
+    docker_tag_push_catalog $name $token "ubuntu"
     expected="\"image://$name/ubuntu\""
     docker_catalog $name $token "$expected"
 
-    docker_pull_tag_push_catalog $name $token "alpine"
+    docker_tag_push_catalog $name $token "alpine"
     expected="\"image://$name/alpine\", \"image://$name/ubuntu\""
     docker_catalog $name $token "$expected"
 
-    docker_remove_locally $name "ubuntu"
-    docker_remove_locally $name "alpine"
+    docker_rmi $name "ubuntu"
+    docker_pull_from_platform $name "ubuntu"
+
+    docker_rmi $name "alpine"
+    docker_pull_from_platform $name "alpine"
 }
 
 
-function docker_pull_tag_push_catalog() {
+function docker_pull_from_platform() {
+    local name=$1
+    local image=$2
+    docker pull localhost:5000/$name/$image:latest
+}
+
+function docker_tag_push_catalog() {
     local name=$1
     local token=$2
     local image=$3
@@ -73,11 +82,10 @@ function docker_pull_tag_push_catalog() {
     docker push localhost:5000/$name/$image:latest
 }
 
-function docker_remove_locally() {
+function docker_rmi() {
     name=$1
     image=$2
     docker rmi $image:latest localhost:5000/$name/$image:latest
-    docker pull localhost:5000/$name/$image:latest
 }
 
 function docker_catalog() {
