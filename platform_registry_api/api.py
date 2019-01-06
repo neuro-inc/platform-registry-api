@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Iterator, List, Tuple
+from typing import Any, ClassVar, List, Tuple, Iterator, Iterable, Optional
 
 import aiohttp.web
 import aiohttp_remotes
@@ -23,6 +23,41 @@ from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DockerImage:
+    repository: str
+    name: str
+    tag: str
+
+    @property
+    def name_and_tag(self) -> str:
+        return self.name + ':' + self.tag
+
+    def to_url(self) -> URL:
+        return URL.build(scheme='image', host=self.repository,
+                         path=f'/{self.name_and_tag}')
+
+    @classmethod
+    def build(cls, image_full_name: str) -> 'DockerImage':
+        if image_full_name.count('/') != 2:
+            raise ValueError(
+                f'Invalid image name "{image_full_name}": '
+                'must include project and repository delimited by slash'
+            )
+        project_name, repo_name, name_and_tag = image_full_name.split('/')
+        if name_and_tag.count(':') != 1:
+            raise ValueError(
+                f'Invalid image name "{name_and_tag}": '
+                f'must contain only single colon separating image name and tag'
+            )
+        name, tag = name_and_tag.split(':')
+        return cls(
+            repository=repo_name,
+            name=name,
+            tag=tag
+        )
 
 
 @dataclass(frozen=True)
@@ -134,7 +169,6 @@ class UpstreamTokenManager:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
-            logger.debug(f'sponse: {response}')
             return payload['token']
 
     async def get_token_without_scope(self) -> str:
@@ -214,41 +248,20 @@ class V2Handler:
         return await self._proxy_request(
             request, url_factory=url_factory, url=url, token=token)
 
-    async def filter_images_by_repository(
-            self,
-            project_name: str,
-            uname: str,
-            images: List[str],
-    ) -> List[str]:
-
-        def split_image_name(image: str) -> Tuple[str, str, str]:
-            if image.count('/') != 2:
-                raise ValueError(
-                    f'Invalid image name {image}: '
-                    'must include project and repository delimited by slash'
-                )
-            split = image.split('/')
-            found_project_name = split[0]
-            if found_project_name != project_name:
-                raise ValueError(
-                    f'Invalid image name {image}: must start with '
-                    f'the project name {project_name}'
-                )
-            found_repo_name = split[1]
-            found_image_name = '/'.join(split[2:])
-            return found_project_name, found_repo_name, found_image_name
-
-        result = []
-        tree = await self._auth_client.get_permissions_tree(uname, 'image:')
-        tree = tree.sub_tree
-        for image_full_name in images:
-            proj, repo, img = split_image_name(image_full_name)
-            if repo in tree.children:
-                subtree = tree.children[repo]
-                if subtree.action != 'deny':
-                    url = URL.build(scheme='image', host=repo, path='/' + img)
-                    result.append(str(url))
-        return result
+    @classmethod
+    def _check_image_access(
+            cls,
+            image: DockerImage,
+            tree: ClientSubTreeViewRoot
+    ) -> bool:
+        subtree = tree.sub_tree
+        if image.repository in subtree.children:
+            repo_subtree = subtree.children[image.repository]
+            if repo_subtree.action != 'deny':
+                images_subtree = repo_subtree.children
+                if not images_subtree or image.name_and_tag in images_subtree:
+                    return True
+        return False
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
@@ -258,38 +271,45 @@ class V2Handler:
 
         url_factory = self._create_url_factory(request)
         url = url_factory.create_upstream_catalog_url(request.url)
-        token = await self._upstream_token_manager.get_token_for_catalog()
 
+        token = await self._upstream_token_manager.get_token_for_catalog()
         headers = self._prepare_request_headers(request.headers, token=token)
+
         timeout = self._create_registry_client_timeout(request)
 
         async with self._registry_client.request(
-                method=request.method,
+                method='GET',
                 url=url,
                 headers=headers,
-                skip_auto_headers=('Content-Type',),
-                data=request.content.iter_any(),
                 timeout=timeout) as client_response:
             logger.debug('upstream response: %s', client_response)
-
-            content_type = client_response.content_type
-            assert content_type == 'application/json', content_type
+            client_response.raise_for_status()
 
             result_dict = await client_response.json()
-            repositories_list = result_dict.get('repositories')
-            filtered = await self.filter_images_by_repository(
-                url_factory.upstream_project,
-                user.name,
-                repositories_list,
-            ) if repositories_list else []
+            images_str_list = result_dict.get('repositories')
+
+            if images_str_list:
+                images_list = [
+                    DockerImage.build(img)
+                    for img in images_str_list
+                ]
+                tree = await self._auth_client.get_permissions_tree(
+                    user.name, 'image:')
+                logger.debug('PERMISSION_TREE: ' + str(tree))
+                filtered = [
+                    str(image.to_url())
+                    for image in images_list
+                    if image.project == url_factory.upstream_project \
+                       and self._check_image_access(image, tree)
+                ]
+            else:
+                filtered = []
+
             result_dict = {
                 'repositories': filtered
             }
 
-            response = aiohttp.web.json_response(
-                data=result_dict,
-                status=aiohttp.web.HTTPOk.status_code
-            )
+            response = aiohttp.web.json_response(data=result_dict)
             await response.prepare(request)
 
             logger.debug(

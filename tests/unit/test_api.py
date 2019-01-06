@@ -1,7 +1,12 @@
+from unittest.mock import MagicMock
+
 import pytest
+from neuro_auth_client.client import ClientSubTreeViewRoot, \
+    ClientAccessSubTreeView
 from yarl import URL
 
-from platform_registry_api.api import RepoURL, URLFactory, V2Handler
+from platform_registry_api.api import RepoURL, URLFactory, V2Handler, \
+    DockerImage
 
 
 class TestRepoURL:
@@ -93,52 +98,159 @@ class TestURLFactory:
             url_factory.create_registry_repo_url(up_repo_url)
 
 
-class TestV2Handler:
-    _filter = V2Handler._filter_images_by_repository
+class TestDockerImage:
+    @pytest.mark.async
+    def test_build__too_many_slashes(self):
+        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
+        with pytest.raises(ValueError, match='must include project and '
+                                             'repository delimited by slash'):
+            DockerImage.build(image)
 
-    def test__filter_images__empty_input(self):
-        images = []
-        expected = self._filter('project', 'repository', images)
-        assert expected == []
+    @pytest.mark.async
+    async def test_build__too_many_slashes(self):
+        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
+        with pytest.raises(ValueError, match='must include project and '
+                                             'repository delimited by slash'):
+            DockerImage.build(image)
 
-    def test__filter_images__by_project_name(self):
-        images = [
-            'project1/repository/image1:bad',
-            'project/repository/image2:good',
-            'proj/repository/image3:bad',
-            'abrakadabra/repository/image4:bad',
-        ]
-        expected = self._filter('project', 'repository', images)
-        assert expected == ['project/repository/image2:good']
+    @pytest.mark.async
+    async def test_build__too_few_slashes(self):
+        image = 'testproject/repository:latest'
+        with pytest.raises(ValueError, match='must include project and '
+                                             'repository delimited by slash'):
+            DockerImage.build(image)
 
-    def test__filter_images__by_repository_name(self):
-        images = [
-            'project/repository1/image1:bad',
-            'project/repository/image2:good',
-            'project/repo/image3:bad',
-            'project/abrakadabra/image4:bad',
-        ]
-        expected = self._filter('project', 'repository', images)
-        assert expected == ['project/repository/image2:good']
+    @pytest.mark.async
+    async def test_build__ok(self):
+        image = 'testproject/user-name/ubuntu:latest'
+        actual = DockerImage.build(image)
+        assert actual == DockerImage(
+            project='testprpoject',
+            repository='user-name',
+            name='ubuntu',
+            tag='latest'
+        )
 
-    def test__filter_images__none_or_empty_project_name(self):
-        images = [
-            'project1/repository/image1:bad',
-            'project/repository/image2:bad',
-            'proj/repository/image3:bad',
-            'abrakadabra/repository/image4:bad',
-        ]
-        with pytest.raises(ValueError, match='Empty project name'):
-            self._filter(None, 'repository', images)
-            self._filter('', 'repository', images)
+    @pytest.mark.async
+    async def test_docker_image_to_url(self):
+        image = 'testproject/user-name/ubuntu:latest'
+        actual = DockerImage.build(image)
+        assert str(actual.to_url()) == 'image://user-name/ubuntu:latest'
 
-    def test__filter_images__none_or_empty_repository_name(self):
-        images = [
-            'project/project1/image1:bad',
-            'project/project/image2:bad',
-            'project/proj/image3:bad',
-            'project/abrakadabra/image4:bad',
-        ]
-        with pytest.raises(ValueError, match='Empty repository name'):
-            self._filter('project', None, images)
-            self._filter('project', '', images)
+
+class TestV2HandlerCheckImageAccess:
+    filter = V2Handler._check_image_access
+
+    @pytest.mark.async
+    async def test__default_permissions(self):
+        image = DockerImage(repository='testuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "list",
+            "children": {
+                "testuser": {
+                    "action": "manage",
+                    "children": {}
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is True
+
+    @pytest.mark.async
+    async def test__explicit_list_permissions(self):
+        image = DockerImage(repository='testuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "list",
+            "children": {
+                "testuser": {
+                    "action": "list",
+                    "children": {
+                        "img:latest": {
+                            "action": "list",
+                            "children": {}
+                        }
+                    }
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is True
+
+    @pytest.mark.async
+    async def test__explicit_read_permissions(self):
+        image = DockerImage(repository='testuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "list",
+            "children": {
+                "testuser": {
+                    "action": "list",
+                    "children": {
+                        "img:latest": {
+                            "action": "read",
+                            "children": {}
+                        }
+                    }
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is True
+
+    @pytest.mark.async
+    async def test__explicit_manage_permissions(self):
+        image = DockerImage(repository='testuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "deny",
+            "children": {
+                "testuser": {
+                    "action": "list",
+                    "children": {
+                        "img:latest": {
+                            "action": "manage",
+                            "children": {}
+                        }
+                    }
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is True
+
+    @pytest.mark.async
+    async def test__default_permissions_but_different_user(self):
+        image = DockerImage(repository='testuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "list",
+            "children": {
+                "anothertestuser": {
+                    "action": "manage",
+                    "children": {}
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is False
+
+    @pytest.mark.async
+    async def test__shared_image(self):
+        image = DockerImage(repository='anothertestuser', name='img', tag='latest')
+        tree = ClientSubTreeViewRoot._from_json({
+            "action": "list",
+            "children": {
+                "testuser": {
+                    "action": "manage",
+                    "children": {}
+                },
+                "anothertestuser": {
+                    "action": "read",
+                    "children": {
+                        "img:latest": {
+                            "action": "manage",
+                            "children": {}
+                        }
+                    }
+                }
+            },
+            "path": "/"
+        })
+        assert V2Handler._check_image_access(image, tree) is True
