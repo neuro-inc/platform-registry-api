@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Tuple, Iterator, Iterable, Optional
+from typing import Any, ClassVar, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -306,8 +306,8 @@ class V2Handler:
                 filtered = [
                     str(image.to_url())
                     for image in images_list
-                    if image.project == url_factory.upstream_project \
-                       and self._check_image_access(image, tree)
+                    if image.project == url_factory.upstream_project
+                    and self._check_image_access(image, tree)
                 ]
             else:
                 filtered = []

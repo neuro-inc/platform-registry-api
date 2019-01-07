@@ -1,12 +1,10 @@
-from unittest.mock import MagicMock
-
 import pytest
-from neuro_auth_client.client import ClientSubTreeViewRoot, \
-    ClientAccessSubTreeView
+from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
-from platform_registry_api.api import RepoURL, URLFactory, V2Handler, \
-    DockerImage
+from platform_registry_api.api import (
+    DockerImage, RepoURL, URLFactory, V2Handler
+)
 
 
 class TestRepoURL:
@@ -131,10 +129,9 @@ class TestDockerImage:
                            match='must contain two slashes'):
             DockerImage.parse(image)
 
-
     @pytest.mark.async
     def test_parse__many_slashes__fail(self):
-        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
+        image = 'testproject/repository/image/name/with/many//slashes:latest'
         with pytest.raises(ValueError,
                            match='must contain two slashes'):
             DockerImage.parse(image)
@@ -179,114 +176,121 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__default_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "list",
-            "children": {
-                "testuser": {
-                    "action": "manage",
-                    "children": {}
+            'action': 'list',
+            'children': {
+                'testuser': {
+                    'action': 'manage',
+                    'children': {}
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is True
 
     @pytest.mark.async
     async def test__explicit_list_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "list",
-            "children": {
-                "testuser": {
-                    "action": "list",
-                    "children": {
-                        "img:latest": {
-                            "action": "list",
-                            "children": {}
+            'action': 'list',
+            'children': {
+                'testuser': {
+                    'action': 'list',
+                    'children': {
+                        'img:latest': {
+                            'action': 'list',
+                            'children': {}
                         }
                     }
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is True
 
     @pytest.mark.async
     async def test__explicit_read_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "list",
-            "children": {
-                "testuser": {
-                    "action": "list",
-                    "children": {
-                        "img:latest": {
-                            "action": "read",
-                            "children": {}
+            'action': 'list',
+            'children': {
+                'testuser': {
+                    'action': 'list',
+                    'children': {
+                        'img:latest': {
+                            'action': 'read',
+                            'children': {}
                         }
                     }
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is True
 
     @pytest.mark.async
     async def test__explicit_manage_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "deny",
-            "children": {
-                "testuser": {
-                    "action": "list",
-                    "children": {
-                        "img:latest": {
-                            "action": "manage",
-                            "children": {}
+            'action': 'deny',
+            'children': {
+                'testuser': {
+                    'action': 'list',
+                    'children': {
+                        'img:latest': {
+                            'action': 'manage',
+                            'children': {}
                         }
                     }
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is True
 
     @pytest.mark.async
     async def test__default_permissions_but_different_user(self):
-        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "list",
-            "children": {
-                "anothertestuser": {
-                    "action": "manage",
-                    "children": {}
+            'action': 'list',
+            'children': {
+                'anothertestuser': {
+                    'action': 'manage',
+                    'children': {}
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is False
 
     @pytest.mark.async
     async def test__shared_image(self):
-        image = DockerImage(project='testproject', repository='anothertestuser', name='img', tag='latest')
+        image = DockerImage(project='testproject',
+                            repository='anothertestuser',
+                            name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
-            "action": "list",
-            "children": {
-                "testuser": {
-                    "action": "manage",
-                    "children": {}
+            'action': 'list',
+            'children': {
+                'testuser': {
+                    'action': 'manage',
+                    'children': {}
                 },
-                "anothertestuser": {
-                    "action": "read",
-                    "children": {
-                        "img:latest": {
-                            "action": "manage",
-                            "children": {}
+                'anothertestuser': {
+                    'action': 'read',
+                    'children': {
+                        'img:latest': {
+                            'action': 'manage',
+                            'children': {}
                         }
                     }
                 }
             },
-            "path": "/"
+            'path': '/'
         })
         assert V2Handler._check_image_access(image, tree) is True
