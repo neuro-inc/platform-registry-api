@@ -12,6 +12,6 @@ def event_loop(loop):
     return loop
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def in_docker():
-    return os.path.isfile('/.dockerenv')
+    return os.path.isfile("/.dockerenv")
