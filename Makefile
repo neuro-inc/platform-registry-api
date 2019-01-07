@@ -2,12 +2,18 @@ IMAGE_NAME ?= platformregistryapi
 IMAGE_TAG ?= latest
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
+ISORT_DIRS := platform_registry_api tests 
+FLAKE8_DIRS := platform_registry_api tests
+BLACK_DIRS := platform_registry_api tests
 
 ifdef CIRCLECI
     PIP_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
 else
     PIP_INDEX_URL ?= "$(shell python pip_extra_index_url.py)"
 endif
+
+init:
+	pip install -r requirements-test.txt
 
 build:
 	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
@@ -31,10 +37,10 @@ test_e2e_built: pull
 
 test_e2e: build test_e2e_built
 
-lint: build_test lint_built
+lint_docker: build_test lint_built
 
 lint_built:
-	docker run --rm platformregistryapi-test make _lint
+	docker run --rm platformregistryapi-test make lint
 
 test_unit: build_test test_unit_built
 
@@ -59,11 +65,14 @@ test_integration_built: pull
 _test_integration:
 	pytest -vv tests/integration
 
-_lint:
-	flake8 platform_registry_api tests
+lint:
+	black --check $(BLACK_DIRS)
+	flake8 $(FLAKE8_DIRS)
+	isort -c -rc ${ISORT_DIRS}
 
 format:
-	isort -rc platform_registry_api tests
+	isort -rc $(ISORT_DIRS)
+	black $(BLACK_DIRS)
 
 gke_login:
 	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
