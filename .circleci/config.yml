@@ -21,7 +21,7 @@ jobs:
       - run:
           name: Running Static Code Analysis
           command: |
-            make lint
+            make lint_built
 
       - run:
           name: Running Unit Test Suite
