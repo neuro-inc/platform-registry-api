@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class DockerImage:
+    project: str
     repository: str
     name: str
     tag: str
@@ -40,20 +41,26 @@ class DockerImage:
                          path=f'/{self.name_and_tag}')
 
     @classmethod
-    def build(cls, image_full_name: str) -> 'DockerImage':
+    def parse(cls, image_full_name: str) -> 'DockerImage':
         if image_full_name.count('/') != 2:
             raise ValueError(
                 f'Invalid image name "{image_full_name}": '
-                'must include project and repository delimited by slash'
+                'must contain two slashes '
+                'separating project name, repository name and image name'
             )
         project_name, repo_name, name_and_tag = image_full_name.split('/')
-        if name_and_tag.count(':') != 1:
+
+        colon_count = name_and_tag.count(':')
+        if colon_count == 0:
+            name_and_tag = name_and_tag + ':latest'
+        elif colon_count != 1:
             raise ValueError(
-                f'Invalid image name "{name_and_tag}": '
-                f'must contain only single colon separating image name and tag'
+                f'Invalid image name "{image_full_name}": '
+                f'must contain zero or one colon separating image name and tag'
             )
         name, tag = name_and_tag.split(':')
         return cls(
+            project=project_name,
             repository=repo_name,
             name=name,
             tag=tag
@@ -290,7 +297,7 @@ class V2Handler:
 
             if images_str_list:
                 images_list = [
-                    DockerImage.build(img)
+                    DockerImage.parse(img)
                     for img in images_str_list
                 ]
                 tree = await self._auth_client.get_permissions_tree(

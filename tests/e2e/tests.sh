@@ -52,11 +52,11 @@ function test_push_catalog_pull() {
     docker_catalog $name $token ""
 
     docker_tag_push_catalog $name $token "ubuntu"
-    expected="\"image://$name/ubuntu\""
+    expected="\"image://$name/ubuntu:latest\""
     docker_catalog $name $token "$expected"
 
     docker_tag_push_catalog $name $token "alpine"
-    expected="\"image://$name/alpine\", \"image://$name/ubuntu\""
+    expected="\"image://$name/alpine:latest\", \"image://$name/ubuntu:latest\""
     docker_catalog $name $token "$expected"
 
     docker_rmi $name "ubuntu"
@@ -129,3 +129,4 @@ test_pull_non_existent $USER_NAME
 test_push_catalog_pull $USER_NAME $USER_TOKEN
 
 echo "OK"
+

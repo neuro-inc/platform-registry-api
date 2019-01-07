@@ -100,32 +100,68 @@ class TestURLFactory:
 
 class TestDockerImage:
     @pytest.mark.async
-    def test_build__too_many_slashes(self):
-        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
-        with pytest.raises(ValueError, match='must include project and '
-                                             'repository delimited by slash'):
-            DockerImage.build(image)
+    async def test_parse__zero_slashes__fail(self):
+        image = 'img:latest'
+        with pytest.raises(ValueError,
+                           match='must contain two slashes'):
+            DockerImage.parse(image)
 
     @pytest.mark.async
-    async def test_build__too_many_slashes(self):
-        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
-        with pytest.raises(ValueError, match='must include project and '
-                                             'repository delimited by slash'):
-            DockerImage.build(image)
+    async def test_parse__one_slash__fail(self):
+        image = 'repository/ubuntu:latest'
+        with pytest.raises(ValueError,
+                           match='must contain two slashes'):
+            DockerImage.parse(image)
 
     @pytest.mark.async
-    async def test_build__too_few_slashes(self):
-        image = 'testproject/repository:latest'
-        with pytest.raises(ValueError, match='must include project and '
-                                             'repository delimited by slash'):
-            DockerImage.build(image)
-
-    @pytest.mark.async
-    async def test_build__ok(self):
-        image = 'testproject/user-name/ubuntu:latest'
-        actual = DockerImage.build(image)
+    async def test_parse__two_slashes(self):
+        image = 'testproject/repository/ubuntu:latest'
+        actual = DockerImage.parse(image)
         assert actual == DockerImage(
-            project='testprpoject',
+            project='testproject',
+            repository='repository',
+            name='ubuntu',
+            tag='latest'
+        )
+
+    @pytest.mark.async
+    def test_parse__three_slashes__fail(self):
+        image = 'testproject/repository/nothing/ubuntu:latest'
+        with pytest.raises(ValueError,
+                           match='must contain two slashes'):
+            DockerImage.parse(image)
+
+
+    @pytest.mark.async
+    def test_parse__many_slashes__fail(self):
+        image = 'testproject/repository/image/name/with/too/many/slashes:latest'
+        with pytest.raises(ValueError,
+                           match='must contain two slashes'):
+            DockerImage.parse(image)
+
+    @pytest.mark.async
+    async def test_parse__many_colons_in_image_name__fail(self):
+        image = 'testproject/repository/ubuntu:latest:latest2'
+        with pytest.raises(ValueError, match='must contain zero or one colon'):
+            DockerImage.parse(image)
+
+    @pytest.mark.async
+    async def test_parse__no_colons(self):
+        image = 'testproject/user-name/ubuntu'
+        actual = DockerImage.parse(image)
+        assert actual == DockerImage(
+            project='testproject',
+            repository='user-name',
+            name='ubuntu',
+            tag='latest'
+        )
+
+    @pytest.mark.async
+    async def test_parse(self):
+        image = 'testproject/user-name/ubuntu:latest'
+        actual = DockerImage.parse(image)
+        assert actual == DockerImage(
+            project='testproject',
             repository='user-name',
             name='ubuntu',
             tag='latest'
@@ -134,7 +170,7 @@ class TestDockerImage:
     @pytest.mark.async
     async def test_docker_image_to_url(self):
         image = 'testproject/user-name/ubuntu:latest'
-        actual = DockerImage.build(image)
+        actual = DockerImage.parse(image)
         assert str(actual.to_url()) == 'image://user-name/ubuntu:latest'
 
 
@@ -143,7 +179,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__default_permissions(self):
-        image = DockerImage(repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "list",
             "children": {
@@ -158,7 +194,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__explicit_list_permissions(self):
-        image = DockerImage(repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "list",
             "children": {
@@ -178,7 +214,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__explicit_read_permissions(self):
-        image = DockerImage(repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "list",
             "children": {
@@ -198,7 +234,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__explicit_manage_permissions(self):
-        image = DockerImage(repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "deny",
             "children": {
@@ -218,7 +254,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__default_permissions_but_different_user(self):
-        image = DockerImage(repository='testuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='testuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "list",
             "children": {
@@ -233,7 +269,7 @@ class TestV2HandlerCheckImageAccess:
 
     @pytest.mark.async
     async def test__shared_image(self):
-        image = DockerImage(repository='anothertestuser', name='img', tag='latest')
+        image = DockerImage(project='testproject', repository='anothertestuser', name='img', tag='latest')
         tree = ClientSubTreeViewRoot._from_json({
             "action": "list",
             "children": {
