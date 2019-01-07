@@ -37,9 +37,7 @@ test_e2e_built: pull
 
 test_e2e: build test_e2e_built
 
-lint_docker: build_test lint_built
-
-lint_built:
+lint_built: build_test
 	docker run --rm platformregistryapi-test make lint
 
 test_unit: build_test test_unit_built
