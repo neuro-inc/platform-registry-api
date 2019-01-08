@@ -317,7 +317,6 @@ class V2Handler:
             }
 
             response = aiohttp.web.json_response(data=result_dict)
-            await response.prepare(request)
 
             logger.debug(
                 'registry response: %s; headers: %s',
