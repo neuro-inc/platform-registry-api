@@ -49,45 +49,33 @@ function test_pull_non_existent() {
 function test_push_catalog_pull() {
     local name=$1
     local token=$2
-    docker docker_remove $name "ubuntu" || :
-    docker docker_remove $name "alpine" || :
+    docker rmi $name "ubuntu" || :
+    docker rmi $name "alpine" || :
     docker_catalog $name $token ""
 
-    docker_tag_push_catalog $name $token "ubuntu"
+    docker_tag_push $name $token "ubuntu"
     expected="\"image://$name/ubuntu:latest\""
     docker_catalog $name $token "$expected"
 
-    docker_tag_push_catalog $name $token "alpine"
+    docker_tag_push $name $token "alpine"
     expected="\"image://$name/alpine:latest\", \"image://$name/ubuntu:latest\""
     docker_catalog $name $token "$expected"
 
-    docker_rmi $name "ubuntu"
-    docker_pull_from_platform $name "ubuntu"
+    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
+    docker pull localhost:5000/$name/ubuntu:latest
 
-    docker_rmi $name "alpine"
-    docker_pull_from_platform $name "alpine"
+
+    docker rmi alpine:latest localhost:5000/$name/alpine:latest
+    docker pull localhost:5000/$name/alpine:latest
 }
 
-
-function docker_pull_from_platform() {
-    local name=$1
-    local image=$2
-    docker pull localhost:5000/$name/$image:latest
-}
-
-function docker_tag_push_catalog() {
+function docker_tag_push() {
     local name=$1
     local token=$2
     local image=$3
     docker pull $image:latest
     docker tag $image:latest localhost:5000/$name/$image:latest
     docker push localhost:5000/$name/$image:latest
-}
-
-function docker_rmi() {
-    name=$1
-    image=$2
-    docker rmi $image:latest localhost:5000/$name/$image:latest
 }
 
 function docker_catalog() {

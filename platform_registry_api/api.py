@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Tuple
+from typing import Any, ClassVar, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -128,8 +128,8 @@ class URLFactory:
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path('/v2/')
 
-    def create_upstream_catalog_url(self, request_url: URL) -> URL:
-        return self._upstream_endpoint_url.with_path(request_url.path)
+    def create_upstream_catalog_url(self) -> URL:
+        return self._upstream_endpoint_url.with_path('/v2/_catalog')
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
         repo = f'{self._upstream_project}/{registry_url.repo}'
@@ -232,7 +232,7 @@ class V2Handler:
         try:
             user_name = await check_authorized(request)
         except ValueError:
-            raise HTTPBadRequest(text='Cannot authorize')
+            raise HTTPBadRequest()
         except HTTPUnauthorized:
             self._raise_unauthorized()
         return User(name=user_name)
@@ -256,7 +256,11 @@ class V2Handler:
             request, url_factory=url_factory, url=url, token=token)
 
     @classmethod
-    def _check_image_access(
+    def check_image_project(cls, image: DockerImage, project: str) -> bool:
+        return image.project == project
+
+    @classmethod
+    def check_image_access(
             cls,
             image: DockerImage,
             tree: ClientSubTreeViewRoot
@@ -270,6 +274,18 @@ class V2Handler:
                     return True
         return False
 
+    @classmethod
+    def filter_images(
+            cls,
+            images_list: Iterable[DockerImage],
+            tree: ClientSubTreeViewRoot,
+            project_name: str,
+    ) -> Iterator[DockerImage]:
+        for image in images_list:
+            if image.project == project_name \
+                    and cls.check_image_access(image, tree):
+                yield image
+
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
@@ -277,7 +293,7 @@ class V2Handler:
         user = await self._get_user_from_request(request)
 
         url_factory = self._create_url_factory(request)
-        url = url_factory.create_upstream_catalog_url(request.url)
+        url = url_factory.create_upstream_catalog_url()
 
         token = await self._upstream_token_manager.get_token_for_catalog()
         headers = self._prepare_request_headers(request.headers, token=token)
@@ -302,12 +318,11 @@ class V2Handler:
                 ]
                 tree = await self._auth_client.get_permissions_tree(
                     user.name, 'image:')
-                logger.debug('PERMISSION_TREE: ' + str(tree))
+                project_name = url_factory.upstream_project
                 filtered = [
-                    str(image.to_url())
-                    for image in images_list
-                    if image.project == url_factory.upstream_project
-                    and self._check_image_access(image, tree)
+                    str(image)
+                    for image in self.filter_images(images_list, tree,
+                                                    project_name)
                 ]
             else:
                 filtered = []

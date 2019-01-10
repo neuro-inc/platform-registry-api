@@ -123,7 +123,7 @@ class TestV2Api:
             assert resp.status == 200, await resp.text()
             data = await resp.json()
             assert 'repositories' in data
-            assert type(data['repositories']) is list
+            assert isinstance(data['repositories'], list)
 
     @pytest.mark.asyncio
     async def test_catalog__no_auth(self, aiohttp_client, config):
