@@ -21,7 +21,7 @@ jobs:
       - run:
           name: Running Static Code Analysis
           command: |
-            make lint_in_docker
+            make lint_after_building
 
       - run:
           name: Running Unit Test Suite
