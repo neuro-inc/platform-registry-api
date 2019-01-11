@@ -8,7 +8,7 @@ services:
     - ./tests/docker/docker_auth/:/config/
 
   upstream:
-    image: registry:2
+    image: registry:2.6
     ports:
     - "5002:5002"
     volumes:
