@@ -229,6 +229,9 @@ class V2Handler:
                 image = image[len_project_prefix:]
                 if check_image_catalog_permission(image, tree):
                     yield image
+            else:
+                msg = f'expected project "{project_name}" in image "{image}"'
+                logger.info(f'Bad image: {msg} (skipping)')
 
     async def handle_catalog(self, request: Request) -> Response:
         number_entries_limit = 10000
