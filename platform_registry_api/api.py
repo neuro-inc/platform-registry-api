@@ -231,6 +231,8 @@ class V2Handler:
                     yield image
 
     async def handle_catalog(self, request: Request) -> Response:
+        number_entries_limit = 10000
+
         logger.debug(
             'registry request: %s; headers: %s', request, request.headers)
 
@@ -241,6 +243,7 @@ class V2Handler:
 
         token = await self._upstream_token_manager.get_token_for_catalog()
         headers = self._prepare_request_headers(request.headers, token=token)
+        params = {'n': number_entries_limit}
 
         timeout = self._create_registry_client_timeout(request)
 
@@ -248,12 +251,15 @@ class V2Handler:
                 method='GET',
                 url=url,
                 headers=headers,
+                params=params,
                 timeout=timeout) as client_response:
             logger.debug('upstream response: %s', client_response)
             client_response.raise_for_status()
 
             result_dict = await client_response.json()
             images_list = result_dict.get('repositories', [])
+            logger.debug(f'Received {len(images_list)} images '
+                         f'(limit: {number_entries_limit})')
 
             tree = await self._auth_client.get_permissions_tree(
                 user.name, 'image:')
