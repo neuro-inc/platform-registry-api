@@ -7,10 +7,7 @@ export SHELLOPTS
 
 function generate_user_token() {
     local name=$1
-    local auth_image="gcr.io/light-reality-205619/platformauthapi:latest"
-    local auth_container=$(docker ps --filter "ancestor=$auth_image" \
-        --filter "status=running" -q)
-    docker exec $auth_container platform-auth-make-token $name
+    docker exec platformregistryapi_auth_server_1 platform-auth-make-token $name
 }
 
 function create_regular_user() {
