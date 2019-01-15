@@ -2,9 +2,8 @@ import pytest
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
-from platform_registry_api.api import (
-    DockerImage, RepoURL, URLFactory, V2Handler
-)
+from platform_registry_api.api import RepoURL, URLFactory, V2Handler
+from platform_registry_api.helpers import check_image_catalog_permission
 
 
 class TestRepoURL:
@@ -96,116 +95,108 @@ class TestURLFactory:
             url_factory.create_registry_repo_url(up_repo_url)
 
 
-class TestDockerImage:
-    def test_parse__zero_slashes__fail(self):
-        image = 'img:latest'
-        with pytest.raises(ValueError,
-                           match='must contain two slashes'):
-            DockerImage.parse(image)
-
-    def test_parse__one_slash__fail(self):
-        image = 'repository/ubuntu:latest'
-        with pytest.raises(ValueError,
-                           match='must contain two slashes'):
-            DockerImage.parse(image)
-
-    def test_parse__two_slashes(self):
-        image = 'testproject/repository/ubuntu:latest'
-        actual = DockerImage.parse(image)
-        assert actual == DockerImage(
-            project='testproject',
-            repository='repository',
-            name='ubuntu',
-            tag='latest'
-        )
-
-    def test_parse__three_slashes__fail(self):
-        image = 'testproject/repository/nothing/ubuntu:latest'
-        with pytest.raises(ValueError,
-                           match='must contain two slashes'):
-            DockerImage.parse(image)
-
-    def test_parse__many_slashes__fail(self):
-        image = 'testproject/repository/image/name/with/many//slashes:latest'
-        with pytest.raises(ValueError,
-                           match='must contain two slashes'):
-            DockerImage.parse(image)
-
-    def test_parse__many_colons_in_image_name__fail(self):
-        image = 'testproject/repository/ubuntu:latest:latest2'
-        with pytest.raises(ValueError, match='must contain zero or one colon'):
-            DockerImage.parse(image)
-
-    def test_parse__no_colons(self):
-        image = 'testproject/user-name/ubuntu'
-        actual = DockerImage.parse(image)
-        assert actual == DockerImage(
-            project='testproject',
-            repository='user-name',
-            name='ubuntu',
-            tag='latest'
-        )
-
-    def test_parse(self):
-        image = 'testproject/user-name/ubuntu:latest'
-        actual = DockerImage.parse(image)
-        assert actual == DockerImage(
-            project='testproject',
-            repository='user-name',
-            name='ubuntu',
-            tag='latest'
-        )
-
-    def test_docker_image_to_url(self):
-        image = 'testproject/user-name/ubuntu:latest'
-        actual = DockerImage.parse(image)
-        assert str(actual.to_url()) == 'image://user-name/ubuntu:latest'
-
-
-class TestV2HandlerCheckImageAccess:
-
-    def test_default_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser',
-                            name='img', tag='latest')
+class TestV2Handler:
+    def test_filter_images_by_project(self):
+        images_names = [
+            'testproject/alice/img1',
+            'testproject/alice/img2',
+            'testproject2/alice/img3',
+        ]
+        project = 'testproject'
         tree = ClientSubTreeViewRoot._from_json({
             'action': 'list',
             'children': {
-                'testuser': {
+                'alice': {
                     'action': 'manage',
                     'children': {}
                 }
             },
             'path': '/'
         })
-        assert V2Handler.check_image_access(image, tree) is True
+        assert list(V2Handler.filter_images(images_names, tree, project)) == [
+            'alice/img1',
+            'alice/img2',
+        ]
 
-    def test_explicit_list_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser',
-                            name='img', tag='latest')
+    def test_filter_images_by_tree(self):
+        images_names = [
+            'testproject/alice/img1',
+            'testproject/alice/img2',
+            'testproject/bob/img3',
+        ]
+        project = 'testproject'
         tree = ClientSubTreeViewRoot._from_json({
             'action': 'list',
             'children': {
-                'testuser': {
-                    'action': 'list',
-                    'children': {
-                        'img:latest': {
-                            'action': 'list',
-                            'children': {}
-                        }
-                    }
+                'alice': {
+                    'action': 'manage',
+                    'children': {}
                 }
             },
             'path': '/'
         })
-        assert V2Handler.check_image_access(image, tree) is True
+        assert list(V2Handler.filter_images(images_names, tree, project)) == [
+            'alice/img1',
+            'alice/img2',
+        ]
 
-    def test_explicit_read_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser',
-                            name='img', tag='latest')
+    def test_filter_images_no_elements(self):
+        images_names = []
+        project = 'testproject'
         tree = ClientSubTreeViewRoot._from_json({
             'action': 'list',
             'children': {
-                'testuser': {
+                'alice': {
+                    'action': 'manage',
+                    'children': {}
+                }
+            },
+            'path': '/'
+        })
+        assert list(V2Handler.filter_images(images_names, tree, project)) == []
+
+
+class TestHelpers_CheckImageCatalogPermission:
+    def test_default_permissions(self):
+        # alice checks her own image "alice/img"
+        image = 'alice/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'alice': {
+                    'action': 'manage',
+                    'children': {}
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is True
+
+    def test_another_user_default_permissions__forbidden(self):
+        image = 'alice/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is False
+
+    def test_shared_image_read_permissions(self):
+        image = 'alice/img'
+        # tree requested by bob:
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
                     'action': 'list',
                     'children': {
                         'img:latest': {
@@ -217,56 +208,19 @@ class TestV2HandlerCheckImageAccess:
             },
             'path': '/'
         })
-        assert V2Handler.check_image_access(image, tree) is True
+        assert check_image_catalog_permission(image, tree) is True
 
-    def test_explicit_manage_permissions(self):
-        image = DockerImage(project='testproject', repository='testuser',
-                            name='img', tag='latest')
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'deny',
-            'children': {
-                'testuser': {
-                    'action': 'list',
-                    'children': {
-                        'img:latest': {
-                            'action': 'manage',
-                            'children': {}
-                        }
-                    }
-                }
-            },
-            'path': '/'
-        })
-        assert V2Handler.check_image_access(image, tree) is True
-
-    def test_default_permissions_but_different_user(self):
-        image = DockerImage(project='testproject', repository='testuser',
-                            name='img', tag='latest')
+    def test_shared_image_manage_permissions(self):
+        image = 'alice/img'
         tree = ClientSubTreeViewRoot._from_json({
             'action': 'list',
             'children': {
-                'anothertestuser': {
-                    'action': 'manage',
-                    'children': {}
-                }
-            },
-            'path': '/'
-        })
-        assert V2Handler.check_image_access(image, tree) is False
-
-    def test_shared_image(self):
-        image = DockerImage(project='testproject',
-                            repository='anothertestuser',
-                            name='img', tag='latest')
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'testuser': {
+                'bob': {
                     'action': 'manage',
                     'children': {}
                 },
-                'anothertestuser': {
-                    'action': 'read',
+                'alice': {
+                    'action': 'list',
                     'children': {
                         'img:latest': {
                             'action': 'manage',
@@ -277,107 +231,145 @@ class TestV2HandlerCheckImageAccess:
             },
             'path': '/'
         })
-        assert V2Handler.check_image_access(image, tree) is True
+        assert check_image_catalog_permission(image, tree) is True
 
-    def test_filter_images__no_elements(self):
-        images = []
-        default_tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'testuser': {
-                    'action': 'manage',
-                    'children': {}
-                }
-            },
-            'path': '/'
-        })
-        project_name = 'testproject'
-        assert (
-            list(V2Handler.filter_images(images, default_tree, project_name))
-            == []
-        )
-
-    def test_filter_images__by_project_name(self):
-        images = [
-            DockerImage(project='testproject', repository='testuser',
-                        name='img1', tag='latest'),
-            DockerImage(project='anotherproject', repository='testuser',
-                        name='img2', tag='latest')
-        ]
-        default_tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'testuser': {
-                    'action': 'manage',
-                    'children': {}
-                }
-            },
-            'path': '/'
-        })
-        project_name = 'testproject'
-        assert (
-            list(V2Handler.filter_images(images, default_tree, project_name))
-            ==
-            [
-                DockerImage(project='testproject', repository='testuser',
-                            name='img1', tag='latest')
-            ]
-        )
-
-    def test_filter_images__by_access_tree(self):
-        images = [
-            DockerImage(project='testproject', repository='testuser',
-                        name='img1', tag='latest'),
-            DockerImage(project='testproject', repository='testuser',
-                        name='img2', tag='latest')
-        ]
+    def test_shared_image_multiple_tags_manage_permissions(self):
+        image = 'alice/img'
         tree = ClientSubTreeViewRoot._from_json({
             'action': 'list',
             'children': {
-                'testuser': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
                     'action': 'list',
                     'children': {
-                        'img1:latest': {
+                        'img:v1': {
+                            'action': 'manage',
+                            'children': {}
+                        },
+                        'img:v2': {
+                            'action': 'read',
+                            'children': {}
+                        },
+                    }
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is True
+
+    def test_shared_image_multiple_tags_write_permissions(self):
+        image = 'alice/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
+                    'action': 'deny',
+                    'children': {
+                        'img:v1': {
+                            'action': 'write',
+                            'children': {}
+                        },
+                        'img:v2': {
+                            'action': 'read',
+                            'children': {}
+                        },
+                    }
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is True
+
+    def test_shared_image_multiple_tags_has_deny_permission(self):
+        image = 'alice/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
+                    'action': 'list',
+                    'children': {
+                        'img:v1': {
+                            'action': 'deny',
+                            'children': {}
+                        },
+                        'img:v2': {
+                            'action': 'read',
+                            'children': {}
+                        },
+                    }
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is False
+
+    def test_shared_image_multiple_tags_has_list_permission(self):
+        image = 'alice/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
+                    'action': 'deny',
+                    'children': {
+                        'img:v1': {
                             'action': 'list',
                             'children': {}
+                        },
+                        'img:v2': {
+                            'action': 'read',
+                            'children': {}
+                        },
+                    }
+                }
+            },
+            'path': '/'
+        })
+        assert check_image_catalog_permission(image, tree) is False
+
+    def test_shared_image_slashes_in_image_name(self):
+        image = 'alice/foo/bar/img'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'list',
+            'children': {
+                'bob': {
+                    'action': 'manage',
+                    'children': {}
+                },
+                'alice': {
+                    "action": "list",
+                    "children": {
+                        "foo": {
+                            "action": "list",
+                            "children": {
+                                "bar": {
+                                    "action": "list",
+                                    "children": {
+                                        "img:latest": {
+                                            "action": "read",
+                                            "children": {}
+                                        },
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             },
             'path': '/'
         })
-        project_name = 'testproject'
-        assert list(V2Handler.filter_images(images, tree, project_name)) == [
-            DockerImage(project='testproject', repository='testuser',
-                        name='img1', tag='latest')
-        ]
-
-    def test_filter_images__project_name_and_access_tree(self):
-        images = [
-            DockerImage(project='testproject', repository='testuser',
-                        name='img1', tag='latest'),
-            DockerImage(project='testproject', repository='testuser',
-                        name='img2', tag='latest'),
-            DockerImage(project='anotherproject', repository='testuser',
-                        name='img3', tag='latest')
-        ]
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'testuser': {
-                    'action': 'list',
-                    'children': {
-                        'img1:latest': {
-                            'action': 'list',
-                            'children': {}
-                        }
-                    }
-                }
-            },
-            'path': '/'
-        })
-        project_name = 'testproject'
-        assert list(V2Handler.filter_images(images, tree, project_name)) == [
-            DockerImage(project='testproject', repository='testuser',
-                        name='img1', tag='latest')
-        ]
+        assert check_image_catalog_permission(image, tree) is True

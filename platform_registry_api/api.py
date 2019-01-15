@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Iterable, Iterator, Tuple
+from typing import Any, ClassVar, Tuple, Iterator, Iterable
 
 import aiohttp.web
 import aiohttp_remotes
@@ -19,52 +19,11 @@ from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
+from platform_registry_api.helpers import check_image_catalog_permission
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class DockerImage:
-    project: str
-    repository: str
-    name: str
-    tag: str
-
-    @property
-    def name_and_tag(self) -> str:
-        return self.name + ':' + self.tag
-
-    def to_url(self) -> URL:
-        return URL.build(scheme='image', host=self.repository,
-                         path=f'/{self.name_and_tag}')
-
-    @classmethod
-    def parse(cls, image_full_name: str) -> 'DockerImage':
-        if image_full_name.count('/') != 2:
-            raise ValueError(
-                f'Invalid image name "{image_full_name}": '
-                'must contain two slashes '
-                'separating project name, repository name and image name'
-            )
-        project_name, repo_name, name_and_tag = image_full_name.split('/')
-
-        colon_count = name_and_tag.count(':')
-        if colon_count == 0:
-            name_and_tag = name_and_tag + ':latest'
-        elif colon_count != 1:
-            raise ValueError(
-                f'Invalid image name "{image_full_name}": '
-                f'must contain zero or one colon separating image name and tag'
-            )
-        name, tag = name_and_tag.split(':')
-        return cls(
-            project=project_name,
-            repository=repo_name,
-            name=name,
-            tag=tag
-        )
 
 
 @dataclass(frozen=True)
@@ -256,35 +215,19 @@ class V2Handler:
             request, url_factory=url_factory, url=url, token=token)
 
     @classmethod
-    def check_image_project(cls, image: DockerImage, project: str) -> bool:
-        return image.project == project
-
-    @classmethod
-    def check_image_access(
-            cls,
-            image: DockerImage,
-            tree: ClientSubTreeViewRoot
-    ) -> bool:
-        subtree = tree.sub_tree
-        if image.repository in subtree.children:
-            repo_subtree = subtree.children[image.repository]
-            if repo_subtree.action != 'deny':
-                images_subtree = repo_subtree.children
-                if not images_subtree or image.name_and_tag in images_subtree:
-                    return True
-        return False
-
-    @classmethod
     def filter_images(
             cls,
-            images_list: Iterable[DockerImage],
+            images_names: Iterable[str],
             tree: ClientSubTreeViewRoot,
-            project_name: str,
-    ) -> Iterator[DockerImage]:
-        for image in images_list:
-            if image.project == project_name \
-                    and cls.check_image_access(image, tree):
-                yield image
+            project_name: str
+    ) -> Iterator[str]:
+        project_prefix = project_name + '/'
+        len_project_prefix = len(project_prefix)
+        for image in images_names:
+            if image.startswith(project_prefix):
+                image = image[len_project_prefix:]
+                if check_image_catalog_permission(image, tree):
+                    yield image
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug(
@@ -309,23 +252,14 @@ class V2Handler:
             client_response.raise_for_status()
 
             result_dict = await client_response.json()
-            images_str_list = result_dict.get('repositories')
+            images_list = result_dict.get('repositories', [])
 
-            if images_str_list:
-                images_list = [
-                    DockerImage.parse(img)
-                    for img in images_str_list
-                ]
-                tree = await self._auth_client.get_permissions_tree(
-                    user.name, 'image:')
-                project_name = url_factory.upstream_project
-                filtered = [
-                    str(image)
-                    for image in self.filter_images(images_list, tree,
-                                                    project_name)
-                ]
-            else:
-                filtered = []
+            tree = await self._auth_client.get_permissions_tree(user.name, 'image:')
+            project_name = url_factory.upstream_project
+            filtered = [
+                f'image://{img}'
+                for img in self.filter_images(images_list, tree, project_name)
+            ]
 
             result_dict = {
                 'repositories': filtered
