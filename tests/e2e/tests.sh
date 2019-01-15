@@ -45,7 +45,7 @@ function test_pull_non_existent() {
     [[ $output == *"manifest for localhost:5000/$name/unknown:latest not found"* ]]
 }
 
-
+# TODO: SHARE IMAGE
 function test_push_catalog_pull() {
     local name=$1
     local token=$2
@@ -64,9 +64,17 @@ function test_push_catalog_pull() {
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
     docker pull localhost:5000/$name/ubuntu:latest
 
-
     docker rmi alpine:latest localhost:5000/$name/alpine:latest
     docker pull localhost:5000/$name/alpine:latest
+}
+
+function neuro_share_image() {
+    local image=$1
+    local who_token=$2
+    local whom=$3
+    local url="http://localhost:5003/users/$whom/permissions"
+    local payload="[{\"uri\":\"image://$image\",\"action\":\"read\"}]"
+    curl -s -X POST -H "Authorization: Bearer $who_token" -d "$payload" $url --fail
 }
 
 function docker_tag_push() {
@@ -88,14 +96,15 @@ function docker_catalog() {
     echo $output | grep -w "{\"repositories\": \[""$expected""\]}"
 }
 
-
-function debug_test_docker_catalog_directly() {
+function get_registry_token_for_catalog() {
     # the way to get auth token for accessing _catalog without using platform-registry-api:
-    local auth_url="http://localhost:5001/auth?service=upstream&scope=registry:catalog:*"
-    local auth_basic_token=$(echo -n testuser:testpassword | base64 -w 0)
-    local registry_token=`curl -sH "Authorization: Basic $auth_basic_token" "$auth_url" | jq -r .token`
-    # ...and then access the docker-registry directly:
-    curl -vsH "Authorization: Bearer $registry_token" "http://localhost:5002/v2/_catalog"
+    local username=$1
+    local password=$2
+    local registry_url=$3
+    local service=$4
+    local auth_url="$registry_url?service=$service&scope=registry:catalog:*"
+    local auth_basic_token=$(echo -n $username:$password | base64 -w 0)
+    curl -sH "Authorization: Basic $auth_basic_token" "$auth_url" | jq -r .token
     # NOTE (A Yushkovskiy, 25.12.2018) Read materials:
     # - on docker registry auth protocol:
     #   https://github.com/docker/distribution/blob/master/docs/spec/auth/token.md
@@ -103,6 +112,20 @@ function debug_test_docker_catalog_directly() {
     #   https://docs.docker.com/registry/spec/api/#listing-repositories
     # - examples of ACL rules for docker registry image:
     #   https://github.com/cesanta/docker_auth/blob/master/examples/reference.yml
+}
+
+function debug_docker_catalog_local() {
+    local user=testuser
+    local password=testpassword
+    local registry_token=`get_registry_token_for_catalog "$user" "$password" "http://localhost:5001/auth" "upstream"`
+    curl -sH "Authorization: Bearer $registry_token" "http://localhost:5002/v2/_catalog" | jq
+}
+
+function debug_docker_catalog_gcr() {
+    local user=$1
+    local password=$2
+    local registry_token=`get_registry_token_for_catalog "$user" "$password" "https://gcr.io/v2/token" "gcr.io"`
+    curl -sH "Authorization: Bearer $registry_token" "https://gcr.io/v2/_catalog" | jq
 }
 
 

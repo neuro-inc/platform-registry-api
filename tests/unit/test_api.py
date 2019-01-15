@@ -199,7 +199,7 @@ class TestHelpers_CheckImageCatalogPermission:
                 'alice': {
                     'action': 'list',
                     'children': {
-                        'img:latest': {
+                        'img': {
                             'action': 'read',
                             'children': {}
                         }
@@ -222,7 +222,7 @@ class TestHelpers_CheckImageCatalogPermission:
                 'alice': {
                     'action': 'list',
                     'children': {
-                        'img:latest': {
+                        'img': {
                             'action': 'manage',
                             'children': {}
                         }
@@ -232,114 +232,6 @@ class TestHelpers_CheckImageCatalogPermission:
             'path': '/'
         })
         assert check_image_catalog_permission(image, tree) is True
-
-    def test_shared_image_multiple_tags_manage_permissions(self):
-        image = 'alice/img'
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'bob': {
-                    'action': 'manage',
-                    'children': {}
-                },
-                'alice': {
-                    'action': 'list',
-                    'children': {
-                        'img:v1': {
-                            'action': 'manage',
-                            'children': {}
-                        },
-                        'img:v2': {
-                            'action': 'read',
-                            'children': {}
-                        },
-                    }
-                }
-            },
-            'path': '/'
-        })
-        assert check_image_catalog_permission(image, tree) is True
-
-    def test_shared_image_multiple_tags_write_permissions(self):
-        image = 'alice/img'
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'bob': {
-                    'action': 'manage',
-                    'children': {}
-                },
-                'alice': {
-                    'action': 'list',
-                    'children': {
-                        'img:v1': {
-                            'action': 'write',
-                            'children': {}
-                        },
-                        'img:v2': {
-                            'action': 'read',
-                            'children': {}
-                        },
-                    }
-                }
-            },
-            'path': '/'
-        })
-        assert check_image_catalog_permission(image, tree) is True
-
-    def test_shared_image_multiple_tags_has_deny_permission(self):
-        image = 'alice/img'
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'bob': {
-                    'action': 'manage',
-                    'children': {}
-                },
-                'alice': {
-                    'action': 'list',
-                    'children': {
-                        'img:v1': {
-                            'action': 'deny',
-                            'children': {}
-                        },
-                        'img:v2': {
-                            'action': 'read',
-                            'children': {}
-                        },
-                    }
-                }
-            },
-            'path': '/'
-        })
-        assert check_image_catalog_permission(image, tree) is False
-
-    def test_shared_image_multiple_tags_has_list_permission(self):
-        image = 'alice/img'
-        tree = ClientSubTreeViewRoot._from_json({
-            'action': 'list',
-            'children': {
-                'bob': {
-                    'action': 'manage',
-                    'children': {}
-                },
-                'alice': {
-                    'action': 'deny',
-                    'children': {
-                        'img:v1': {
-                            'action': 'list',
-                            'children': {}
-                        },
-                        'img:v2': {
-                            'action': 'read',
-                            'children': {}
-                        },
-                    }
-                }
-            },
-            'path': '/'
-        })
-        assert check_image_catalog_permission(image, tree) is False
 
     def test_shared_image_slashes_in_image_name(self):
         image = 'alice/foo/bar/img'
@@ -359,7 +251,7 @@ class TestHelpers_CheckImageCatalogPermission:
                                 'bar': {
                                     'action': 'list',
                                     'children': {
-                                        'img:latest': {
+                                        'img': {
                                             'action': 'read',
                                             'children': {}
                                         },
@@ -392,7 +284,7 @@ class TestHelpers_CheckImageCatalogPermission:
                                 'bar': {
                                     'action': 'list',
                                     'children': {
-                                        'img:latest': {
+                                        'img': {
                                             'action': 'read',
                                             'children': {}
                                         },
