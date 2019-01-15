@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Tuple, Iterator, Iterable
+from typing import Any, ClassVar, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -20,6 +20,7 @@ from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
+
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 
 
@@ -254,7 +255,8 @@ class V2Handler:
             result_dict = await client_response.json()
             images_list = result_dict.get('repositories', [])
 
-            tree = await self._auth_client.get_permissions_tree(user.name, 'image:')
+            tree = await self._auth_client.get_permissions_tree(
+                user.name, 'image:')
             project_name = url_factory.upstream_project
             filtered = [
                 f'image://{img}'

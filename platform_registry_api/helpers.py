@@ -1,7 +1,10 @@
 from neuro_auth_client.client import ClientSubTreeViewRoot
 
 
-def check_image_catalog_permission(image_name_and_tag: str, tree: ClientSubTreeViewRoot) -> bool:
+def check_image_catalog_permission(
+        image_name_and_tag: str,
+        tree: ClientSubTreeViewRoot
+) -> bool:
     # The permission tree contains the tagged image name
     # for example, "username/image/name/with/slashes:tag"
     parts = image_name_and_tag.split('/')

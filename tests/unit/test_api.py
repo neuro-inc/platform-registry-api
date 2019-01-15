@@ -351,17 +351,17 @@ class TestHelpers_CheckImageCatalogPermission:
                     'children': {}
                 },
                 'alice': {
-                    "action": "list",
-                    "children": {
-                        "foo": {
-                            "action": "list",
-                            "children": {
-                                "bar": {
-                                    "action": "list",
-                                    "children": {
-                                        "img:latest": {
-                                            "action": "read",
-                                            "children": {}
+                    'action': 'list',
+                    'children': {
+                        'foo': {
+                            'action': 'list',
+                            'children': {
+                                'bar': {
+                                    'action': 'list',
+                                    'children': {
+                                        'img:latest': {
+                                            'action': 'read',
+                                            'children': {}
                                         },
                                     }
                                 }
