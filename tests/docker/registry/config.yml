@@ -22,4 +22,3 @@ auth:
     service: "upstream"
     issuer: "Test Auth Server"
     rootcertbundle: "/etc/docker/registry/server.pem"
-    autoredirect: true
