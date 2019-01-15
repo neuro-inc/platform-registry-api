@@ -29,8 +29,8 @@ def check_image_catalog_permission(
                     break
 
                 # check that nothing is forbidden
-                return not any(
-                    leaf.action in {'deny', 'list'}
+                return all(
+                    leaf.action not in {'deny', 'list'}
                     for leaf in matching_leaves
                 )
         else:
