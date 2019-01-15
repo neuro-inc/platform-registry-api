@@ -54,11 +54,11 @@ function test_push_catalog_pull() {
     docker_catalog $name $token ""
 
     docker_tag_push $name $token "ubuntu"
-    expected="\"image://$name/ubuntu:latest\""
+    expected="\"image://$name/ubuntu\""
     docker_catalog $name $token "$expected"
 
     docker_tag_push $name $token "alpine"
-    expected="\"image://$name/alpine:latest\", \"image://$name/ubuntu:latest\""
+    expected="\"image://$name/alpine\", \"image://$name/ubuntu\""
     docker_catalog $name $token "$expected"
 
     docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest
