@@ -118,7 +118,7 @@ class TestV2Handler:
             'alice/img2',
         ]
 
-    def test_filter_images_by_tree(self):
+    def test_filter_images_by_tree_user_mismatch(self):
         images_names = [
             'testproject/alice/img1',
             'testproject/alice/img2',
@@ -138,6 +138,31 @@ class TestV2Handler:
         assert list(V2Handler.filter_images(images_names, tree, project)) == [
             'alice/img1',
             'alice/img2',
+        ]
+
+    def test_filter_images_by_tree_superuser(self):
+        images_names = [
+            'testproject/alice/img1',
+            'testproject/alice/img2',
+            'testproject/bob/img3',
+            'testproject/foo/img4',
+        ]
+        project = 'testproject'
+        tree = ClientSubTreeViewRoot._from_json({
+            'action': 'manage',
+            'children': {
+                'alice': {
+                    'action': 'manage',
+                    'children': {}
+                }
+            },
+            'path': '/'
+        })
+        assert list(V2Handler.filter_images(images_names, tree, project)) == [
+            'alice/img1',
+            'alice/img2',
+            'bob/img3',
+            'foo/img4',
         ]
 
     def test_filter_images_no_elements(self):
