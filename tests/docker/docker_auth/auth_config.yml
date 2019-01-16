@@ -16,3 +16,9 @@ acl:
       account: "testuser"
       name: "/testproject/.+/"
     actions: ["*"]
+  - match:
+      account: "testuser"
+      type: "registry"
+      name: "catalog"
+      comment: "testuser can query the _catalog"
+    actions: ["*"]

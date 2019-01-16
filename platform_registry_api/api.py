@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Tuple
+from typing import Any, ClassVar, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -19,8 +19,11 @@ from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
+from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
+
+from platform_registry_api.helpers import check_image_catalog_permission
 
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 
@@ -76,6 +79,10 @@ class URLFactory:
         self._upstream_endpoint_url = upstream_endpoint_url
         self._upstream_project = upstream_project
 
+    @property
+    def upstream_project(self):
+        return self._upstream_project
+
     @classmethod
     def from_config(cls, registry_endpoint_url: URL, config: Config) -> "URLFactory":
         return cls(
@@ -86,6 +93,9 @@ class URLFactory:
 
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path("/v2/")
+
+    def create_upstream_catalog_url(self) -> URL:
+        return self._upstream_endpoint_url.with_path("/v2/_catalog")
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
         repo = f"{self._upstream_project}/{registry_url.repo}"
@@ -133,7 +143,12 @@ class UpstreamTokenManager:
         return await self._request(url)
 
     async def get_token_for_catalog(self) -> str:
-        url = self._base_url.update_query({"scope": "registry:catalog:*"})
+        url = self._base_url.update_query(
+            {
+                "service": self._registry_config.token_service,
+                "scope": "registry:catalog:*",
+            }
+        )
         return await self._request(url)
 
     async def get_token_for_repo(self, repo: str) -> str:
@@ -146,6 +161,10 @@ class V2Handler:
         self._app = app
         self._config = config
         self._upstream_registry_config = config.upstream_registry
+
+    @property
+    def _auth_client(self) -> AuthClient:
+        return self._app["auth_client"]
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
@@ -200,10 +219,68 @@ class V2Handler:
             request, url_factory=url_factory, url=url, token=token
         )
 
-    async def handle_catalog(self, request: Request) -> StreamResponse:
-        # TODO: compose proper payload
-        # see https://docs.docker.com/registry/spec/api/#errors
-        return Response(status=403)
+    @classmethod
+    def filter_images(
+        cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
+    ) -> Iterator[str]:
+        project_prefix = project_name + "/"
+        len_project_prefix = len(project_prefix)
+        for image in images_names:
+            if image.startswith(project_prefix):
+                image = image[len_project_prefix:]
+                if check_image_catalog_permission(image, tree):
+                    yield image
+            else:
+                msg = f'expected project "{project_name}" in image "{image}"'
+                logger.info(f"Bad image: {msg} (skipping)")
+
+    async def handle_catalog(self, request: Request) -> Response:
+        # TODO (A Yushkovskiy, 17.01.2019) remove hard-coded limit of number of entries
+        # ... and implement a proper paging when accessing the upstream (see issue #36)
+        number_entries_limit = 10000
+
+        logger.debug("registry request: %s; headers: %s", request, request.headers)
+
+        user = await self._get_user_from_request(request)
+
+        url_factory = self._create_url_factory(request)
+        url = url_factory.create_upstream_catalog_url()
+
+        token = await self._upstream_token_manager.get_token_for_catalog()
+        headers = self._prepare_request_headers(request.headers, token=token)
+        params = {"n": number_entries_limit}
+
+        timeout = self._create_registry_client_timeout(request)
+
+        async with self._registry_client.request(
+            method="GET", url=url, headers=headers, params=params, timeout=timeout
+        ) as client_response:
+            logger.debug("upstream response: %s", client_response)
+            client_response.raise_for_status()
+
+            result_dict = await client_response.json()
+            images_list = result_dict.get("repositories", [])
+            logger.debug(
+                f"Received {len(images_list)} images "
+                f"(limit: {number_entries_limit})"
+            )
+
+            tree = await self._auth_client.get_permissions_tree(user.name, "image:")
+            project_name = url_factory.upstream_project
+            filtered = [
+                f"image://{img}"
+                for img in self.filter_images(images_list, tree, project_name)
+            ]
+
+            result_dict = {"repositories": filtered}
+
+            response = aiohttp.web.json_response(data=result_dict)
+
+            logger.debug(
+                "registry response: %s; headers: %s", response, response.headers
+            )
+
+            return response
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
@@ -362,6 +439,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     url=config.auth.server_endpoint_url, token=config.auth.service_token
                 )
             )
+            app["v2_app"]["auth_client"] = auth_client
 
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
