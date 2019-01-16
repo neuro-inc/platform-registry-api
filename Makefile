@@ -86,7 +86,7 @@ gke_docker_push: build
 	docker push $(IMAGE_K8S)
 
 gke_k8s_deploy_dev: _helm
-	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME)
+	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) --region $(GKE_CLUSTER_REGION)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=dev" --set "IMAGE.dev=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
