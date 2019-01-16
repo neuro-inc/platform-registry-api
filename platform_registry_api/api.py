@@ -235,6 +235,8 @@ class V2Handler:
                 logger.info(f"Bad image: {msg} (skipping)")
 
     async def handle_catalog(self, request: Request) -> Response:
+        # TODO (A Yushkovskiy, 17.01.2019) remove hard-coded limit of number of entries
+        # ... and implement a proper paging when accessing the upstream (see issue #36)
         number_entries_limit = 10000
 
         logger.debug("registry request: %s; headers: %s", request, request.headers)
