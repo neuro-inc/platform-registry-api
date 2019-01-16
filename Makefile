@@ -12,6 +12,9 @@ else
     PIP_INDEX_URL ?= "$(shell python pip_extra_index_url.py)"
 endif
 
+init:
+	pip install -r requirements-test.txt
+
 build:
 	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
@@ -38,10 +41,10 @@ test_e2e_built: pull
 
 test_e2e: build test_e2e_built
 
-lint: build_test lint_built
+lint_after_building: build_test lint_built
 
 lint_built:
-	docker run --rm platformregistryapi-test make _lint
+	docker run --rm platformregistryapi-test make lint
 
 test_unit: build_test test_unit_built
 
@@ -96,7 +99,7 @@ gke_docker_push: build
 	docker push $(IMAGE_K8S)
 
 gke_k8s_deploy_dev: _helm
-	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME)
+	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) --region $(GKE_CLUSTER_REGION)
 	sudo chown -R circleci: $(HOME)/.kube
 	helm --set "global.env=dev" --set "IMAGE.dev=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
