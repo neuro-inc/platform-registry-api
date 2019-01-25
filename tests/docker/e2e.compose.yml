@@ -26,7 +26,7 @@ services:
     - NP_JWT_SECRET=secret
 
   registry:
-    image: gcr.io/light-reality-205619/platformregistryapi:latest
+    image: platformregistryapi:latest
     ports:
     - "5000:5000"
     environment:
