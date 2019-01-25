@@ -7,3 +7,4 @@ flake8-mypy==17.8.0
 flake8-isort==2.5
 black==18.6b4
 isort==4.3.4
+uvloop==0.12.0
