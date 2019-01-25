@@ -26,7 +26,7 @@ services:
     - NP_JWT_SECRET=secret
 
   registry:
-    image: platformregistryapi:latest
+    image: gcr.io/light-reality-205619/platformregistryapi:latest
     ports:
     - "5000:5000"
     environment:
@@ -45,7 +45,7 @@ services:
     - auth_server
 
   test:
-    image: platformregistryapi-test
+    image: gcr.io/light-reality-205619/platformregistryapi-test
     environment:
     - NP_REGISTRY_API_PORT=5000
     - NP_REGISTRY_AUTH_URL=http://auth_server:5003
