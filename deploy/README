@@ -1,3 +1,19 @@
+# Deploy in HSE cluster
+
+###  _cd_ to _deploy_ folder
+``` cd deploy ```
+
+### Connect to cluster
+```gcloud container clusters get-credentials hse-cluster-01 --zone us-central1-a --project light-reality-205619```
+
+### Deploy platform-registry-api
+```helm --set "global.env=hse" upgrade --install platformregistryapi platformregistryapi```
+
+
+
+
+#Deploy in stagging and dev clusters
+
 Dev :
 	- helm --set "global.env=dev" install platformregistryapi --name=platformregistryapi
 
