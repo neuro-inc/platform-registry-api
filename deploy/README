@@ -3,3 +3,6 @@ Dev :
 
 Stage :
 	- helm --set "global.env=stage" install platformregistryapi --name=platformregistryapi
+
+HSE :
+	```helm --set "global.env=hse" upgrade --install platformregistryapi platformregistryapi```
