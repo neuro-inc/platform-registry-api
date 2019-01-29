@@ -9,6 +9,7 @@ install_requires = (
     'cchardet==2.1.1',
     'dataclasses==0.6',  # backport from 3.7 stdlib
     'neuro_auth_client==0.0.1b4',
+    'uvloop==0.12.0',
 )
 
 setup(
