@@ -86,7 +86,11 @@ gke_login:
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
 	gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
-	gcloud config set compute/zone $(GKE_COMPUTE_ZONE)
+	@if [ "$(CLUSTER_TYPE)" = "regional" ]; then\
+		gcloud config set compute/region $(GKE_CLUSTER_REGION); \
+	else \
+		gcloud config set compute/zone $(GKE_COMPUTE_ZONE); \
+	fi
 	gcloud auth configure-docker
 
 _helm:
@@ -98,12 +102,11 @@ gke_docker_push: build
 	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
 	docker push $(IMAGE_K8S)
 
-gke_k8s_deploy_dev: _helm
-	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) --region $(GKE_CLUSTER_REGION)
+gke_k8s_deploy: _helm
+	@if [ "$(CLUSTER_TYPE)" = "regional" ]; then\
+		gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) --region $(GKE_CLUSTER_REGION); \
+	else \
+		gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) --zone $(GKE_COMPUTE_ZONE); \
+	fi
 	sudo chown -R circleci: $(HOME)/.kube
-	helm --set "global.env=dev" --set "IMAGE.dev=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
-
-gke_k8s_deploy_staging: _helm
-	gcloud --quiet container clusters get-credentials $(GKE_STAGE_CLUSTER_NAME)
-	sudo chown -R circleci: $(HOME)/.kube
-	helm --set "global.env=staging" --set "IMAGE.staging=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
+	helm --set "global.env=$(HELM_ENV)" --set "IMAGE.$(HELM_ENV)=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
