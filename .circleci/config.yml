@@ -65,13 +65,13 @@ workflows:
   dev:
     jobs:
       - test:
-          context: org-global
+          context: org-dev
           filters:
             branches:
               only:
                 - master
       - gke_deploy:
-          context: org-global
+          context: org-dev
           requires:
             - test
           filters:
@@ -82,13 +82,13 @@ workflows:
   staging:
     jobs:
       - test:
-          context: org-global
+          context: org-staging
           filters:
             branches:
               only:
                 - /release.*/
       - gke_deploy:
-          context: org-global
+          context: org-staging
           requires:
             - test
           filters:
@@ -103,11 +103,11 @@ workflows:
           filters:
             branches:
               only:
-                - /prod-cluster/
+                - /release.*/
       - gke_deploy:
           context: org-prod
           filters:
             branches:
               only:
-                - /prod-cluster/
+                - /release.*/
 
