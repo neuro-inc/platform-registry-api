@@ -18,6 +18,11 @@ INGRESS_HOST_TEMPORARY:
   dev: registry-dev.ai.neuromation.io
   staging: registry-staging.ai.neuromation.io
   hse: registry-hse.ai.neuromation.io
+INGRESS_HOST_TEMPORARY_NEW_DOMAIN:
+  _default: registry-dev.neu.ro
+  dev: registry-dev.neu.ro
+  staging: registry-staging.neu.ro
+  hse: registry-hse.neu.ro
 NP_REGISTRY_AUTH_URL:
   _default: http://platformauthapi:8080
   dev: http://platformauthapi:8080
