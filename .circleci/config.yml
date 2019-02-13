@@ -106,6 +106,8 @@ workflows:
                 - /release.*/
       - gke_deploy:
           context: org-prod
+          requires:
+            - test
           filters:
             branches:
               only:

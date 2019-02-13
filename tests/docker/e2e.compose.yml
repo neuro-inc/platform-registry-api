@@ -18,7 +18,7 @@ services:
     - auth
 
   auth_server:
-    image: gcr.io/light-reality-205619/platformauthapi:latest
+    image: gcr.io/${GKE_PROJECT_ID}/platformauthapi:latest
     ports:
     - "5003:5003"
     environment:
