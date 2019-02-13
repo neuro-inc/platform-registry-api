@@ -83,3 +83,10 @@ spec:
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
+  - host: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST_TEMPORARY | first | default .Values.INGRESS_HOST_TEMPORARY._default) }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: platformregistryapi
+          servicePort: 8080

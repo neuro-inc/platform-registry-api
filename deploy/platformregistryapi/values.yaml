@@ -15,7 +15,13 @@ INGRESS_HOST:
   dev: registry.dev.neuromation.io
   staging: registry.staging.neuromation.io
   hse: registry.hse.neuromation.io
-  hse: registry.prod.neuromation.io
+  prod: registry.prod.neuromation.io
+INGRESS_HOST_TEMPORARY:
+  _default: registry-dev.ai.neuromation.io
+  dev: registry-dev.ai.neuromation.io
+  staging: registry-staging.ai.neuromation.io
+  hse: registry-hse.ai.neuromation.io
+  prod: registry-prod.neuromation.io
 NP_REGISTRY_AUTH_URL:
   _default: http://platformauthapi:8080
   dev: http://platformauthapi:8080
