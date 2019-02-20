@@ -17,7 +17,7 @@ INGRESS_HOST_TEMPORARY:
   _default: registry-dev.ai.neuromation.io
   dev: registry-dev.ai.neuromation.io
   staging: registry-staging.ai.neuromation.io
-  prod: registry-prod.neuromation.io
+  prod: registry.ai.neuromation.io
 INGRESS_HOST_TEMPORARY_NEW_DOMAIN:
   _default: registry-dev.neu.ro
   dev: registry-dev.neu.ro
