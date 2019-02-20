@@ -1,23 +1,14 @@
-# Deploy in HSE cluster
 
-###  _cd_ to _deploy_ folder
-``` cd deploy ```
-
-### Connect to cluster
-```gcloud container clusters get-credentials hse-cluster-01 --zone us-central1-a --project hse-project-230316```
-
-### Deploy platform-registry-api
-```helm --set "global.env=hse" upgrade --install platformregistryapi platformregistryapi```
-
-
-
-# Deploy in Production cluster
 
 ###  _cd_ to _deploy_ folder
 ``` cd deploy ```
 
 ### Connect to cluster
 ```gcloud container clusters get-credentials prod-cluster-01 --zone us-west1-b --project production-228907```
+
+
+
+# Deploy in Production cluster
 
 ### Deploy platform-registry-api
 ```helm --set "global.env=prod" upgrade --install platformregistryapi platformregistryapi```
@@ -26,10 +17,10 @@
 
 
 
-#Deploy in stagging and dev clusters
+#Deploy in staging and dev clusters
 
 Dev :
-	- helm --set "global.env=dev" install platformregistryapi --name=platformregistryapi
+	- helm --set "global.env=dev" upgrade --install platformregistryapi --name=platformregistryapi
 
 Stage :
-	- helm --set "global.env=staging" install platformregistryapi --name=platformregistryapi
+	- helm --set "global.env=staging" upgrade --install platformregistryapi --name=platformregistryapi
