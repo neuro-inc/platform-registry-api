@@ -38,7 +38,7 @@ jobs:
           command: |
             make test_e2e
             
-  gke_dev_deploy:
+  gke_deploy:
     <<: *defaults
     steps:
       - checkout
@@ -55,26 +55,9 @@ jobs:
       - run:
           name: GKE K8s Deploy
           command: |
-            make gke_k8s_deploy_dev
+            make gke_k8s_deploy
 
-  gke_stage_deploy:
-    <<: *defaults
-    steps:
-      - checkout
-      - run:
-          name: GKE Auth
-          command: |
-            make -s gke_login
 
-      - run:
-          name: GKE Docker Push
-          command: |
-            make gke_docker_push
-            
-      - run:
-          name: GKE K8s Deploy
-          command: |
-            make gke_k8s_deploy_staging
 
 workflows:
   version: 2
@@ -83,19 +66,59 @@ workflows:
     jobs:
       - test:
           context: org-global
-      - gke_dev_deploy:
-          context: org-global
+
+  dev:
+    jobs:
+      - test:
+          context: org-dev
+          filters:
+            branches:
+              only:
+                - master
+      - gke_deploy:
+          context: org-dev
           requires:
             - test
           filters:
             branches:
               only:
                 - master
-      - gke_stage_deploy:
-          context: org-global
+
+  staging:
+    jobs:
+      - test:
+          context: org-staging
+          filters:
+            branches:
+              only:
+                - /release.*/
+      - gke_deploy:
+          context: org-staging
           requires:
             - test
           filters:
             branches:
               only:
                 - /release.*/
+
+  prod:
+    jobs:
+      - test:
+          context: org-prod
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /release.*/
+      - gke_deploy:
+          context: org-prod
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /release.*/
+
