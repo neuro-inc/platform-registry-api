@@ -2,9 +2,9 @@ IMAGE_NAME ?= platformregistryapi
 IMAGE_TAG ?= latest
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
-ISORT_DIRS := platform_registry_api tests 
-FLAKE8_DIRS := platform_registry_api tests
-BLACK_DIRS := platform_registry_api tests
+ISORT_DIRS := platform_registry_api tests setup.py
+FLAKE8_DIRS := $(ISORT_DIRS)
+BLACK_DIRS := $(ISORT_DIRS)
 
 ifdef CIRCLECI
     PIP_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
