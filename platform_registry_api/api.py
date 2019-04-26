@@ -1,11 +1,13 @@
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass
-from typing import Any, ClassVar, Iterable, Iterator, Tuple
+from typing import Any, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
+import iso8601
 from aiohttp import BasicAuth, ClientSession
 from aiohttp.web import (
     Application,
@@ -130,13 +132,33 @@ class UpstreamTokenManager:
         self._base_url = self._registry_config.token_endpoint_url.with_query(
             {"service": self._registry_config.token_service}
         )
+        self._cache: Dict[Tuple[str, Optional[str]], Tuple[str, float]] = {}
 
     async def _request(self, url: URL) -> str:
+        service = url.query["service"]
+        scope = url.query.get("scope")
+        key = service, scope
+        now = time.time()
+        value = self._cache.get(key)
+        if value is not None:
+            token, expires_at = value
+            if now < expires_at:
+                return token
+
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
-            return payload["token"]
+        token = payload["token"]
+        expires_in = int(payload.get("expires_in", 60))
+        issued_at_str = payload.get("issued_at")
+        if issued_at_str is not None:
+            issued_at = iso8601.parse_date(issued_at_str).timestamp()
+        else:
+            issued_at = now
+        expires_at = issued_at + int(expires_in)
+        self._cache[key] = token, expires_at
+        return token
 
     async def get_token_without_scope(self) -> str:
         url = self._base_url
