@@ -117,7 +117,29 @@ class URLFactory:
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 
+class TokenCache:
+    def __init__(self) -> None:
+        self._cache: Dict[Tuple[str, Optional[str]], Tuple[str, float]] = {}
+
+    def get(self, service: str, scope: Optional[str], now: float) -> Optional[str]:
+        key = service, scope
+        value = self._cache.get(key)
+        if value is not None:
+            token, expires_at = value
+            if now < expires_at:
+                return token
+        return None
+
+    def put(
+        self, service: str, scope: Optional[str], expires_at: float, token: str
+    ) -> None:
+        key = service, scope
+        self._cache[key] = token, expires_at
+
+
 class UpstreamTokenManager:
+    default_expires_in: int = 60
+
     def __init__(
         self, client: ClientSession, registry_config: UpstreamRegistryConfig
     ) -> None:
@@ -132,33 +154,34 @@ class UpstreamTokenManager:
         self._base_url = self._registry_config.token_endpoint_url.with_query(
             {"service": self._registry_config.token_service}
         )
-        self._cache: Dict[Tuple[str, Optional[str]], Tuple[str, float]] = {}
+        self._cache = TokenCache()
 
     async def _request(self, url: URL) -> str:
         service = url.query["service"]
         scope = url.query.get("scope")
-        key = service, scope
         now = time.time()
-        value = self._cache.get(key)
-        if value is not None:
-            token, expires_at = value
-            if now < expires_at:
-                return token
+        token = self._cache.get(service, scope, now)
+        if token is not None:
+            return token
 
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
         token = payload["token"]
-        expires_in = int(payload.get("expires_in", 60))
+        expires_at = self.parse_expiration_time(payload, now)
+        self._cache.put(service, scope, expires_at, token)
+        return token
+
+    @classmethod
+    def parse_expiration_time(cls, payload: Dict[str, Any], now: float) -> float:
+        expires_in = int(payload.get("expires_in", cls.default_expires_in))
         issued_at_str = payload.get("issued_at")
         if issued_at_str is not None:
             issued_at = iso8601.parse_date(issued_at_str).timestamp()
         else:
             issued_at = now
-        expires_at = issued_at + int(expires_in)
-        self._cache[key] = token, expires_at
-        return token
+        return issued_at + expires_in
 
     async def get_token_without_scope(self) -> str:
         url = self._base_url

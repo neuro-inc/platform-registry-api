@@ -9,6 +9,7 @@ from yarl import URL
 
 from platform_registry_api.api import (
     RepoURL,
+    TokenCache,
     UpstreamTokenManager,
     URLFactory,
     V2Handler,
@@ -451,3 +452,24 @@ class TestUpstreamTokenManager:
         sleep(100)
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-2"
+
+    def test_parse_expiration_time(self):
+        parse_expiration_time = UpstreamTokenManager.parse_expiration_time
+        assert parse_expiration_time({}, 1556642814) == 1556642874
+        payload = {"expires_in": "300"}
+        assert parse_expiration_time(payload, 1556642814) == 1556643114
+        payload = {"expires_in": "300", "issued_at": "2019-04-30T16:46:54Z"}
+        assert parse_expiration_time(payload, 0) == 1556643114
+        payload = {"expires_in": "300", "issued_at": "2019-04-30T19:46:54+03:00"}
+        assert parse_expiration_time(payload, 0) == 1556643114
+
+    def test_token_cache(self):
+        cache = TokenCache()
+        assert cache.get("upstream", None, 1556642814) is None
+        cache.put("upstream", None, 1556642814, "testtoken")
+        assert cache.get("upstream", None, 1556642813) == "testtoken"
+        assert cache.get("upstream", "registry:catalog:*", 1556642813) is None
+        assert cache.get("upstream", None, 1556642815) is None
+        cache.put("upstream", None, 1556642814, "othertoken")
+        assert cache.get("upstream", None, 1556642813) == "othertoken"
+        assert cache.get("upstream", None, 1556642815) is None
