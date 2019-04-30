@@ -1,9 +1,25 @@
+import datetime
+import time
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Optional
+
+import aiohttp
 import pytest
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
-from platform_registry_api.api import RepoURL, URLFactory, V2Handler
+from platform_registry_api.api import (
+    RepoURL,
+    UpstreamTokenManager,
+    URLFactory,
+    V2Handler,
+)
+from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.helpers import check_image_catalog_permission
+
+
+_TestServerFactory = Callable[
+    [aiohttp.web.Application], Awaitable[aiohttp.test_utils.TestServer]
+]
 
 
 class TestRepoURL:
@@ -290,3 +306,148 @@ class TestHelpers_CheckImageCatalogPermission:
             }
         )
         assert check_image_catalog_permission(image, tree) is False
+
+
+class MockAuthServer:
+    counter: int = 0
+    expires_in: Optional[int] = None
+    issued_at: Optional[str] = None
+
+    async def handle(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        service = request.query.get("service")
+        scope = request.query.get("scope")
+        self.counter += 1
+        payload: Dict[str, Any] = {"token": f"token-{service}-{scope}-{self.counter}"}
+        if self.expires_in is not None:
+            payload["expires_in"] = self.expires_in
+        if self.issued_at is not None:
+            payload["issued_at"] = self.issued_at
+        return aiohttp.web.json_response(payload)
+
+
+class TestUpstreamTokenManager:
+    @pytest.fixture
+    def mock_auth_server(self) -> MockAuthServer:
+        return MockAuthServer()
+
+    @pytest.fixture
+    async def upstream_token_manager(
+        self, aiohttp_server: _TestServerFactory, mock_auth_server: MockAuthServer
+    ) -> AsyncIterator[UpstreamTokenManager]:
+        print("create upstream_token_manager")
+        app = aiohttp.web.Application()
+        app.router.add_get("/auth", mock_auth_server.handle)
+        server = await aiohttp_server(app)
+        registry_config = UpstreamRegistryConfig(
+            endpoint_url=URL("http://upstream:5002"),
+            project="testproject",
+            token_endpoint_url=server.make_url("/auth"),
+            token_service="upstream",
+            token_endpoint_username="testuser",
+            token_endpoint_password="testpassword",
+        )
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(force_close=True)
+        ) as session:
+            yield UpstreamTokenManager(session, registry_config)
+        print("destroy upstream_token_manager")
+
+    @pytest.fixture
+    def sleep(self, monkeypatch: Any) -> Callable[[float], None]:
+        def mock_sleep(delta: float) -> None:
+            orig_time = time.time
+
+            def mock_time() -> float:
+                return orig_time() + delta
+
+            monkeypatch.setattr(time, "time", mock_time)
+
+        return mock_sleep
+
+    @pytest.mark.asyncio
+    async def test_get_token_without_scope(
+        self,
+        mock_auth_server: MockAuthServer,
+        upstream_token_manager: UpstreamTokenManager,
+        sleep: Callable[[float], None],
+    ) -> None:
+        utm = upstream_token_manager
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        sleep(100)
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-2"
+
+    @pytest.mark.asyncio
+    async def test_get_token_without_scope_with_expires_in(
+        self,
+        mock_auth_server: MockAuthServer,
+        upstream_token_manager: UpstreamTokenManager,
+        sleep: Callable[[float], None],
+    ) -> None:
+        utm = upstream_token_manager
+        mock_auth_server.expires_in = 300
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        sleep(200)
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        sleep(200)
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-2"
+
+    @pytest.mark.asyncio
+    async def test_get_token_without_scope_with_issued_at(
+        self,
+        mock_auth_server: MockAuthServer,
+        upstream_token_manager: UpstreamTokenManager,
+        sleep: Callable[[float], None],
+    ) -> None:
+        utm = upstream_token_manager
+        issued_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            seconds=200
+        )
+        mock_auth_server.issued_at = issued_at.isoformat()
+        mock_auth_server.expires_in = 500
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        sleep(250)
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-1"
+        sleep(100)
+        token = await utm.get_token_without_scope()
+        assert token == "token-upstream-None-2"
+
+    @pytest.mark.asyncio
+    async def test_get_token_for_catalog(
+        self,
+        mock_auth_server: MockAuthServer,
+        upstream_token_manager: UpstreamTokenManager,
+        sleep: Callable[[float], None],
+    ) -> None:
+        utm = upstream_token_manager
+        token = await utm.get_token_for_catalog()
+        assert token == "token-upstream-registry:catalog:*-1"
+        token = await utm.get_token_for_catalog()
+        assert token == "token-upstream-registry:catalog:*-1"
+        sleep(100)
+        token = await utm.get_token_for_catalog()
+        assert token == "token-upstream-registry:catalog:*-2"
+
+    @pytest.mark.asyncio
+    async def test_get_token_for_repo(
+        self,
+        mock_auth_server: MockAuthServer,
+        upstream_token_manager: UpstreamTokenManager,
+        sleep: Callable[[float], None],
+    ) -> None:
+        utm = upstream_token_manager
+        token = await utm.get_token_for_repo("testrepo")
+        assert token == "token-upstream-repository:testrepo:*-1"
+        token = await utm.get_token_for_repo("testrepo")
+        assert token == "token-upstream-repository:testrepo:*-1"
+        sleep(100)
+        token = await utm.get_token_for_repo("testrepo")
+        assert token == "token-upstream-repository:testrepo:*-2"
