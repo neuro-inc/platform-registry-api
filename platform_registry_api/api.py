@@ -139,6 +139,7 @@ class TokenCache:
 
 class UpstreamTokenManager:
     default_expires_in: int = 60
+    expiration_ratio: float = 0.75
 
     def __init__(
         self, client: ClientSession, registry_config: UpstreamRegistryConfig
@@ -175,13 +176,13 @@ class UpstreamTokenManager:
 
     @classmethod
     def parse_expiration_time(cls, payload: Dict[str, Any], now: float) -> float:
-        expires_in = int(payload.get("expires_in", cls.default_expires_in))
+        expires_in = payload.get("expires_in", cls.default_expires_in)
         issued_at_str = payload.get("issued_at")
         if issued_at_str is not None:
             issued_at = iso8601.parse_date(issued_at_str).timestamp()
         else:
             issued_at = now
-        return issued_at + expires_in
+        return issued_at + expires_in * cls.expiration_ratio
 
     async def get_token_without_scope(self) -> str:
         url = self._base_url
