@@ -326,14 +326,32 @@ class MockAuthServer:
         return aiohttp.web.json_response(payload)
 
 
+class MockTime:
+    def __init__(self) -> None:
+        self._time: float = time.time()
+
+    def time(self) -> float:
+        return self._time
+
+    def sleep(self, delta: float) -> None:
+        self._time += delta
+
+
 class TestUpstreamTokenManager:
     @pytest.fixture
     def mock_auth_server(self) -> MockAuthServer:
         return MockAuthServer()
 
     @pytest.fixture
+    def mock_time(self) -> MockTime:
+        return MockTime()
+
+    @pytest.fixture
     async def upstream_token_manager(
-        self, aiohttp_server: _TestServerFactory, mock_auth_server: MockAuthServer
+        self,
+        aiohttp_server: _TestServerFactory,
+        mock_auth_server: MockAuthServer,
+        mock_time: MockTime,
     ) -> AsyncIterator[UpstreamTokenManager]:
         app = aiohttp.web.Application()
         app.router.add_get("/auth", mock_auth_server.handle)
@@ -349,33 +367,23 @@ class TestUpstreamTokenManager:
         async with aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(force_close=True)
         ) as session:
-            yield UpstreamTokenManager(session, registry_config)
-
-    @pytest.fixture
-    def sleep(self, monkeypatch: Any) -> Callable[[float], None]:
-        def mock_sleep(delta: float) -> None:
-            orig_time = time.time
-
-            def mock_time() -> float:
-                return orig_time() + delta
-
-            monkeypatch.setattr(time, "time", mock_time)
-
-        return mock_sleep
+            yield UpstreamTokenManager(
+                session, registry_config, timefunc=mock_time.time
+            )
 
     @pytest.mark.asyncio
     async def test_get_token_without_scope(
         self,
         mock_auth_server: MockAuthServer,
         upstream_token_manager: UpstreamTokenManager,
-        sleep: Callable[[float], None],
+        mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
-        sleep(100)
+        mock_time.sleep(100)
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
@@ -384,16 +392,16 @@ class TestUpstreamTokenManager:
         self,
         mock_auth_server: MockAuthServer,
         upstream_token_manager: UpstreamTokenManager,
-        sleep: Callable[[float], None],
+        mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
         mock_auth_server.expires_in = 400
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
-        sleep(200)
+        mock_time.sleep(200)
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
-        sleep(200)
+        mock_time.sleep(200)
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
@@ -402,7 +410,7 @@ class TestUpstreamTokenManager:
         self,
         mock_auth_server: MockAuthServer,
         upstream_token_manager: UpstreamTokenManager,
-        sleep: Callable[[float], None],
+        mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
         issued_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
@@ -412,10 +420,10 @@ class TestUpstreamTokenManager:
         mock_auth_server.expires_in = 500
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
-        sleep(150)
+        mock_time.sleep(150)
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-1"
-        sleep(100)
+        mock_time.sleep(100)
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
@@ -424,14 +432,14 @@ class TestUpstreamTokenManager:
         self,
         mock_auth_server: MockAuthServer,
         upstream_token_manager: UpstreamTokenManager,
-        sleep: Callable[[float], None],
+        mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
         token = await utm.get_token_for_catalog()
         assert token == "token-upstream-registry:catalog:*-1"
         token = await utm.get_token_for_catalog()
         assert token == "token-upstream-registry:catalog:*-1"
-        sleep(100)
+        mock_time.sleep(100)
         token = await utm.get_token_for_catalog()
         assert token == "token-upstream-registry:catalog:*-2"
 
@@ -440,19 +448,19 @@ class TestUpstreamTokenManager:
         self,
         mock_auth_server: MockAuthServer,
         upstream_token_manager: UpstreamTokenManager,
-        sleep: Callable[[float], None],
+        mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-1"
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-1"
-        sleep(100)
+        mock_time.sleep(100)
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-2"
 
     def test_parse_expiration_time(self):
-        parse_expiration_time = UpstreamTokenManager.parse_expiration_time
+        parse_expiration_time = TokenCache()._parse_expiration_time
         assert parse_expiration_time({}, 1556642814.0) == 1556642859.0
         payload = {"expires_in": 300}
         assert parse_expiration_time(payload, 1556642814.0) == 1556643039.0
@@ -462,12 +470,22 @@ class TestUpstreamTokenManager:
         assert parse_expiration_time(payload, 0) == 1556643039.0
 
     def test_token_cache(self):
-        cache = TokenCache()
-        assert cache.get("upstream", None, 1556642814.0) is None
-        cache.put("upstream", None, 1556642814.0, "testtoken")
-        assert cache.get("upstream", None, 1556642813.0) == "testtoken"
-        assert cache.get("upstream", "registry:catalog:*", 1556642813.0) is None
-        assert cache.get("upstream", None, 1556642815.0) is None
-        cache.put("upstream", None, 1556642814.0, "othertoken")
-        assert cache.get("upstream", None, 1556642813.0) == "othertoken"
-        assert cache.get("upstream", None, 1556642815.0) is None
+        def timefunc() -> float:
+            return time
+
+        cache = TokenCache(timefunc=timefunc)
+        time = 1556642814.0
+        assert cache.get(None) == (None, time)
+        cache.put(None, "testtoken", time - 44, {})
+        assert cache.get(None) == ("testtoken", time + 1)
+        assert cache.get("registry:catalog:*") == (None, time)
+
+        time += 2
+        assert cache.get(None) == (None, time)
+
+        time -= 2
+        cache.put(None, "othertoken", time - 44, {})
+        assert cache.get(None) == ("othertoken", time + 1)
+
+        time += 2
+        assert cache.get(None) == (None, time)

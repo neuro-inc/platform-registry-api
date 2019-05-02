@@ -3,7 +3,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
+from typing import Any, Callable, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -118,88 +118,88 @@ class URLFactory:
 
 
 class TokenCache:
-    def __init__(self) -> None:
-        self._cache: Dict[Tuple[str, Optional[str]], Tuple[str, float]] = {}
+    def __init__(
+        self,
+        *,
+        timefunc: Optional[Callable[[], float]] = None,
+        default_expires_in: int = 60,
+        expiration_ratio: float = 0.75,
+    ) -> None:
+        self.default_expires_in: int = default_expires_in
+        self.expiration_ratio: float = expiration_ratio
+        self._timefunc: Callable[[], float] = timefunc or time.time
+        self._cache: Dict[Optional[str], Tuple[str, float]] = {}
 
-    def get(self, service: str, scope: Optional[str], now: float) -> Optional[str]:
-        key = service, scope
-        value = self._cache.get(key)
+    def get(self, scope: Optional[str]) -> Tuple[Optional[str], float]:
+        now = self._timefunc()
+        value = self._cache.get(scope)
         if value is not None:
             token, expires_at = value
             if now < expires_at:
-                return token
-        return None
+                return token, expires_at
+        return None, now
 
     def put(
-        self, service: str, scope: Optional[str], expires_at: float, token: str
+        self, scope: Optional[str], token: str, now: float, payload: Dict[str, Any]
     ) -> None:
-        key = service, scope
-        self._cache[key] = token, expires_at
+        expires_at = self._parse_expiration_time(payload, now)
+        self._cache[scope] = token, expires_at
 
-
-class UpstreamTokenManager:
-    default_expires_in: int = 60
-    expiration_ratio: float = 0.75
-
-    def __init__(
-        self, client: ClientSession, registry_config: UpstreamRegistryConfig
-    ) -> None:
-        self._client = client
-        self._registry_config = registry_config
-
-        self._auth = BasicAuth(
-            login=self._registry_config.token_endpoint_username,
-            password=self._registry_config.token_endpoint_password,
-        )
-
-        self._base_url = self._registry_config.token_endpoint_url.with_query(
-            {"service": self._registry_config.token_service}
-        )
-        self._cache = TokenCache()
-
-    async def _request(self, url: URL) -> str:
-        service = url.query["service"]
-        scope = url.query.get("scope")
-        now = time.time()
-        token = self._cache.get(service, scope, now)
-        if token is not None:
-            return token
-
-        async with self._client.get(url, auth=self._auth) as response:
-            # TODO: check the status code
-            # TODO: raise exceptions
-            payload = await response.json()
-        token = payload["token"]
-        expires_at = self.parse_expiration_time(payload, now)
-        self._cache.put(service, scope, expires_at, token)
-        return token
-
-    @classmethod
-    def parse_expiration_time(cls, payload: Dict[str, Any], now: float) -> float:
-        expires_in = payload.get("expires_in", cls.default_expires_in)
+    def _parse_expiration_time(self, payload: Dict[str, Any], now: float) -> float:
+        expires_in = payload.get("expires_in", self.default_expires_in)
         issued_at_str = payload.get("issued_at")
         if issued_at_str is not None:
             issued_at = iso8601.parse_date(issued_at_str).timestamp()
         else:
             issued_at = now
-        return issued_at + expires_in * cls.expiration_ratio
+        return issued_at + expires_in * self.expiration_ratio
+
+
+class UpstreamTokenManager:
+    def __init__(
+        self,
+        client: ClientSession,
+        registry_config: UpstreamRegistryConfig,
+        timefunc: Optional[Callable[[], float]] = None,
+    ) -> None:
+        self._client = client
+
+        self._auth = BasicAuth(
+            login=registry_config.token_endpoint_username,
+            password=registry_config.token_endpoint_password,
+        )
+
+        self._base_url = registry_config.token_endpoint_url.with_query(
+            {"service": registry_config.token_service}
+        )
+
+        self._cache: TokenCache = TokenCache(timefunc=timefunc)
+
+    async def _get_token(self, scope: Optional[str] = None) -> str:
+        token, time = self._cache.get(scope)
+        if token is not None:
+            return token
+
+        url = self._base_url
+        if scope is not None:
+            url = url.update_query({"scope": scope})
+        async with self._client.get(url, auth=self._auth) as response:
+            # TODO: check the status code
+            # TODO: raise exceptions
+            payload = await response.json()
+
+        token = payload["token"] or payload["access_token"]
+        self._cache.put(scope, token, time, payload)
+        return token
 
     async def get_token_without_scope(self) -> str:
-        url = self._base_url
-        return await self._request(url)
+        return await self._get_token()
 
     async def get_token_for_catalog(self) -> str:
-        url = self._base_url.update_query(
-            {
-                "service": self._registry_config.token_service,
-                "scope": "registry:catalog:*",
-            }
-        )
-        return await self._request(url)
+        return await self._get_token("registry:catalog:*")
 
     async def get_token_for_repo(self, repo: str) -> str:
-        url = self._base_url.update_query({"scope": f"repository:{repo}:*"})
-        return await self._request(url)
+        return await self._get_token(f"repository:{repo}:*")
 
 
 class V2Handler:
