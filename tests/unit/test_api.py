@@ -335,7 +335,6 @@ class TestUpstreamTokenManager:
     async def upstream_token_manager(
         self, aiohttp_server: _TestServerFactory, mock_auth_server: MockAuthServer
     ) -> AsyncIterator[UpstreamTokenManager]:
-        print("create upstream_token_manager")
         app = aiohttp.web.Application()
         app.router.add_get("/auth", mock_auth_server.handle)
         server = await aiohttp_server(app)
@@ -351,7 +350,6 @@ class TestUpstreamTokenManager:
             connector=aiohttp.TCPConnector(force_close=True)
         ) as session:
             yield UpstreamTokenManager(session, registry_config)
-        print("destroy upstream_token_manager")
 
     @pytest.fixture
     def sleep(self, monkeypatch: Any) -> Callable[[float], None]:
