@@ -176,7 +176,7 @@ class UpstreamTokenManager:
         self._cache: TokenCache = TokenCache(timefunc=timefunc)
 
     async def _get_token(self, scope: Optional[str] = None) -> str:
-        token, time = self._cache.get(scope)
+        token, timestamp = self._cache.get(scope)
         if token is not None:
             return token
 
@@ -189,7 +189,7 @@ class UpstreamTokenManager:
             payload = await response.json()
 
         token = payload["token"] or payload["access_token"]
-        self._cache.put(scope, token, time, payload)
+        self._cache.put(scope, token, timestamp, payload)
         return token
 
     async def get_token_without_scope(self) -> str:
