@@ -6,8 +6,6 @@ from typing import Any, ClassVar, Dict, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
-import iso8601
-from aiohttp.hdrs import AUTHORIZATION
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
