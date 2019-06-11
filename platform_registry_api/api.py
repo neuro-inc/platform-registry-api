@@ -2,20 +2,8 @@ import asyncio
 import logging
 import re
 import time
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    Generic,
-    Iterable,
-    Iterator,
-    Optional,
-    Tuple,
-    TypeVar,
-)
+from typing import Any, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -41,7 +29,10 @@ from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
 
+from .cache import ExpiringCache
 from .config import Config, EnvironConfigFactory
+from .typedefs import TimeFactory
+from .upstream import Upstream
 
 
 logger = logging.getLogger(__name__)
@@ -129,27 +120,6 @@ class URLFactory:
                 f'the one configured "{self._upstream_project}"'
             )
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
-
-
-TimeFactory = Callable[[], float]
-T = TypeVar("T")
-
-
-class ExpiringCache(Generic[T]):
-    def __init__(self, *, time_factory: TimeFactory = time.time) -> None:
-        self._time_factory = time_factory
-        self._cache: Dict[Optional[str], Tuple[T, float]] = {}
-
-    def get(self, key: Optional[str]) -> Optional[T]:
-        record = self._cache.get(key)
-        if record is not None:
-            value, expires_at = record
-            if self._time_factory() < expires_at:
-                return value
-        return None
-
-    def put(self, key: Optional[str], value: T, expires_at: float) -> None:
-        self._cache[key] = value, expires_at
 
 
 @dataclass(frozen=True)
