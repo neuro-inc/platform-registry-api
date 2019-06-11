@@ -2,13 +2,26 @@ import asyncio
 import logging
 import re
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Callable, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    Optional,
+    Tuple,
+    TypeVar,
+)
 
 import aiohttp.web
 import aiohttp_remotes
 import iso8601
 from aiohttp import BasicAuth, ClientSession
+from aiohttp.hdrs import AUTHORIZATION
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
@@ -21,13 +34,14 @@ from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
+from neuro_auth_client.bearer_auth import BearerAuth
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
 
-from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
+from .config import Config, EnvironConfigFactory
 
 
 logger = logging.getLogger(__name__)
@@ -117,89 +131,145 @@ class URLFactory:
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 
-class TokenCache:
+TimeFactory = Callable[[], float]
+T = TypeVar("T")
+
+
+class ExpiringCache(Generic[T]):
+    def __init__(self, *, time_factory: TimeFactory = time.time) -> None:
+        self._time_factory = time_factory
+        self._cache: Dict[Optional[str], Tuple[T, float]] = {}
+
+    def get(self, key: Optional[str]) -> Optional[T]:
+        record = self._cache.get(key)
+        if record is not None:
+            value, expires_at = record
+            if self._time_factory() < expires_at:
+                return value
+        return None
+
+    def put(self, key: Optional[str], value: T, expires_at: float) -> None:
+        self._cache[key] = value, expires_at
+
+
+@dataclass(frozen=True)
+class OAuthToken:
+    access_token: str
+    expires_at: float
+
+    @classmethod
+    def create_from_payload(
+        cls,
+        payload: Dict[str, Any],
+        *,
+        default_expires_in: int = 60,
+        expiration_ratio: float = 0.75,
+        time_factory: TimeFactory = time.time,
+    ) -> "OAuthToken":
+        return OAuthToken(
+            access_token=cls._parse_access_token(payload),
+            expires_at=cls._parse_expires_at(
+                payload,
+                default_expires_in=default_expires_in,
+                expiration_ratio=expiration_ratio,
+                time_factory=time_factory,
+            ),
+        )
+
+    @classmethod
+    def _parse_access_token(cls, payload: Dict[str, Any]) -> str:
+        access_token = payload.get("token") or payload.get("access_token")
+        if not access_token:
+            raise ValueError("no access token")
+        return access_token
+
+    @classmethod
+    def _parse_expires_at(
+        csl,
+        payload: Dict[str, Any],
+        *,
+        default_expires_in: int = 60,
+        expiration_ratio: float = 0.75,
+        time_factory: TimeFactory = time.time,
+    ) -> float:
+        expires_in = payload.get("expires_in", default_expires_in)
+        issued_at_str = payload.get("issued_at")
+        if issued_at_str:
+            issued_at = iso8601.parse_date(issued_at_str).timestamp()
+        else:
+            issued_at = time_factory()
+        return issued_at + expires_in * expiration_ratio
+
+
+class OAuthClient:
     def __init__(
         self,
         *,
-        timefunc: Optional[Callable[[], float]] = None,
-        default_expires_in: int = 60,
-        expiration_ratio: float = 0.75,
-    ) -> None:
-        self.default_expires_in: int = default_expires_in
-        self.expiration_ratio: float = expiration_ratio
-        self._timefunc: Callable[[], float] = timefunc or time.time
-        self._cache: Dict[Optional[str], Tuple[str, float]] = {}
-
-    def get(self, scope: Optional[str]) -> Tuple[Optional[str], float]:
-        now = self._timefunc()
-        value = self._cache.get(scope)
-        if value is not None:
-            token, expires_at = value
-            if now < expires_at:
-                return token, expires_at
-        return None, now
-
-    def put(
-        self, scope: Optional[str], token: str, now: float, payload: Dict[str, Any]
-    ) -> None:
-        expires_at = self._parse_expiration_time(payload, now)
-        self._cache[scope] = token, expires_at
-
-    def _parse_expiration_time(self, payload: Dict[str, Any], now: float) -> float:
-        expires_in = payload.get("expires_in", self.default_expires_in)
-        issued_at_str = payload.get("issued_at")
-        if issued_at_str is not None:
-            issued_at = iso8601.parse_date(issued_at_str).timestamp()
-        else:
-            issued_at = now
-        return issued_at + expires_in * self.expiration_ratio
-
-
-class UpstreamTokenManager:
-    def __init__(
-        self,
         client: ClientSession,
-        registry_config: UpstreamRegistryConfig,
-        timefunc: Optional[Callable[[], float]] = None,
+        url: URL,
+        service: str,
+        username: str,
+        password: str,
+        time_factory: TimeFactory = time.time,
     ) -> None:
         self._client = client
+        self._url = url.with_query({"service": service})
+        self._auth = BasicAuth(login=username, password=password)
+        self._time_factory = time_factory
 
-        self._auth = BasicAuth(
-            login=registry_config.token_endpoint_username,
-            password=registry_config.token_endpoint_password,
-        )
-
-        self._base_url = registry_config.token_endpoint_url.with_query(
-            {"service": registry_config.token_service}
-        )
-
-        self._cache: TokenCache = TokenCache(timefunc=timefunc)
-
-    async def _get_token(self, scope: Optional[str] = None) -> str:
-        token, timestamp = self._cache.get(scope)
-        if token is not None:
-            return token
-
-        url = self._base_url
+    async def get_token(self, scope: Optional[str] = None) -> OAuthToken:
+        url = self._url
         if scope is not None:
             url = url.update_query({"scope": scope})
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
+            return OAuthToken.create_from_payload(
+                payload, time_factory=self._time_factory
+            )
 
-        token = payload["token"] or payload["access_token"]
-        self._cache.put(scope, token, timestamp, payload)
-        return token
 
-    async def get_token_without_scope(self) -> str:
-        return await self._get_token()
+class Upstream(ABC):
+    async def create_repo(self, repo: str, ignore_if_exists: bool = True) -> None:
+        pass
 
-    async def get_token_for_catalog(self) -> str:
-        return await self._get_token("registry:catalog:*")
+    @abstractmethod
+    async def get_headers_for_version(self) -> Dict[str, str]:
+        pass
 
-    async def get_token_for_repo(self, repo: str) -> str:
-        return await self._get_token(f"repository:{repo}:*")
+    @abstractmethod
+    async def get_headers_for_catalog(self) -> Dict[str, str]:
+        pass
+
+    @abstractmethod
+    async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
+        pass
+
+
+class OAuthUpstream(Upstream):
+    def __init__(
+        self, *, client: OAuthClient, time_factory: TimeFactory = time.time
+    ) -> None:
+        self._client = client
+        self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
+
+    async def _get_headers(self, scope: Optional[str] = None) -> Dict[str, str]:
+        headers = self._cache.get(scope)
+        if headers is None:
+            token = await self._client.get_token(scope)
+            headers = {str(AUTHORIZATION): BearerAuth(token.access_token).encode()}
+            self._cache.put(scope, headers, token.expires_at)
+        return dict(headers)
+
+    async def get_headers_for_version(self) -> Dict[str, str]:
+        return await self._get_headers()
+
+    async def get_headers_for_catalog(self) -> Dict[str, str]:
+        return await self._get_headers("registry:catalog:*")
+
+    async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
+        return await self._get_headers(f"repository:{repo}:*")
 
 
 class V2Handler:
@@ -217,8 +287,8 @@ class V2Handler:
         return self._app["registry_client"]
 
     @property
-    def _upstream_token_manager(self) -> UpstreamTokenManager:
-        return self._app["upstream_token_manager"]
+    def _upstream(self) -> Upstream:
+        return self._app["upstream"]
 
     def register(self, app):
         app.add_routes(
@@ -260,9 +330,9 @@ class V2Handler:
 
         url_factory = self._create_url_factory(request)
         url = url_factory.create_registry_version_check_url()
-        token = await self._upstream_token_manager.get_token_without_scope()
+        auth_headers = await self._upstream.get_headers_for_version()
         return await self._proxy_request(
-            request, url_factory=url_factory, url=url, token=token
+            request, url_factory=url_factory, url=url, auth_headers=auth_headers
         )
 
     @classmethod
@@ -292,8 +362,8 @@ class V2Handler:
         url_factory = self._create_url_factory(request)
         url = url_factory.create_upstream_catalog_url()
 
-        token = await self._upstream_token_manager.get_token_for_catalog()
-        headers = self._prepare_request_headers(request.headers, token=token)
+        auth_headers = await self._upstream.get_headers_for_catalog()
+        headers = self._prepare_request_headers(request.headers, auth_headers)
         params = {"n": number_entries_limit}
 
         timeout = self._create_registry_client_timeout(request)
@@ -345,12 +415,16 @@ class V2Handler:
             upstream_repo_url,
         )
 
-        token = await self._upstream_token_manager.get_token_for_repo(
-            upstream_repo_url.repo
-        )
+        if not self._is_pull_request(request):
+            await self._upstream.create_repo(upstream_repo_url.repo)
+
+        auth_headers = await self._upstream.get_headers_for_repo(upstream_repo_url.repo)
 
         return await self._proxy_request(
-            request, url_factory=url_factory, url=upstream_repo_url.url, token=token
+            request,
+            url_factory=url_factory,
+            url=upstream_repo_url.url,
+            auth_headers=auth_headers,
         )
 
     def _is_pull_request(self, request: Request) -> bool:
@@ -383,9 +457,13 @@ class V2Handler:
         )
 
     async def _proxy_request(
-        self, request: Request, url_factory: URLFactory, url: URL, token: str
+        self,
+        request: Request,
+        url_factory: URLFactory,
+        url: URL,
+        auth_headers: Dict[str, str],
     ) -> StreamResponse:
-        request_headers = self._prepare_request_headers(request.headers, token=token)
+        request_headers = self._prepare_request_headers(request.headers, auth_headers)
 
         timeout = self._create_registry_client_timeout(request)
 
@@ -420,14 +498,14 @@ class V2Handler:
             return response
 
     def _prepare_request_headers(
-        self, headers: CIMultiDictProxy, token: str
+        self, headers: CIMultiDictProxy, auth_headers: Dict[str, str]
     ) -> CIMultiDict:
         request_headers: CIMultiDict = headers.copy()  # type: ignore
 
         for name in ("Host", "Transfer-Encoding", "Connection"):
             request_headers.pop(name, None)
 
-        request_headers["Authorization"] = f"Bearer {token}"
+        request_headers.update(auth_headers)
         return request_headers
 
     def _prepare_response_headers(
@@ -479,8 +557,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
 
             app["v2_app"]["registry_client"] = session
-            app["v2_app"]["upstream_token_manager"] = UpstreamTokenManager(
-                client=session, registry_config=config.upstream_registry
+            app["v2_app"]["upstream"] = OAuthUpstream(
+                client=OAuthClient(
+                    client=session,
+                    url=config.upstream_registry.token_endpoint_url,
+                    service=config.upstream_registry.token_service,
+                    username=config.upstream_registry.token_endpoint_username,
+                    password=config.upstream_registry.token_endpoint_password,
+                )
             )
 
             auth_client = await exit_stack.enter_async_context(
