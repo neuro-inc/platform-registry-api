@@ -185,12 +185,12 @@ class OAuthToken:
 
     @classmethod
     def _parse_expires_at(
-        csl,
+        cls,
         payload: Dict[str, Any],
         *,
-        default_expires_in: int = 60,
-        expiration_ratio: float = 0.75,
-        time_factory: TimeFactory = time.time,
+        default_expires_in: int,
+        expiration_ratio: float,
+        time_factory: TimeFactory,
     ) -> float:
         expires_in = payload.get("expires_in", default_expires_in)
         issued_at_str = payload.get("issued_at")
@@ -225,9 +225,7 @@ class OAuthClient:
             # TODO: check the status code
             # TODO: raise exceptions
             payload = await response.json()
-            return OAuthToken.create_from_payload(
-                payload, time_factory=self._time_factory
-            )
+        return OAuthToken.create_from_payload(payload, time_factory=self._time_factory)
 
 
 class Upstream(ABC):
