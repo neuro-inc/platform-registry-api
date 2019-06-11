@@ -4,13 +4,16 @@ from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Optional
 
 import aiohttp
 import pytest
+from aiohttp import ClientSession
+from aiohttp.hdrs import AUTHORIZATION
+from neuro_auth_client.bearer_auth import BearerAuth
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
 from platform_registry_api.api import (
+    OAuthClient,
+    OAuthUpstream,
     RepoURL,
-    TokenCache,
-    UpstreamTokenManager,
     URLFactory,
     V2Handler,
 )
@@ -337,6 +340,39 @@ class MockTime:
         self._time += delta
 
 
+class UpstreamTokenManager:
+    def __init__(
+        self,
+        client: ClientSession,
+        registry_config: UpstreamRegistryConfig,
+        timefunc: Optional[Callable[[], float]] = None,
+    ) -> None:
+        timefunc = timefunc or time.time
+        self._oauth_upstream = OAuthUpstream(
+            client=OAuthClient(
+                client=client,
+                url=registry_config.token_endpoint_url,
+                service=registry_config.token_service,
+                username=registry_config.token_endpoint_username,
+                password=registry_config.token_endpoint_password,
+                time_factory=timefunc,
+            ),
+            time_factory=timefunc,
+        )
+
+    async def get_token_without_scope(self) -> str:
+        headers = await self._oauth_upstream.get_headers_for_version()
+        return BearerAuth.decode(headers[AUTHORIZATION]).token
+
+    async def get_token_for_catalog(self) -> str:
+        headers = await self._oauth_upstream.get_headers_for_catalog()
+        return BearerAuth.decode(headers[AUTHORIZATION]).token
+
+    async def get_token_for_repo(self, repo: str) -> str:
+        headers = await self._oauth_upstream.get_headers_for_repo(repo)
+        return BearerAuth.decode(headers[AUTHORIZATION]).token
+
+
 class TestUpstreamTokenManager:
     @pytest.fixture
     def mock_auth_server(self) -> MockAuthServer:
@@ -458,34 +494,3 @@ class TestUpstreamTokenManager:
         mock_time.sleep(100)
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-2"
-
-    def test_parse_expiration_time(self):
-        parse_expiration_time = TokenCache()._parse_expiration_time
-        assert parse_expiration_time({}, 1556642814.0) == 1556642859.0
-        payload = {"expires_in": 300}
-        assert parse_expiration_time(payload, 1556642814.0) == 1556643039.0
-        payload = {"expires_in": 300, "issued_at": "2019-04-30T16:46:54Z"}
-        assert parse_expiration_time(payload, 0) == 1556643039.0
-        payload = {"expires_in": 300, "issued_at": "2019-04-30T19:46:54+03:00"}
-        assert parse_expiration_time(payload, 0) == 1556643039.0
-
-    def test_token_cache(self):
-        def timefunc() -> float:
-            return time
-
-        cache = TokenCache(timefunc=timefunc)
-        time = 1556642814.0
-        assert cache.get(None) == (None, time)
-        cache.put(None, "testtoken", time - 44, {})
-        assert cache.get(None) == ("testtoken", time + 1)
-        assert cache.get("registry:catalog:*") == (None, time)
-
-        time += 2
-        assert cache.get(None) == (None, time)
-
-        time -= 2
-        cache.put(None, "othertoken", time - 44, {})
-        assert cache.get(None) == ("othertoken", time + 1)
-
-        time += 2
-        assert cache.get(None) == (None, time)
