@@ -1,9 +1,8 @@
 import asyncio
 import logging
 import re
-import time
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Iterable, Iterator, Optional, Tuple
+from typing import Any, ClassVar, Dict, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -21,17 +20,14 @@ from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
-from neuro_auth_client.bearer_auth import BearerAuth
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
 
-from .cache import ExpiringCache
 from .config import Config, EnvironConfigFactory
 from .oauth import OAuthClient, OAuthUpstream
-from .typedefs import TimeFactory
 from .upstream import Upstream
 
 
