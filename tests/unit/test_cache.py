@@ -1,6 +1,6 @@
 import time
 
-from platform_registry_api.api import ExpiringCache
+from platform_registry_api.cache import ExpiringCache
 
 
 class TestExpiringCache:
