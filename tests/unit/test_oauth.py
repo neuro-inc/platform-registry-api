@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from platform_registry_api.api import OAuthToken
+from platform_registry_api.oauth import OAuthToken
 
 
 class TestOAuthToken:
