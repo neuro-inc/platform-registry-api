@@ -195,10 +195,6 @@ class V2Handler:
                 logger.info(f"Bad image: {msg} (skipping)")
 
     async def handle_catalog(self, request: Request) -> Response:
-        # TODO (A Yushkovskiy, 17.01.2019) remove hard-coded limit of number of entries
-        # ... and implement a proper paging when accessing the upstream (see issue #36)
-        number_entries_limit = 10000
-
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         user = await self._get_user_from_request(request)
@@ -208,7 +204,7 @@ class V2Handler:
 
         auth_headers = await self._upstream.get_headers_for_catalog()
         headers = self._prepare_request_headers(request.headers, auth_headers)
-        params = {"n": number_entries_limit}
+        params = {"n": self._config.upstream_registry.max_catalog_entries}
 
         timeout = self._create_registry_client_timeout(request)
 
@@ -222,7 +218,7 @@ class V2Handler:
             images_list = result_dict.get("repositories", [])
             logger.debug(
                 f"Received {len(images_list)} images "
-                f"(limit: {number_entries_limit})"
+                f"(limit: {self._config.upstream_registry.max_catalog_entries})"
             )
 
             tree = await self._auth_client.get_permissions_tree(user.name, "image:")
