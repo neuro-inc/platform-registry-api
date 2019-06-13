@@ -54,6 +54,8 @@ spec:
             secretKeyRef:
               name: gcr-secret
               key: password
+        - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
+          value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES | first | default .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES._default) }}
 ---
 apiVersion: v1
 kind: Service

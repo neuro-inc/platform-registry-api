@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, Iterable, Iterator, Tuple
+from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, Tuple
 
 import aiohttp.web
 import aiohttp_remotes
@@ -16,6 +16,7 @@ from aiohttp.web import (
 )
 from aiohttp_security import check_authorized, check_permission
 from async_exit_stack import AsyncExitStack
+from async_generator import asynccontextmanager
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
@@ -24,7 +25,7 @@ from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
 
-from .config import Config, EnvironConfigFactory
+from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 from .oauth import OAuthClient, OAuthUpstream
 from .upstream import Upstream
 
@@ -195,10 +196,6 @@ class V2Handler:
                 logger.info(f"Bad image: {msg} (skipping)")
 
     async def handle_catalog(self, request: Request) -> Response:
-        # TODO (A Yushkovskiy, 17.01.2019) remove hard-coded limit of number of entries
-        # ... and implement a proper paging when accessing the upstream (see issue #36)
-        number_entries_limit = 10000
-
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         user = await self._get_user_from_request(request)
@@ -208,7 +205,7 @@ class V2Handler:
 
         auth_headers = await self._upstream.get_headers_for_catalog()
         headers = self._prepare_request_headers(request.headers, auth_headers)
-        params = {"n": number_entries_limit}
+        params = {"n": self._config.upstream_registry.max_catalog_entries}
 
         timeout = self._create_registry_client_timeout(request)
 
@@ -222,7 +219,7 @@ class V2Handler:
             images_list = result_dict.get("repositories", [])
             logger.debug(
                 f"Received {len(images_list)} images "
-                f"(limit: {number_entries_limit})"
+                f"(limit: {self._config.upstream_registry.max_catalog_entries})"
             )
 
             tree = await self._auth_client.get_permissions_tree(user.name, "image:")
@@ -377,6 +374,21 @@ class V2Handler:
         return str(registry_repo_url.url)
 
 
+@asynccontextmanager
+async def create_oauth_upstream(
+    *, config: UpstreamRegistryConfig, client: aiohttp.ClientSession
+) -> AsyncIterator[Upstream]:
+    yield OAuthUpstream(
+        client=OAuthClient(
+            client=client,
+            url=config.token_endpoint_url,
+            service=config.token_service,
+            username=config.token_endpoint_username,
+            password=config.token_endpoint_password,
+        )
+    )
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
@@ -399,16 +411,16 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
-
             app["v2_app"]["registry_client"] = session
-            app["v2_app"]["upstream"] = OAuthUpstream(
-                client=OAuthClient(
-                    client=session,
-                    url=config.upstream_registry.token_endpoint_url,
-                    service=config.upstream_registry.token_service,
-                    username=config.upstream_registry.token_endpoint_username,
-                    password=config.upstream_registry.token_endpoint_password,
+
+            if config.upstream_registry.is_oauth:
+                upstream_cm = create_oauth_upstream(
+                    config=config.upstream_registry, client=session
                 )
+            else:
+                raise RuntimeError("unsupported upstream type")
+            app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
+                upstream_cm
             )
 
             auth_client = await exit_stack.enter_async_context(

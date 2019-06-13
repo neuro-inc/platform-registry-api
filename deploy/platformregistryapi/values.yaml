@@ -53,3 +53,8 @@ NP_REGISTRY_REPLICAS:
   dev: "2"
   staging: "2"
   prod: "2"
+NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES:
+  _default: "10000"
+  dev: "10000"
+  staging: "10000"
+  prod: "10000"
