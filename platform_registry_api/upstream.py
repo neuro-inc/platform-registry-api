@@ -3,7 +3,7 @@ from typing import Dict
 
 
 class Upstream(ABC):
-    async def create_repo(self, repo: str, ignore_if_exists: bool = True) -> None:
+    async def create_repo(self, repo: str) -> None:
         pass
 
     @abstractmethod
