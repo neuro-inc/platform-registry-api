@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import re
+import time
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, Tuple
 
+import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
 from aiohttp.web import (
@@ -25,8 +27,10 @@ from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
 
+from .aws_ecr import AWSECRUpstream
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 from .oauth import OAuthClient, OAuthUpstream
+from .typedefs import TimeFactory
 from .upstream import Upstream
 
 
@@ -215,7 +219,10 @@ class V2Handler:
             logger.debug("upstream response: %s", client_response)
             client_response.raise_for_status()
 
-            result_dict = await client_response.json()
+            # passing content_type=None here to disable the strict content
+            # type check. GCR sends application/json, whereas ECR sends
+            # text/plan.
+            result_dict = await client_response.json(content_type=None)
             images_list = result_dict.get("repositories", [])
             logger.debug(
                 f"Received {len(images_list)} images "
@@ -389,6 +396,18 @@ async def create_oauth_upstream(
     )
 
 
+@asynccontextmanager
+async def create_aws_ecr_upstream(
+    *,
+    config: UpstreamRegistryConfig,
+    time_factory: TimeFactory = time.time,
+    **kwargs: Any,
+) -> AsyncIterator[Upstream]:
+    session = aiobotocore.get_session()
+    async with session.create_client("ecr", **kwargs) as client:
+        yield AWSECRUpstream(client=client, time_factory=time_factory)
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
@@ -418,7 +437,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     config=config.upstream_registry, client=session
                 )
             else:
-                raise RuntimeError("unsupported upstream type")
+                upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
             app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
                 upstream_cm
             )
