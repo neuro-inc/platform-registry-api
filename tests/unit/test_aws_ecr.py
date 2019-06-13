@@ -28,6 +28,17 @@ class TestAWSECRAuthToken:
                     {"authorizationToken": "testtoken", "expiresAt": "invalid"}
                 ]
             },
+            {"authorizationData": 123},
+            {"authorizationData": {}},
+            {"authorizationData": [123]},
+            {"authorizationData": [[]]},
+            {"authorizationData": [{}]},
+            {"authorizationData": [{"authorizationToken": 123}]},
+            {
+                "authorizationData": [
+                    {"authorizationToken": "testtoken", "expiresAt": 123}
+                ]
+            },
         ),
     )
     def test_create_from_payload_invalid_payload(self, payload: Dict[str, Any]) -> None:

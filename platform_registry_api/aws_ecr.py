@@ -29,7 +29,7 @@ class AWSECRAuthToken:
             issued_at = time_factory()
             expires_in = token_payload["expiresAt"].timestamp() - issued_at
             expires_at = issued_at + expires_in * expiration_ratio
-        except Exception as exc:
+        except (KeyError, IndexError, AttributeError, TypeError) as exc:
             raise ValueError("invalid payload") from exc
         if issued_at >= expires_at:
             raise ValueError("already expired")

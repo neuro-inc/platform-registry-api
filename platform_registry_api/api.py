@@ -219,6 +219,9 @@ class V2Handler:
             logger.debug("upstream response: %s", client_response)
             client_response.raise_for_status()
 
+            # passing content_type=None here to disable the strict content
+            # type check. GCR sends application/json, whereas ECR sends
+            # text/plan.
             result_dict = await client_response.json(content_type=None)
             images_list = result_dict.get("repositories", [])
             logger.debug(
