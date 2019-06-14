@@ -59,6 +59,23 @@ jobs:
 
 
 
+  artifactory_deploy:
+    <<: *defaults
+
+    steps:
+      - checkout
+
+      - run:
+          name: Artifactory Docker Push
+          command: |
+            make artifactory_docker_push
+
+      - run:
+          name: Artifactory Helm Push
+          command: |
+            make artifactory_helm_push
+
+
 workflows:
   version: 2
 
@@ -122,3 +139,23 @@ workflows:
               only:
                 - /release.*/
 
+  artifactory:
+    jobs:
+      - test:
+          context: org-global
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /artifactory.*/
+      - artifactory_deploy:
+          context: org-global
+          requires:
+            - test
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only:
+                - /artifactory.*/
