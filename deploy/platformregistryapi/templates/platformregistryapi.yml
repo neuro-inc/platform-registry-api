@@ -83,7 +83,7 @@ metadata:
     external-dns.platform.neuromation.io: "true"
 spec:
   rules:
-  {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+  {{- if .Values.INGRESS_HOST }}
   - host: {{ .Values.INGRESS_HOST }}
     http:
       paths:
@@ -92,7 +92,7 @@ spec:
           serviceName: platformregistryapi
           servicePort: 8080
   {{- end }}
-  {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+  {{- if .Values.INGRESS_HOST_TEMPORARY }}
   - host: {{ .Values.INGRESS_HOST_TEMPORARY }}
     http:
       paths:
@@ -101,7 +101,7 @@ spec:
           serviceName: platformregistryapi
           servicePort: 8080
   {{- end }}
-  {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+  {{- if .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
   - host: {{ .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
     http:
       paths:
