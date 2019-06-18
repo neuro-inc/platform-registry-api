@@ -23,7 +23,7 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: {{ Values.NP_REGISTRY_REQUESTS_CPU }}
+            cpu: {{ .Values.NP_REGISTRY_REQUESTS_CPU }}
             memory: {{ .Values.NP_REGISTRY_REQUESTS_MEMORY }}
           limits:
             cpu: {{ .Values.NP_REGISTRY_LIMITS_CPU }}
