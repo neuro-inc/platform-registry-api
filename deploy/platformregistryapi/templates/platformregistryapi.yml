@@ -35,7 +35,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: platformservices-secret
-              key: {{ .Values.NP_REGISTRY_AUTH_TOKEN }}
+              key: registry_token
         - name: NP_REGISTRY_UPSTREAM_URL
           value: {{ .Values.NP_REGISTRY_UPSTREAM_URL }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
