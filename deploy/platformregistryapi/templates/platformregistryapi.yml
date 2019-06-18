@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: platformregistryapi
 spec:
-  replicas: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_REPLICAS | first | default .Values.NP_REGISTRY_REPLICAS._default) }}
+  replicas: {{ .Values.NP_REGISTRY_REPLICAS }}
   selector:
     matchLabels:
       service: platformregistryapi
@@ -19,31 +19,31 @@ spec:
     spec:
       containers:
       - name: platformregistryapi
-        image: {{ printf "%s" (pluck .Values.global.env .Values.IMAGE | first | default .Values.IMAGE._default) }}
+        image: {{ .Values.IMAGE }}
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_REQUESTS_CPU | first | default .Values.NP_REGISTRY_REQUESTS_CPU._default) }}
-            memory: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_REQUESTS_MEMORY | first | default .Values.NP_REGISTRY_REQUESTS_MEMORY._default) }}
+            cpu: {{ .Values.NP_REGISTRY_REQUESTS_CPU }}
+            memory: {{ .Values.NP_REGISTRY_REQUESTS_MEMORY }}
           limits:
-            cpu: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_LIMITS_CPU | first | default .Values.NP_REGISTRY_LIMITS_CPU._default) }}
-            memory: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_LIMITS_MEMORY | first | default .Values.NP_REGISTRY_LIMITS_MEMORY._default) }}
+            cpu: {{ .Values.NP_REGISTRY_LIMITS_CPU }}
+            memory: {{ .Values.NP_REGISTRY_LIMITS_MEMORY }}
         env:
         - name: NP_REGISTRY_AUTH_URL
-          value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_AUTH_URL | first | default .Values.NP_REGISTRY_AUTH_URL._default) }}
+          value: {{ .Values.NP_REGISTRY_AUTH_URL }}
         - name: NP_REGISTRY_AUTH_TOKEN
           valueFrom:
             secretKeyRef:
               name: platformservices-secret
               key: registry_token
         - name: NP_REGISTRY_UPSTREAM_URL
-          value: https://gcr.io
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_URL }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
-          value: gcr.io
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_SERVICE }}
         - name: NP_REGISTRY_UPSTREAM_PROJECT
-          value: {{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_UPSTREAM_PROJECT | first | default .Values.NP_REGISTRY_UPSTREAM_PROJECT._default) }}
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_PROJECT }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
-          value: https://gcr.io/v2/token
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_URL }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_USERNAME
           valueFrom:
             secretKeyRef:
@@ -55,7 +55,11 @@ spec:
               name: gcr-secret
               key: password
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
-          value: "{{ printf "%s" (pluck .Values.global.env .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES | first | default .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES._default) }}"
+          value: "{{ .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES }}"
+      {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+      imagePullSecrets:
+        - name: {{ .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -79,24 +83,31 @@ metadata:
     external-dns.platform.neuromation.io: "true"
 spec:
   rules:
-  - host: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST | first | default .Values.INGRESS_HOST._default) }}
+  {{- if .Values.INGRESS_HOST }}
+  - host: {{ .Values.INGRESS_HOST }}
     http:
       paths:
       - path: /
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
-  - host: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST_TEMPORARY | first | default .Values.INGRESS_HOST_TEMPORARY._default) }}
+  {{- end }}
+  {{- if .Values.INGRESS_HOST_TEMPORARY }}
+  - host: {{ .Values.INGRESS_HOST_TEMPORARY }}
     http:
       paths:
       - path: /
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
-  - host: {{ printf "%s" (pluck .Values.global.env .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN | first | default .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN._default) }}
+  {{- end }}
+  {{- if .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
+  - host: {{ .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
     http:
       paths:
       - path: /
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
+  {{- end }}
+
