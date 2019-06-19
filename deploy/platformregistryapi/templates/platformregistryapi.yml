@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         service: platformregistryapi
+      {{- with .Values.annotations }}
+      annotations:
+        {{ toYaml . | indent 2 }}
+      {{- end }}
     spec:
       containers:
       - name: platformregistryapi
@@ -36,12 +40,17 @@ spec:
             secretKeyRef:
               name: platformservices-secret
               key: registry_token
+        - name: NP_REGISTRY_UPSTREAM_TYPE
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TYPE }}
         - name: NP_REGISTRY_UPSTREAM_URL
           value: {{ .Values.NP_REGISTRY_UPSTREAM_URL }}
-        - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_SERVICE }}
         - name: NP_REGISTRY_UPSTREAM_PROJECT
           value: {{ .Values.NP_REGISTRY_UPSTREAM_PROJECT }}
+        - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
+          value: "{{ .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES }}"
+        {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "oauth" }}
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_SERVICE }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
           value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_URL }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_USERNAME
@@ -54,8 +63,11 @@ spec:
             secretKeyRef:
               name: gcr-secret
               key: password
-        - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
-          value: "{{ .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES }}"
+        {{- end }}
+        {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "aws_ecr" }}
+        - name: AWS_DEFAULT_REGION
+          value: {{ .Values.AWS_DEFAULT_REGION }}
+        {{- end }}
       {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
       imagePullSecrets:
         - name: {{ .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
