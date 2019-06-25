@@ -4,6 +4,13 @@ set -e
 set -x
 export SHELLOPTS
 
+function fix_base64() {
+    if command -v gbase64 >/dev/null 2>&1 ; then
+        gbase64 $@
+    else
+        base64 $@
+    fi
+}
 
 function generate_user_token() {
     local name=$1
@@ -64,12 +71,12 @@ function test_push_catalog_pull() {
 
     echo "step 3: push ubuntu, check catalog"
     docker_tag_push $name $token "ubuntu"
-    local expected="\"image://$name/ubuntu\""
+    local expected="\"$name/ubuntu\""
     test_catalog $name $token "$expected"
 
     echo "step 4: push alpine, check catalog"
     docker_tag_push $name $token "alpine"
-    local expected="\"image://$name/alpine\", \"image://$name/ubuntu\""
+    local expected="\"$name/alpine\", \"$name/ubuntu\""
     test_catalog $name $token "$expected"
 
     echo "step 5: remove ubuntu, check pull"
@@ -94,6 +101,7 @@ function test_push_share_catalog() {
     create_regular_user $name2
 
     docker_login $name1 $token1
+    local image_name="\"$name1/alpine\""
     local image_uri="\"image://$name1/alpine\""
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
 
@@ -102,7 +110,7 @@ function test_push_share_catalog() {
 
     echo "step 2: push alpine and test catalog as user 1"
     docker_tag_push $name1 $token1 "alpine"
-    test_catalog $name1 $token1 "$image_uri"
+    test_catalog $name1 $token1 "$image_name"
 
     echo "step 3: test catalog as user 2, expect empty"
     test_catalog $name2 $token2 ""
@@ -111,7 +119,7 @@ function test_push_share_catalog() {
     share_resource_on_read "$image_uri" $token1 $name2
 
     echo "step 5: test catalog as user 2, expect alpine"
-    test_catalog $name2 $token2 "$image_uri"
+    test_catalog $name2 $token2 "$image_name"
 
     echo "step 6: remove alpine"
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
@@ -131,7 +139,7 @@ function test_catalog() {
     local token=$2
     local expected="$3"
     local url="http://localhost:5000/v2/_catalog"
-    local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
+    local auth_basic_token=$(echo -n $name:$token | fix_base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
     echo $output | grep -w "{\"repositories\": \[""$expected""\]}"
 }
@@ -143,7 +151,7 @@ function get_registry_token_for_catalog() {
     local registry_url=$3
     local service=$4
     local auth_url="$registry_url?service=$service&scope=registry:catalog:*"
-    local auth_basic_token=$(echo -n $username:$password | base64 -w 0)
+    local auth_basic_token=$(echo -n $username:$password | fix_base64 -w 0)
     curl -sH "Authorization: Basic $auth_basic_token" "$auth_url" | jq -r .token
     # NOTE (A Yushkovskiy, 25.12.2018) Read materials:
     # - on docker registry auth protocol:
