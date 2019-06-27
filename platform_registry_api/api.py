@@ -8,6 +8,7 @@ from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, Tuple
 import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
+from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
@@ -145,6 +146,9 @@ class V2Handler:
                 aiohttp.web.get("/", self.handle_version_check),
                 aiohttp.web.get("/_catalog", self.handle_catalog),
                 aiohttp.web.route(
+                    "*", r"/{repo:.+}/tags/list", self.handle_repo_tags_list
+                ),
+                aiohttp.web.route(
                     "*",
                     r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
                     self.handle,
@@ -246,6 +250,61 @@ class V2Handler:
 
             return response
 
+    async def handle_repo_tags_list(self, request: Request) -> StreamResponse:
+        # TODO: prevent leaking sensitive headers
+        logger.debug("registry request: %s; headers: %s", request, request.headers)
+
+        registry_repo_url = RepoURL.from_url(request.url)
+
+        await self._check_user_permissions(request, registry_repo_url.repo)
+
+        url_factory = self._create_url_factory(request)
+        upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
+
+        logger.info(
+            "converted registry repo URL to upstream repo URL: %s -> %s",
+            registry_repo_url,
+            upstream_repo_url,
+        )
+
+        if not self._is_pull_request(request):
+            await self._upstream.create_repo(upstream_repo_url.repo)
+
+        auth_headers = await self._upstream.get_headers_for_repo(upstream_repo_url.repo)
+        request_headers = self._prepare_request_headers(request.headers, auth_headers)
+
+        timeout = self._create_registry_client_timeout(request)
+
+        async with self._registry_client.request(
+            method=request.method,
+            url=upstream_repo_url.url,
+            headers=request_headers,
+            skip_auto_headers=("Content-Type",),
+            data=request.content.iter_any(),
+            timeout=timeout,
+        ) as client_response:
+
+            logger.debug("upstream response: %s", client_response)
+
+            response_headers = self._prepare_response_headers(
+                client_response.headers, url_factory
+            )
+            response_headers.pop(CONTENT_LENGTH, None)
+            # Content-Type in headers conflicts with the explicit content_type
+            # added in json_response()
+            response_headers.pop(CONTENT_TYPE, None)
+
+            # See the comment in handle_catalog() about content_type=None.
+            data = await client_response.json(content_type=None)
+            self._fixup_repo_name(data, registry_repo_url.repo)
+            response = aiohttp.web.json_response(
+                data, status=client_response.status, headers=response_headers
+            )
+            logger.debug(
+                "registry response: %s; headers: %s", response, response.headers
+            )
+            return response
+
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
         logger.debug("registry request: %s; headers: %s", request, request.headers)
@@ -344,6 +403,19 @@ class V2Handler:
 
             await response.write_eof()
             return response
+
+    def _fixup_repo_name(self, data: Any, repo: str) -> None:
+        if isinstance(data, dict):
+            if "errors" in data:
+                errors = data["errors"]
+                if isinstance(errors, list):
+                    for error in errors:
+                        if isinstance(error, dict) and "detail" in error:
+                            detail = error["detail"]
+                            if isinstance(detail, dict) and "name" in detail:
+                                detail["name"] = repo
+            if "name" in data:
+                data["name"] = repo
 
     def _prepare_request_headers(
         self, headers: CIMultiDictProxy, auth_headers: Dict[str, str]

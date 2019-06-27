@@ -149,8 +149,7 @@ class TestV2Api:
                 "errors": [
                     {
                         "code": "NAME_UNKNOWN",
-                        # TODO: this has to be fixed ASAP:
-                        "detail": {"name": f"testproject/{user.name}/unknown"},
+                        "detail": {"name": f"{user.name}/unknown"},
                         "message": "repository name not known to registry",
                     }
                 ]
