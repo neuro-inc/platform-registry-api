@@ -40,16 +40,19 @@ class TestRepoURL:
         url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="name", url=url)
+        assert reg_url.suffix == URL("tags/list?whatever=thatis")
 
     def test_from_url_edge_case_1(self):
         url = URL("/v2/tags/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="tags", url=url)
+        assert reg_url.suffix == URL("tags/list?whatever=thatis")
 
     def test_from_url_edge_case_2(self):
         url = URL("/v2/tags/tags/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="tags/tags", url=url)
+        assert reg_url.suffix == URL("tags/list?whatever=thatis")
 
     def test_with_repo(self):
         url = URL("https://example.com/v2/this/image/tags/list?what=ever")
@@ -58,6 +61,7 @@ class TestRepoURL:
             repo="another/img",
             url=URL("https://example.com/v2/another/img/tags/list?what=ever"),
         )
+        assert reg_url.suffix == URL("tags/list?what=ever")
 
     def test_with_origin(self):
         url = URL("https://example.com/v2/this/image/tags/list?what=ever")
@@ -65,6 +69,7 @@ class TestRepoURL:
         assert reg_url == RepoURL(
             repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
         )
+        assert reg_url.suffix == URL("tags/list?what=ever")
 
 
 class TestURLFactory:

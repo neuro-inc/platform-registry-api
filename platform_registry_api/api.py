@@ -3,13 +3,24 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, Tuple
+from typing import (
+    Any,
+    AsyncIterator,
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    Optional,
+    Tuple,
+)
 
 import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
+from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE
 from aiohttp.web import (
     Application,
+    BaseRequest,
     HTTPBadRequest,
     HTTPUnauthorized,
     Request,
@@ -62,9 +73,13 @@ class RepoURL:
         assert not path_suffix.is_absolute()
         return match.group("repo"), path_suffix
 
-    def with_repo(self, repo: str) -> "RepoURL":
+    @property
+    def suffix(self) -> URL:
         _, url_suffix = self._parse(self.url)
-        rel_url = URL(f"/v2/{repo}/").join(url_suffix)
+        return url_suffix
+
+    def with_repo(self, repo: str) -> "RepoURL":
+        rel_url = URL(f"/v2/{repo}/").join(self.suffix)
         url = self.url.join(rel_url)
         # TODO: dataclasses.replace turns out out be buggy :D
         return self.__class__(repo=repo, url=url)
@@ -273,6 +288,7 @@ class V2Handler:
             url_factory=url_factory,
             url=upstream_repo_url.url,
             auth_headers=auth_headers,
+            registry_repo_url=registry_repo_url,
         )
 
     def _is_pull_request(self, request: Request) -> bool:
@@ -310,6 +326,7 @@ class V2Handler:
         url_factory: URLFactory,
         url: URL,
         auth_headers: Dict[str, str],
+        registry_repo_url: Optional[RepoURL] = None,
     ) -> StreamResponse:
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
 
@@ -329,21 +346,66 @@ class V2Handler:
             response_headers = self._prepare_response_headers(
                 client_response.headers, url_factory
             )
-            response = aiohttp.web.StreamResponse(
-                status=client_response.status, headers=response_headers
-            )
 
-            await response.prepare(request)
+            if registry_repo_url and registry_repo_url.suffix.path == "tags/list":
+                return await self._copy_tags_list_content(
+                    request,
+                    client_response,
+                    response_headers,
+                    repo=registry_repo_url.repo,
+                )
 
-            logger.debug(
-                "registry response: %s; headers: %s", response, response.headers
-            )
+            return await self._copy_content(request, client_response, response_headers)
 
-            async for chunk in client_response.content.iter_any():
-                await response.write(chunk)
+    async def _copy_content(
+        self, request: Request, client_response: BaseRequest, headers: CIMultiDict
+    ) -> StreamResponse:
+        response = aiohttp.web.StreamResponse(
+            status=client_response.status, headers=headers
+        )
 
-            await response.write_eof()
-            return response
+        await response.prepare(request)
+
+        logger.debug("registry response: %s; headers: %s", response, response.headers)
+        async for chunk in client_response.content.iter_any():
+            await response.write(chunk)
+
+        await response.write_eof()
+        return response
+
+    def _fixup_repo_name(self, data: Any, repo: str) -> None:
+        # See the comment in handle_catalog() about content_type=None.
+        if isinstance(data, dict):
+            if "errors" in data:
+                errors = data["errors"]
+                if isinstance(errors, list):
+                    for error in errors:
+                        if isinstance(error, dict) and "detail" in error:
+                            detail = error["detail"]
+                            if isinstance(detail, dict) and "name" in detail:
+                                detail["name"] = repo
+            if "name" in data:
+                data["name"] = repo
+
+    async def _copy_tags_list_content(
+        self,
+        request: Request,
+        client_response: BaseRequest,
+        headers: CIMultiDict,
+        repo: str,
+    ) -> StreamResponse:
+        # See the comment in handle_catalog() about content_type=None.
+        data = await client_response.json(content_type=None)
+        self._fixup_repo_name(data, repo)
+        # Content-Type in headers conflicts with the explicit content_type
+        # added in json_response()
+        headers.pop(CONTENT_TYPE, None)
+        headers.pop(CONTENT_LENGTH, None)
+        response = aiohttp.web.json_response(
+            data, status=client_response.status, headers=headers
+        )
+        logger.debug("registry response: %s; headers: %s", response, response.headers)
+        return response
 
     def _prepare_request_headers(
         self, headers: CIMultiDictProxy, auth_headers: Dict[str, str]

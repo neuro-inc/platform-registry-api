@@ -66,6 +66,7 @@ function test_push_catalog_pull() {
     docker_tag_push $name $token "ubuntu"
     local expected="\"image://$name/ubuntu\""
     test_catalog $name $token "$expected"
+    test_repo_tags_list $name $token "$name/ubuntu"
 
     echo "step 4: push alpine, check catalog"
     docker_tag_push $name $token "alpine"
@@ -112,6 +113,7 @@ function test_push_share_catalog() {
 
     echo "step 5: test catalog as user 2, expect alpine"
     test_catalog $name2 $token2 "$image_uri"
+    test_repo_tags_list $name2 $token2 "$name1/alpine"
 
     echo "step 6: remove alpine"
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
@@ -134,6 +136,17 @@ function test_catalog() {
     local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
     echo $output | grep -w "{\"repositories\": \[""$expected""\]}"
+}
+
+function test_repo_tags_list() {
+    local name=$1
+    local token=$2
+    local repo="$3"
+    local url="http://localhost:5000/v2/$repo/tags/list"
+    local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
+    local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
+    echo $output | grep "\"name\": \"$repo\""
+    echo $output | grep "\"tags\": \["
 }
 
 function get_registry_token_for_catalog() {
