@@ -6,9 +6,9 @@ export SHELLOPTS
 
 function fix_base64() {
     if command -v gbase64 >/dev/null 2>&1 ; then
-        gbase64 $@
+        gbase64 "$@"
     else
-        base64 $@
+        base64 "$@"
     fi
 }
 
