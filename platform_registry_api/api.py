@@ -236,8 +236,7 @@ class V2Handler:
             tree = await self._auth_client.get_permissions_tree(user.name, "image:")
             project_name = url_factory.upstream_project
             filtered = [
-                f"image://{img}"
-                for img in self.filter_images(images_list, tree, project_name)
+                img for img in self.filter_images(images_list, tree, project_name)
             ]
 
             result_dict = {"repositories": filtered}
