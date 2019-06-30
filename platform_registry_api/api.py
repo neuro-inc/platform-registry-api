@@ -393,13 +393,13 @@ class V2Handler:
         repo: str,
     ) -> StreamResponse:
         headers.pop(CONTENT_LENGTH, None)
-        self._fixup_repo_name(data, repo)
         # Content-Type in headers conflicts with the explicit content_type
         # added in json_response()
         headers.pop(CONTENT_TYPE, None)
 
         # See the comment in handle_catalog() about content_type=None.
         data = await client_response.json(content_type=None)
+        self._fixup_repo_name(data, repo)
         response = aiohttp.web.json_response(
             data, status=client_response.status, headers=headers
         )
