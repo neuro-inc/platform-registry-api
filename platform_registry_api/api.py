@@ -373,7 +373,6 @@ class V2Handler:
         return response
 
     def _fixup_repo_name(self, data: Any, repo: str) -> None:
-        # See the comment in handle_catalog() about content_type=None.
         if isinstance(data, dict):
             if "errors" in data:
                 errors = data["errors"]
@@ -393,13 +392,14 @@ class V2Handler:
         headers: CIMultiDict,
         repo: str,
     ) -> StreamResponse:
-        # See the comment in handle_catalog() about content_type=None.
-        data = await client_response.json(content_type=None)
+        headers.pop(CONTENT_LENGTH, None)
         self._fixup_repo_name(data, repo)
         # Content-Type in headers conflicts with the explicit content_type
         # added in json_response()
         headers.pop(CONTENT_TYPE, None)
-        headers.pop(CONTENT_LENGTH, None)
+
+        # See the comment in handle_catalog() about content_type=None.
+        data = await client_response.json(content_type=None)
         response = aiohttp.web.json_response(
             data, status=client_response.status, headers=headers
         )
