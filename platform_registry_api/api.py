@@ -145,9 +145,7 @@ class V2Handler:
             (
                 aiohttp.web.get("/", self.handle_version_check),
                 aiohttp.web.get("/_catalog", self.handle_catalog),
-                aiohttp.web.route(
-                    "*", r"/{repo:.+}/tags/list", self.handle_repo_tags_list
-                ),
+                aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
                 aiohttp.web.route(
                     "*",
                     r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
@@ -265,9 +263,6 @@ class V2Handler:
             registry_repo_url,
             upstream_repo_url,
         )
-
-        if not self._is_pull_request(request):
-            await self._upstream.create_repo(upstream_repo_url.repo)
 
         auth_headers = await self._upstream.get_headers_for_repo(upstream_repo_url.repo)
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
