@@ -73,6 +73,7 @@ function test_push_catalog_pull() {
     docker_tag_push $name $token "ubuntu"
     local expected="\"$name/ubuntu\""
     test_catalog $name $token "$expected"
+    test_repo_tags_list $name $token "$name/ubuntu"
 
     echo "step 4: push alpine, check catalog"
     docker_tag_push $name $token "alpine"
@@ -101,7 +102,7 @@ function test_push_share_catalog() {
     create_regular_user $name2
 
     docker_login $name1 $token1
-    local image_name="\"$name1/alpine\""
+    local image_name="$name1/alpine"
     local image_uri="\"image://$name1/alpine\""
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
 
@@ -110,7 +111,7 @@ function test_push_share_catalog() {
 
     echo "step 2: push alpine and test catalog as user 1"
     docker_tag_push $name1 $token1 "alpine"
-    test_catalog $name1 $token1 "$image_name"
+    test_catalog $name1 $token1 "\"$image_name\""
 
     echo "step 3: test catalog as user 2, expect empty"
     test_catalog $name2 $token2 ""
@@ -119,7 +120,8 @@ function test_push_share_catalog() {
     share_resource_on_read "$image_uri" $token1 $name2
 
     echo "step 5: test catalog as user 2, expect alpine"
-    test_catalog $name2 $token2 "$image_name"
+    test_catalog $name2 $token2 "\"$image_name\""
+    test_repo_tags_list $name2 $token2 "$image_name"
 
     echo "step 6: remove alpine"
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
@@ -141,7 +143,18 @@ function test_catalog() {
     local url="http://localhost:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | fix_base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
-    echo $output | grep -w "{\"repositories\": \[""$expected""\]}"
+    echo $output | grep -w "{\"repositories\": \[$expected\]}"
+}
+
+function test_repo_tags_list() {
+    local name=$1
+    local token=$2
+    local repo="$3"
+    local url="http://localhost:5000/v2/$repo/tags/list"
+    local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
+    local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
+    echo $output | grep "\"name\": \"$repo\""
+    echo $output | grep "\"tags\": \["
 }
 
 function get_registry_token_for_catalog() {
