@@ -105,7 +105,9 @@ class OAuthUpstream(Upstream):
     ) -> None:
         self._client = client
         self._registry_catalog_scope = registry_catalog_scope
-        self._repository_scope_template = "repository:{repo}:" + repository_scope_actions
+        self._repository_scope_template = (
+            "repository:{repo}:" + repository_scope_actions
+        )
         self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
 
     async def _get_headers(self, scope: Optional[str] = None) -> Dict[str, str]:
