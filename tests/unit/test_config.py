@@ -33,6 +33,8 @@ class TestEnvironConfigFactory:
                 token_service="test_host",
                 token_endpoint_username="test_username",
                 token_endpoint_password="test_password",
+                token_registry_catalog_scope="registry:catalog:*",
+                token_repository_scope_actions="*",
                 max_catalog_entries=100,
             ),
             auth=AuthConfig(
@@ -55,6 +57,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE": "",
+            "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS": "push,pull",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -67,6 +71,8 @@ class TestEnvironConfigFactory:
                 token_service="test_host",
                 token_endpoint_username="test_username",
                 token_endpoint_password="test_password",
+                token_registry_catalog_scope="",
+                token_repository_scope_actions="push,pull",
                 max_catalog_entries=10000,
             ),
             auth=AuthConfig(

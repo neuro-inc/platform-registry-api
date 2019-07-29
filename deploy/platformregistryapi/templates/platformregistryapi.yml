@@ -63,6 +63,14 @@ spec:
             secretKeyRef:
               name: gcr-secret
               key: password
+        {{- if .Values.NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE }}
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE }}
+        {{- end }}
+        {{- if .Values.NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS }}
+        - name: NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS
+          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS }}
+        {{- end }}
         {{- end }}
         {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "aws_ecr" }}
         - name: AWS_DEFAULT_REGION

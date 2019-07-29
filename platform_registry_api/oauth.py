@@ -9,6 +9,7 @@ from neuro_auth_client.bearer_auth import BearerAuth
 from yarl import URL
 
 from .cache import ExpiringCache
+from .config import UpstreamRegistryConfig
 from .typedefs import TimeFactory
 from .upstream import Upstream
 
@@ -91,9 +92,22 @@ class OAuthClient:
 
 class OAuthUpstream(Upstream):
     def __init__(
-        self, *, client: OAuthClient, time_factory: TimeFactory = time.time
+        self,
+        *,
+        client: OAuthClient,
+        registry_catalog_scope: str = (
+            UpstreamRegistryConfig.token_registry_catalog_scope
+        ),
+        repository_scope_actions: str = (
+            UpstreamRegistryConfig.token_repository_scope_actions
+        ),
+        time_factory: TimeFactory = time.time,
     ) -> None:
         self._client = client
+        self._registry_catalog_scope = registry_catalog_scope
+        self._repository_scope_template = (
+            "repository:{repo}:" + repository_scope_actions
+        )
         self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
 
     async def _get_headers(self, scope: Optional[str] = None) -> Dict[str, str]:
@@ -108,7 +122,8 @@ class OAuthUpstream(Upstream):
         return await self._get_headers()
 
     async def get_headers_for_catalog(self) -> Dict[str, str]:
-        return await self._get_headers("registry:catalog:*")
+        return await self._get_headers(self._registry_catalog_scope)
 
     async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
-        return await self._get_headers(f"repository:{repo}:*")
+        scope = self._repository_scope_template.format(repo=repo)
+        return await self._get_headers(scope)

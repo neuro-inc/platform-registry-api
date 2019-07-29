@@ -36,6 +36,8 @@ class UpstreamRegistryConfig:
     token_service: str = ""
     token_endpoint_username: str = field(repr=False, default="")
     token_endpoint_password: str = field(repr=False, default="")
+    token_registry_catalog_scope: str = "registry:catalog:*"
+    token_repository_scope_actions: str = "*"
 
     sock_connect_timeout_s: Optional[float] = 30.0
     sock_read_timeout_s: Optional[float] = 30.0
@@ -97,6 +99,14 @@ class EnvironConfigFactory:
                     ],
                 )
             )
+            if "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE" in self._environ:
+                upstream["token_registry_catalog_scope"] = self._environ[
+                    "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE"
+                ]
+            if "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS" in self._environ:
+                upstream["token_repository_scope_actions"] = self._environ[
+                    "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS"
+                ]
         return UpstreamRegistryConfig(**upstream)  # type: ignore
 
     def create_auth(self) -> AuthConfig:

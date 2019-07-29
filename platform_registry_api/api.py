@@ -458,7 +458,9 @@ async def create_oauth_upstream(
             service=config.token_service,
             username=config.token_endpoint_username,
             password=config.token_endpoint_password,
-        )
+        ),
+        registry_catalog_scope=config.token_registry_catalog_scope,
+        repository_scope_actions=config.token_repository_scope_actions,
     )
 
 
