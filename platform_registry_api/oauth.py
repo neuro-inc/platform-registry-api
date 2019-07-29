@@ -9,6 +9,7 @@ from neuro_auth_client.bearer_auth import BearerAuth
 from yarl import URL
 
 from .cache import ExpiringCache
+from .config import UpstreamRegistryConfig
 from .typedefs import TimeFactory
 from .upstream import Upstream
 
@@ -91,7 +92,16 @@ class OAuthClient:
 
 class OAuthUpstream(Upstream):
     def __init__(
-        self, *, client: OAuthClient, time_factory: TimeFactory = time.time
+        self,
+        *,
+        client: OAuthClient,
+        registry_catalog_scope: str = (
+            UpstreamRegistryConfig.token_registry_catalog_scope
+        ),
+        repository_scope_actions: str = (
+            UpstreamRegistryConfig.token_repository_scope_actions
+        ),
+        time_factory: TimeFactory = time.time,
     ) -> None:
         self._client = client
         self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)

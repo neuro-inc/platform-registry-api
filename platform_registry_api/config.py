@@ -36,6 +36,8 @@ class UpstreamRegistryConfig:
     token_service: str = ""
     token_endpoint_username: str = field(repr=False, default="")
     token_endpoint_password: str = field(repr=False, default="")
+    token_registry_catalog_scope: str = "registry:catalog:*"
+    token_repository_scope_actions: str = "*"
 
     sock_connect_timeout_s: Optional[float] = 30.0
     sock_read_timeout_s: Optional[float] = 30.0
