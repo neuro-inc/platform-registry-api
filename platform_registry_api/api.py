@@ -71,7 +71,10 @@ class RepoURL:
         return self.__class__(repo=repo, url=url)
 
     def with_origin(self, origin_url: URL) -> "RepoURL":
-        url = origin_url.join(self.url.relative())
+        url = self.url
+        if url.is_absolute():
+            url = url.relative()
+        url = origin_url.join(url)
         return self.__class__(repo=self.repo, url=url)
 
 
