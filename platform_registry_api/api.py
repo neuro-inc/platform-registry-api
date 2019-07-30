@@ -371,12 +371,17 @@ class V2Handler:
 
         timeout = self._create_registry_client_timeout(request)
 
+        if request.method == "HEAD":
+            data = None
+        else:
+            data = request.content.iter_any()
+
         async with self._registry_client.request(
             method=request.method,
             url=url,
             headers=request_headers,
             skip_auto_headers=("Content-Type",),
-            data=request.content.iter_any(),
+            data=data,
             timeout=timeout,
         ) as client_response:
 
