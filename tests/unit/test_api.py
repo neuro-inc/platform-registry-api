@@ -66,6 +66,13 @@ class TestRepoURL:
             repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
         )
 
+    def test_with_origin_relative(self):
+        url = URL("/v2/this/image/tags/list?what=ever")
+        reg_url = RepoURL.from_url(url).with_origin(URL("http://a.b"))
+        assert reg_url == RepoURL(
+            repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
+        )
+
 
 class TestURLFactory:
     @pytest.fixture

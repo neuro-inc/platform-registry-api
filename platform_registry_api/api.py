@@ -71,7 +71,10 @@ class RepoURL:
         return self.__class__(repo=repo, url=url)
 
     def with_origin(self, origin_url: URL) -> "RepoURL":
-        url = origin_url.join(self.url.relative())
+        url = self.url
+        if url.is_absolute():
+            url = url.relative()
+        url = origin_url.join(url)
         return self.__class__(repo=self.repo, url=url)
 
 
@@ -368,12 +371,17 @@ class V2Handler:
 
         timeout = self._create_registry_client_timeout(request)
 
+        if request.method == "HEAD":
+            data = None
+        else:
+            data = request.content.iter_any()
+
         async with self._registry_client.request(
             method=request.method,
             url=url,
             headers=request_headers,
             skip_auto_headers=("Content-Type",),
-            data=request.content.iter_any(),
+            data=data,
             timeout=timeout,
         ) as client_response:
 
