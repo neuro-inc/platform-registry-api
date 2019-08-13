@@ -103,7 +103,6 @@ metadata:
     external-dns.platform.neuromation.io: "true"
 spec:
   rules:
-  {{- if .Values.INGRESS_HOST }}
   - host: {{ .Values.INGRESS_HOST }}
     http:
       paths:
@@ -111,23 +110,4 @@ spec:
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
-  {{- end }}
-  {{- if .Values.INGRESS_HOST_TEMPORARY }}
-  - host: {{ .Values.INGRESS_HOST_TEMPORARY }}
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: platformregistryapi
-          servicePort: 8080
-  {{- end }}
-  {{- if .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
-  - host: {{ .Values.INGRESS_HOST_TEMPORARY_NEW_DOMAIN }}
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: platformregistryapi
-          servicePort: 8080
-  {{- end }}
 
