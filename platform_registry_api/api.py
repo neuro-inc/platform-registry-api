@@ -3,7 +3,7 @@ import logging
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, Tuple
+from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, List, Tuple
 
 import aiobotocore
 import aiohttp.web
@@ -190,6 +190,10 @@ class V2Handler:
         )
 
     @classmethod
+    def parse_catalog_repositories(cls, payload: Dict[str, Any]) -> List[str]:
+        return payload.get("repositories") or []
+
+    @classmethod
     def filter_images(
         cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
     ) -> Iterator[str]:
@@ -228,7 +232,7 @@ class V2Handler:
             # type check. GCR sends application/json, whereas ECR sends
             # text/plan.
             result_dict = await client_response.json(content_type=None)
-            images_list = result_dict.get("repositories", [])
+            images_list = self.parse_catalog_repositories(result_dict)
             logger.debug(
                 f"Received {len(images_list)} images "
                 f"(limit: {self._config.upstream_registry.max_catalog_entries})"
