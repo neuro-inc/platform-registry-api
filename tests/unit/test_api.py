@@ -200,6 +200,9 @@ class TestV2Handler:
         )
         assert list(V2Handler.filter_images(images_names, tree, project)) == []
 
+    def test_parse_catalog_repositories_no_key(self) -> None:
+        assert V2Handler.parse_catalog_repositories({}) == []
+
     def test_parse_catalog_repositories_null(self) -> None:
         assert V2Handler.parse_catalog_repositories({"repositories": None}) == []
 
