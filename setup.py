@@ -11,7 +11,7 @@ install_requires = (
     "dataclasses==0.6",  # backport from 3.7 stdlib
     "iso8601==0.1.12",
     "neuro_auth_client==1.0.5",
-    "uvloop==0.12.2",
+    "uvloop==0.13.0",
     "aiobotocore==0.10.2",
 )
 
