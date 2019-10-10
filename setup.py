@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 install_requires = (
     "aiodns==2.0.0",
-    "aiohttp==3.6.1",
+    "aiohttp==3.6.2",
     "aiohttp-remotes==0.1.2",
     "async-exit-stack==1.0.1",  # backport from 3.7 stdlib
     "async-generator==1.10",
