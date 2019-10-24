@@ -13,6 +13,7 @@ install_requires = (
     "neuro_auth_client==1.0.5",
     "uvloop==0.13.0",
     "aiobotocore==0.10.3",
+    "platform-logging==0.2",
 )
 
 setup(
