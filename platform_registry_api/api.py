@@ -24,6 +24,7 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
+from platform_logging import init_logging
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
@@ -544,14 +545,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
     return app
-
-
-def init_logging():
-    logging.basicConfig(
-        # TODO (A Danshyn 06/01/18): expose in the Config
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
 
 
 def main():
