@@ -277,11 +277,7 @@ class TestHelpers_CheckImageCatalogPermission:
     def test_shared_image_deny_permissions(self):
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
-            {
-                "action": "deny",
-                "children": {},
-                "path": "/",
-            }
+            {"action": "deny", "children": {}, "path": "/"}
         )
         assert check_image_catalog_permission(image, tree) is False
 
@@ -323,12 +319,7 @@ class TestHelpers_CheckImageCatalogPermission:
                     "bob": {"action": "manage", "children": {}},
                     "alice": {
                         "action": "list",
-                        "children": {
-                            "foo": {
-                                "action": "read",
-                                "children": {},
-                            }
-                        },
+                        "children": {"foo": {"action": "read", "children": {}}},
                     },
                 },
                 "path": "/",
@@ -339,11 +330,7 @@ class TestHelpers_CheckImageCatalogPermission:
     def test_shared_image_root_read_permissions(self):
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
-            {
-                "action": "read",
-                "children": {},
-                "path": "/",
-            }
+            {"action": "read", "children": {}, "path": "/"}
         )
         assert check_image_catalog_permission(image, tree) is True
 
