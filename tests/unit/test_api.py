@@ -274,6 +274,17 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
+    def test_shared_image_deny_permissions(self):
+        image = "alice/img"
+        tree = ClientSubTreeViewRoot._from_json(
+            {
+                "action": "deny",
+                "children": {},
+                "path": "/",
+            }
+        )
+        assert check_image_catalog_permission(image, tree) is False
+
     def test_shared_image_slashes_in_image_name(self):
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
@@ -303,7 +314,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_shared_image_slashes_in_image_name_deny_in_the_middle(self):
+    def test_shared_image_parent_read_permissions(self):
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -314,15 +325,8 @@ class TestHelpers_CheckImageCatalogPermission:
                         "action": "list",
                         "children": {
                             "foo": {
-                                "action": "deny",
-                                "children": {
-                                    "bar": {
-                                        "action": "list",
-                                        "children": {
-                                            "img": {"action": "read", "children": {}}
-                                        },
-                                    }
-                                },
+                                "action": "read",
+                                "children": {},
                             }
                         },
                     },
@@ -330,7 +334,18 @@ class TestHelpers_CheckImageCatalogPermission:
                 "path": "/",
             }
         )
-        assert check_image_catalog_permission(image, tree) is False
+        assert check_image_catalog_permission(image, tree) is True
+
+    def test_shared_image_root_read_permissions(self):
+        image = "alice/foo/bar/img"
+        tree = ClientSubTreeViewRoot._from_json(
+            {
+                "action": "read",
+                "children": {},
+                "path": "/",
+            }
+        )
+        assert check_image_catalog_permission(image, tree) is True
 
 
 class MockAuthServer:
