@@ -10,7 +10,7 @@ install_requires = (
     "cchardet==2.1.4",
     "dataclasses==0.6",  # backport from 3.7 stdlib
     "iso8601==0.1.12",
-    "neuro_auth_client==1.0.5",
+    "neuro_auth_client==1.0.10",
     "uvloop==0.13.0",
     "aiobotocore==0.10.4",
     "platform-logging==0.3",
