@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 import time
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, List, Tuple
 
@@ -18,8 +19,6 @@ from aiohttp.web import (
     StreamResponse,
 )
 from aiohttp_security import check_authorized, check_permission
-from async_exit_stack import AsyncExitStack
-from async_generator import asynccontextmanager
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
@@ -41,8 +40,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class RepoURL:
-    # TODO: ClassVar[re.Pattern] in 3.7
-    _path_re: ClassVar[Any] = re.compile(
+    _path_re: ClassVar[re.Pattern] = re.compile(
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
 
