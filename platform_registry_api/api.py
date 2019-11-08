@@ -40,8 +40,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class RepoURL:
-    # TODO: ClassVar[re.Pattern] in 3.7
-    _path_re: ClassVar[Any] = re.compile(
+    _path_re: ClassVar[re.Pattern] = re.compile(
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
 
