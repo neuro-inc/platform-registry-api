@@ -9,6 +9,7 @@ from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, List,
 import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
+import aiozipkin
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE
 from aiohttp.web import (
     Application,
@@ -487,10 +488,25 @@ async def create_aws_ecr_upstream(
         yield AWSECRUpstream(client=client, time_factory=time_factory)
 
 
+async def create_tracer(config: Config) -> aiozipkin.Tracer:
+    endpoint = aiozipkin.create_endpoint(
+        "platformregistryapi",  # the same name as pod prefix on a cluster
+        ipv4=config.server.host,
+        port=config.server.port,
+    )
+
+    zipkin_address = config.zipkin.url / "api/v2/spans"
+    tracer = await aiozipkin.create(
+        str(zipkin_address), endpoint, sample_rate=config.zipkin.sample_rate
+    )
+    return tracer
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
+    tracer = await create_tracer(config)
 
     async def _init_app(app: aiohttp.web.Application):
         async with AsyncExitStack() as exit_stack:
@@ -501,11 +517,13 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             trace_config = aiohttp.TraceConfig()
             trace_config.on_request_redirect.append(on_request_redirect)
 
+            auth_trace_config = aiozipkin.make_trace_config(tracer)
+
             logger.info("Initializing Registry Client Session")
 
             session = await exit_stack.enter_async_context(
                 aiohttp.ClientSession(
-                    trace_configs=[trace_config],
+                    trace_configs=[trace_config, auth_trace_config],
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
@@ -523,7 +541,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             auth_client = await exit_stack.enter_async_context(
                 AuthClient(
-                    url=config.auth.server_endpoint_url, token=config.auth.service_token
+                    url=config.auth.server_endpoint_url,
+                    token=config.auth.service_token,
+                    trace_config=auth_trace_config,
                 )
             )
             app["v2_app"]["auth_client"] = auth_client
@@ -534,6 +554,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             yield
 
+    aiozipkin.setup(app, tracer)
     app.cleanup_ctx.append(_init_app)
 
     v2_app = aiohttp.web.Application()

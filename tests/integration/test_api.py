@@ -15,6 +15,7 @@ from platform_registry_api.config import (
     EnvironConfigFactory,
     ServerConfig,
     UpstreamRegistryConfig,
+    ZipkinConfig,
 )
 
 
@@ -48,7 +49,13 @@ def config(in_docker, admin_token):
     auth = AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )
-    return Config(server=ServerConfig(), upstream_registry=upstream_registry, auth=auth)
+    zipkin_config = ZipkinConfig(URL("http://zipkin:9411"), 0)
+    return Config(
+        server=ServerConfig(),
+        upstream_registry=upstream_registry,
+        auth=auth,
+        zipkin=zipkin_config,
+    )
 
 
 @dataclass
