@@ -39,6 +39,8 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_AUTH_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
     links:
     - auth
     - upstream
@@ -56,6 +58,8 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_AUTH_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
     links:
     - auth
     - upstream
