@@ -40,6 +40,10 @@ spec:
             secretKeyRef:
               name: platformservices-secret
               key: registry_token
+        - name: NP_REGISTRY_ZIPKIN_URL
+          value: {{ .Values.NP_REGISTRY_ZIPKIN_URL }}
+        - name: NP_REGISTRY_ZIPKIN_SAMPLE_RATE
+          value: "{{ .Values.NP_REGISTRY_ZIPKIN_SAMPLE_RATE }}"
         - name: NP_REGISTRY_UPSTREAM_TYPE
           value: {{ .Values.NP_REGISTRY_UPSTREAM_TYPE }}
         - name: NP_REGISTRY_UPSTREAM_URL
