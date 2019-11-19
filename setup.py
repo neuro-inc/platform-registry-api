@@ -5,7 +5,7 @@ install_requires = (
     "aiodns==2.0.0",
     "aiohttp==3.6.2",
     "aiohttp-remotes==0.1.2",
-    "cchardet==2.1.4",
+    "cchardet==2.1.5",
     "iso8601==0.1.12",
     "neuro_auth_client==19.10.5",
     "uvloop==0.14.0",
