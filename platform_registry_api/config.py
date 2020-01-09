@@ -119,7 +119,7 @@ class EnvironConfigFactory:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
-        cluster_name = self._environ["NP_CLUSTER_NAME"]
+        cluster_name = self._environ.get("NP_CLUSTER_NAME", "")
         return Config(  # type: ignore
             server=server_config,
             upstream_registry=upstream_registry_config,

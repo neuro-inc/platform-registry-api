@@ -48,6 +48,8 @@ spec:
           value: {{ .Values.NP_REGISTRY_UPSTREAM_PROJECT }}
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
           value: "{{ .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES }}"
+        - name: NP_CLUSTER_NAME
+          value: {{ .Values.NP_CLUSTER_NAME }}
         {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "oauth" }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
           value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_SERVICE }}
