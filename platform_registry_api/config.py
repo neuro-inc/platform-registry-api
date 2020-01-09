@@ -55,6 +55,7 @@ class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
+    cluster_name: str
 
 
 class EnvironConfigFactory:
@@ -118,8 +119,10 @@ class EnvironConfigFactory:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
+        cluster_name = self._environ["NP_CLUSTER_NAME"]
         return Config(  # type: ignore
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
+            cluster_name=cluster_name,
         )

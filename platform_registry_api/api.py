@@ -239,7 +239,9 @@ class V2Handler:
                 f"(limit: {self._config.upstream_registry.max_catalog_entries})"
             )
 
-            tree = await self._auth_client.get_permissions_tree(user.name, "image:")
+            tree = await self._auth_client.get_permissions_tree(
+                user.name, f"image://{self._config.cluster_name}"
+            )
             project_name = url_factory.upstream_project
             filtered = [
                 img for img in self.filter_images(images_list, tree, project_name)
@@ -340,7 +342,7 @@ class V2Handler:
         return request.method in ("HEAD", "GET")
 
     async def _check_user_permissions(self, request, repo: str) -> None:
-        uri = "image://" + repo
+        uri = f"image://{self._config.cluster_name}/{repo}"
         if self._is_pull_request(request):
             action = "read"
         else:  # POST, PUT, PATCH, DELETE
