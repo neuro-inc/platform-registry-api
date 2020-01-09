@@ -7,6 +7,7 @@ from platform_registry_api.config import (
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
+    ZipkinConfig,
 )
 
 
@@ -21,6 +22,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
+            "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
             "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
@@ -42,6 +45,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
+            zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
@@ -59,6 +63,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
+            "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
             "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE": "",
             "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS": "push,pull",
             "NP_CLUSTER_NAME": "test-cluster",
@@ -82,6 +88,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
+            zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
@@ -94,6 +101,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
+            "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
             "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
@@ -109,6 +118,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
+            zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
             cluster_name="test-cluster",
         )
         assert not config.upstream_registry.is_oauth

@@ -39,6 +39,8 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
     - NP_CLUSTER_NAME=test-cluster
     links:
     - auth
@@ -57,6 +59,8 @@ services:
     - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
     - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
     - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
     - NP_CLUSTER_NAME=test-cluster
     links:
     - auth

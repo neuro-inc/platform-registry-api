@@ -51,10 +51,17 @@ class UpstreamRegistryConfig:
 
 
 @dataclass(frozen=True)
+class ZipkinConfig:
+    url: URL
+    sample_rate: float
+
+
+@dataclass(frozen=True)
 class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
+    zipkin: ZipkinConfig
     cluster_name: str
 
 
@@ -115,14 +122,21 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)  # type: ignore
 
+    def create_zipkin(self) -> ZipkinConfig:
+        url = URL(self._environ["NP_REGISTRY_ZIPKIN_URL"])
+        sample_rate = float(self._environ["NP_REGISTRY_ZIPKIN_SAMPLE_RATE"])
+        return ZipkinConfig(url=url, sample_rate=sample_rate)
+
     def create(self) -> Config:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
+        zipkin_config = self.create_zipkin()
         cluster_name = self._environ.get("NP_CLUSTER_NAME", "")
         return Config(  # type: ignore
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
+            zipkin=zipkin_config,
             cluster_name=cluster_name,
         )
