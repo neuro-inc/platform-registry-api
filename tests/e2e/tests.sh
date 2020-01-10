@@ -4,6 +4,8 @@ set -e
 set -x
 export SHELLOPTS
 
+CLUSTER_NAME=test-cluster
+
 function fix_base64() {
     if command -v gbase64 >/dev/null 2>&1 ; then
         gbase64 "$@"
@@ -23,6 +25,10 @@ function create_regular_user() {
     local data="{\"name\": \"$name\"}"
     curl --fail --data "$data" -H "Authorization: Bearer $ADMIN_TOKEN" \
         http://localhost:5003/api/v1/users
+    # Grant permissions to the user images
+    local url="http://localhost:5003/api/v1/users/$name/permissions"
+    local data="[{\"uri\":\"image://$CLUSTER_NAME/$name\",\"action\":\"manage\"}]"
+    curl -s -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -d "$data" $url --fail
 }
 
 function share_resource_on_read() {
@@ -103,7 +109,7 @@ function test_push_share_catalog() {
 
     docker_login $name1 $token1
     local image_name="$name1/alpine"
-    local image_uri="\"image://$name1/alpine\""
+    local image_uri="\"image://$CLUSTER_NAME/$name1/alpine\""
     docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
 
     echo "step 1: test catalog, expect empty"

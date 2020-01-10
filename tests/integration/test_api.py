@@ -34,6 +34,11 @@ def admin_token(token_factory):
 
 
 @pytest.fixture
+def cluster_name():
+    return "test-cluster"
+
+
+@pytest.fixture
 def config(in_docker, admin_token):
     if in_docker:
         return EnvironConfigFactory().create()
@@ -55,6 +60,7 @@ def config(in_docker, admin_token):
         upstream_registry=upstream_registry,
         auth=auth,
         zipkin=zipkin_config,
+        cluster_name="test-cluster",
     )
 
 
@@ -76,12 +82,21 @@ async def auth_client(config, admin_token):
 
 
 @pytest.fixture
-async def regular_user_factory(auth_client, token_factory):
+async def regular_user_factory(auth_client, token_factory, admin_token, cluster_name):
     async def _factory(name: Optional[str] = None) -> User:
         if not name:
             name = str(uuid.uuid4())
         user = User(name=name)
         await auth_client.add_user(user)
+        # Grant permissions to the user images
+        headers = auth_client._generate_headers(admin_token)
+        payload = [
+            {"uri": f"image://{cluster_name}/{name}", "action": "manage"},
+        ]
+        async with auth_client._request(
+            "POST", f"/api/v1/users/{name}/permissions", headers=headers, json=payload
+        ) as p:
+            assert p.status == 201
         return _User(name=user.name, token=token_factory(user.name))  # type: ignore
 
     return _factory

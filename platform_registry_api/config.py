@@ -62,6 +62,7 @@ class Config:
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
     zipkin: ZipkinConfig
+    cluster_name: str
 
 
 class EnvironConfigFactory:
@@ -131,9 +132,11 @@ class EnvironConfigFactory:
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
         zipkin_config = self.create_zipkin()
+        cluster_name = self._environ.get("NP_CLUSTER_NAME", "")
         return Config(  # type: ignore
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
             zipkin=zipkin_config,
+            cluster_name=cluster_name,
         )

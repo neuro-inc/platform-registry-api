@@ -24,6 +24,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
             "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
+            "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -45,6 +46,7 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
+            cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
 
@@ -65,6 +67,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
             "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE": "",
             "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS": "push,pull",
+            "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -86,6 +89,7 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
+            cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
 
@@ -99,6 +103,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
             "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
+            "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -114,5 +119,6 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
+            cluster_name="test-cluster",
         )
         assert not config.upstream_registry.is_oauth
