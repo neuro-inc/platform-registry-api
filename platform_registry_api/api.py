@@ -341,7 +341,11 @@ class V2Handler:
         return request.method in ("HEAD", "GET")
 
     async def _check_user_permissions(self, request, repo: str) -> None:
-        uri = f"image://{self._config.cluster_name}/{repo}"
+        uri = (
+            f"image://{self._config.cluster_name}/{repo}"
+            if self._config.cluster_name
+            else f"image://{repo}"
+        )
         if self._is_pull_request(request):
             action = "read"
         else:  # POST, PUT, PATCH, DELETE
