@@ -113,15 +113,13 @@ class URLFactory:
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
-        try:
-            upstream_project, repo = upstream_repo.split("/", 1)
-        except ValueError:
-            upstream_project, repo = "", upstream_repo
-        if upstream_project != self._upstream_project:
+        prefix = self._upstream_project + "/"
+        if not upstream_repo.startswith(prefix):
             raise ValueError(
-                f'Upstream project "{upstream_project}" does not match '
-                f'the one configured "{self._upstream_project}"'
+                f"{upstream_repo!r} does not match the configured "
+                f"upstream project {self._upstream_project!r}"
             )
+        repo = upstream_repo[len(prefix) :]  # noqa
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 

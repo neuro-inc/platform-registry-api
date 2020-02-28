@@ -82,7 +82,7 @@ class TestURLFactory:
         return URLFactory(
             registry_endpoint_url=registry_endpoint_url,
             upstream_endpoint_url=upstream_endpoint_url,
-            upstream_project="upstream",
+            upstream_project="upstream/nested",
         )
 
     def test_create_registry_version_check_url(self, url_factory):
@@ -97,13 +97,15 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/this/image/tags/list?what=ever"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever"
         )
-        assert up_repo_url == RepoURL(repo="upstream/this/image", url=expected_url)
+        assert up_repo_url == RepoURL(
+            repo="upstream/nested/this/image", url=expected_url
+        )
 
     def test_create_registry_repo_url(self, url_factory):
         up_repo_url = RepoURL.from_url(
-            URL("http://upstream:5000/v2/upstream/this/image/tags/list?what=")
+            URL("http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=")
         )
         reg_repo_url = url_factory.create_registry_repo_url(up_repo_url)
 
@@ -114,16 +116,14 @@ class TestURLFactory:
         up_repo_url = RepoURL.from_url(
             URL("http://upstream:5000/v2/image/tags/list?what=")
         )
-        with pytest.raises(ValueError, match='Upstream project "" does not match'):
+        with pytest.raises(ValueError, match="'image' does not match"):
             url_factory.create_registry_repo_url(up_repo_url)
 
     def test_create_registry_repo_url_wrong_project(self, url_factory):
         up_repo_url = RepoURL.from_url(
-            URL("http://upstream:5000/v2/unknown/image/tags/list?what=")
+            URL("http://upstream:5000/v2/upstream/image/tags/list?what=")
         )
-        with pytest.raises(
-            ValueError, match='Upstream project "unknown" does not match'
-        ):
+        with pytest.raises(ValueError, match="'upstream/image' does not match"):
             url_factory.create_registry_repo_url(up_repo_url)
 
 
