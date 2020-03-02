@@ -1,10 +1,10 @@
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable
+from typing import AsyncIterator
 
 import aiohttp.web
 import pytest
 from aiohttp import BasicAuth, hdrs, web
-from aiohttp.test_utils import unused_port as _unused_port
+from aiohttp.test_utils import unused_port
 from aiohttp.web import Application, HTTPOk, Request, Response, json_response
 from yarl import URL
 
@@ -21,11 +21,6 @@ from platform_registry_api.config import (
 
 
 pytestmark = pytest.mark.asyncio
-
-
-@pytest.fixture
-def unused_port_factory() -> Callable[[], int]:
-    return _unused_port
 
 
 @pytest.fixture
@@ -64,13 +59,11 @@ def handler() -> _TestUpstreamHandler:
 
 
 @pytest.fixture
-async def upstream(
-    handler: _TestUpstreamHandler, unused_port_factory: Callable[[], int]
-) -> AsyncIterator[URL]:
+async def upstream(handler: _TestUpstreamHandler) -> AsyncIterator[URL]:
     app = Application()
     app.add_routes([web.get("/v2/_catalog", handler.handle_catalog)])
 
-    async with create_local_app_server(app, port=unused_port_factory()) as url:
+    async with create_local_app_server(app, port=unused_port()) as url:
         yield url
 
 
