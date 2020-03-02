@@ -122,3 +122,69 @@ class TestEnvironConfigFactory:
             cluster_name="test-cluster",
         )
         assert not config.upstream_registry.is_oauth
+
+    def test_defaults_basic(self) -> None:
+        environ = {
+            "NP_REGISTRY_UPSTREAM_URL": "https://test_host",
+            "NP_REGISTRY_UPSTREAM_PROJECT": "test_project",
+            "NP_REGISTRY_UPSTREAM_TYPE": "basic",
+            "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
+            "NP_REGISTRY_AUTH_URL": "https://test_auth",
+            "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
+            "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
+            "NP_CLUSTER_NAME": "test-cluster",
+        }
+        config = EnvironConfigFactory(environ=environ).create()
+        assert config == Config(
+            server=ServerConfig(),
+            upstream_registry=UpstreamRegistryConfig(
+                endpoint_url=URL("https://test_host"),
+                project="test_project",
+                type=UpstreamType.BASIC,
+                max_catalog_entries=1000,
+            ),
+            auth=AuthConfig(
+                server_endpoint_url=URL("https://test_auth"),
+                service_token="test_auth_token",
+            ),
+            zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
+            cluster_name="test-cluster",
+        )
+        assert config.upstream_registry.is_basic
+        assert not config.upstream_registry.is_oauth
+
+    def test_basic(self) -> None:
+        environ = {
+            "NP_REGISTRY_UPSTREAM_URL": "https://test_host",
+            "NP_REGISTRY_UPSTREAM_PROJECT": "test_project",
+            "NP_REGISTRY_UPSTREAM_TYPE": "basic",
+            "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
+            "NP_REGISTRY_AUTH_URL": "https://test_auth",
+            "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ZIPKIN_URL": "http://zipkin.io:9411/",
+            "NP_REGISTRY_ZIPKIN_SAMPLE_RATE": "0.3",
+            "NP_CLUSTER_NAME": "test-cluster",
+            "NP_REGISTRY_UPSTREAM_BASIC_USERNAME": "testuser",
+            "NP_REGISTRY_UPSTREAM_BASIC_PASSWORD": "testpassword",
+        }
+        config = EnvironConfigFactory(environ=environ).create()
+        assert config == Config(
+            server=ServerConfig(),
+            upstream_registry=UpstreamRegistryConfig(
+                endpoint_url=URL("https://test_host"),
+                project="test_project",
+                type=UpstreamType.BASIC,
+                max_catalog_entries=1000,
+                basic_username="testuser",
+                basic_password="testpassword",
+            ),
+            auth=AuthConfig(
+                server_endpoint_url=URL("https://test_auth"),
+                service_token="test_auth_token",
+            ),
+            zipkin=ZipkinConfig(URL("http://zipkin.io:9411/"), 0.3),
+            cluster_name="test-cluster",
+        )
+        assert config.upstream_registry.is_basic
+        assert not config.upstream_registry.is_oauth
