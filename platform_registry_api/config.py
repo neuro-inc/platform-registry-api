@@ -20,6 +20,7 @@ class AuthConfig:
 
 
 class UpstreamType(str, Enum):
+    BASIC = "basic"
     OAUTH = "oauth"
     AWS_ECR = "aws_ecr"
 
@@ -30,6 +31,9 @@ class UpstreamRegistryConfig:
     project: str
 
     type: UpstreamType = UpstreamType.OAUTH
+
+    basic_username: str = field(repr=False, default="")
+    basic_password: str = field(repr=False, default="")
 
     # TODO: should be derived from the WWW-Authenticate header instead
     token_endpoint_url: URL = URL()
@@ -44,6 +48,10 @@ class UpstreamRegistryConfig:
 
     # https://github.com/docker/distribution/blob/dcfe05ce6cff995f419f8df37b59987257ffb8c1/registry/handlers/catalog.go#L16
     max_catalog_entries: int = 100
+
+    @property
+    def is_basic(self) -> bool:
+        return self.type == UpstreamType.BASIC
 
     @property
     def is_oauth(self) -> bool:
@@ -115,6 +123,13 @@ class EnvironConfigFactory:
                 upstream["token_repository_scope_actions"] = self._environ[
                     "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS"
                 ]
+        if upstream_type == UpstreamType.BASIC:
+            basic_username = self._environ.get("NP_REGISTRY_UPSTREAM_BASIC_USERNAME")
+            if basic_username is not None:
+                upstream["basic_username"] = basic_username
+            basic_password = self._environ.get("NP_REGISTRY_UPSTREAM_BASIC_PASSWORD")
+            if basic_password is not None:
+                upstream["basic_password"] = basic_password
         return UpstreamRegistryConfig(**upstream)  # type: ignore
 
     def create_auth(self) -> AuthConfig:

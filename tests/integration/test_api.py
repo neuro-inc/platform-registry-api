@@ -1,11 +1,4 @@
-import uuid
-from dataclasses import dataclass
-from typing import Optional
-
 import pytest
-from aiohttp import BasicAuth
-from jose import jwt
-from neuro_auth_client import AuthClient, User
 from yarl import URL
 
 from platform_registry_api.api import create_app
@@ -20,26 +13,7 @@ from platform_registry_api.config import (
 
 
 @pytest.fixture
-def token_factory():
-    def _factory(name: str):
-        payload = {"identity": name}
-        return jwt.encode(payload, "secret", algorithm="HS256")
-
-    return _factory
-
-
-@pytest.fixture
-def admin_token(token_factory):
-    return token_factory("admin")
-
-
-@pytest.fixture
-def cluster_name():
-    return "test-cluster"
-
-
-@pytest.fixture
-def config(in_docker, admin_token):
+def config(in_docker, admin_token, cluster_name):
     if in_docker:
         return EnvironConfigFactory().create()
 
@@ -60,46 +34,8 @@ def config(in_docker, admin_token):
         upstream_registry=upstream_registry,
         auth=auth,
         zipkin=zipkin_config,
-        cluster_name="test-cluster",
+        cluster_name=cluster_name,
     )
-
-
-@dataclass
-class _User:
-    name: str
-    token: str
-
-    def to_basic_auth(self) -> BasicAuth:
-        return BasicAuth(login=self.name, password=self.token)  # type: ignore
-
-
-@pytest.fixture
-async def auth_client(config, admin_token):
-    async with AuthClient(
-        url=config.auth.server_endpoint_url, token=admin_token
-    ) as client:
-        yield client
-
-
-@pytest.fixture
-async def regular_user_factory(auth_client, token_factory, admin_token, cluster_name):
-    async def _factory(name: Optional[str] = None) -> User:
-        if not name:
-            name = str(uuid.uuid4())
-        user = User(name=name)
-        await auth_client.add_user(user)
-        # Grant permissions to the user images
-        headers = auth_client._generate_headers(admin_token)
-        payload = [
-            {"uri": f"image://{cluster_name}/{name}", "action": "manage"},
-        ]
-        async with auth_client._request(
-            "POST", f"/api/v1/users/{name}/permissions", headers=headers, json=payload
-        ) as p:
-            assert p.status == 201
-        return _User(name=user.name, token=token_factory(user.name))  # type: ignore
-
-    return _factory
 
 
 class TestV2Api:

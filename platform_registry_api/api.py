@@ -30,6 +30,7 @@ from yarl import URL
 from platform_registry_api.helpers import check_image_catalog_permission
 
 from .aws_ecr import AWSECRUpstream
+from .basic import BasicUpstream
 from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
 from .oauth import OAuthClient, OAuthUpstream
 from .typedefs import TimeFactory
@@ -464,6 +465,13 @@ class V2Handler:
 
 
 @asynccontextmanager
+async def create_basic_upstream(
+    *, config: UpstreamRegistryConfig
+) -> AsyncIterator[Upstream]:
+    yield BasicUpstream(username=config.basic_username, password=config.basic_password)
+
+
+@asynccontextmanager
 async def create_oauth_upstream(
     *, config: UpstreamRegistryConfig, client: aiohttp.ClientSession
 ) -> AsyncIterator[Upstream]:
@@ -533,7 +541,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
             app["v2_app"]["registry_client"] = session
 
-            if config.upstream_registry.is_oauth:
+            if config.upstream_registry.is_basic:
+                upstream_cm = create_basic_upstream(config=config.upstream_registry)
+            elif config.upstream_registry.is_oauth:
                 upstream_cm = create_oauth_upstream(
                     config=config.upstream_registry, client=session
                 )
