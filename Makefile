@@ -106,10 +106,10 @@ gke_docker_push: build
 
 aws_docker_push: build
 	$$(aws ecr get-login --no-include-email --region $(AWS_REGION) )
-	docker tag $(IMAGE) $(IMAGE_K8S_AWS):latest
-	docker tag $(IMAGE_K8S_AWS):latest $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
-	docker push  $(IMAGE_K8S_AWS):latest
-	docker push  $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(IMAGE_TAG)
+	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker push $(IMAGE_K8S_AWS):$(IMAGE_TAG)
+	docker push $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
 
 gke_k8s_deploy: _helm
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
