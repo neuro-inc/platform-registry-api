@@ -177,7 +177,7 @@ workflows:
               only:
                 - /artifactory.*/
 
- aws-dev:
+  aws-dev:
     jobs:
       - aws_deploy:
           context: org-dev
