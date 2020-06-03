@@ -37,7 +37,41 @@ jobs:
           name: Running E2E Test Suite
           command: |
             make test_e2e
-            
+
+  aws_test:
+    <<: *defaults
+
+    environment:
+      AWS_CLUSTER: present
+
+    steps:
+      - checkout
+
+      - run:
+          name: Configuring Docker Client
+          command: |
+            make -s ecr_login
+
+      - run:
+          name: Running Static Code Analysis
+          command: |
+            make lint_after_building
+
+      - run:
+          name: Running Unit Test Suite
+          command: |
+            make test_unit
+
+      - run:
+          name: Running Integration Test Suite
+          command: |
+            make test_integration
+
+      - run:
+          name: Running E2E Test Suite
+          command: |
+            make test_e2e
+
   gke_deploy:
     <<: *defaults
     steps:
@@ -177,12 +211,19 @@ workflows:
               only:
                 - /artifactory.*/
 
-  aws-dev:
+  dev-aws:
     jobs:
-      - aws_deploy:
+      - aws_test:
           context: org-dev
           filters:
             branches:
               only:
                 - deploy-to-aws
-
+      - aws_deploy:
+          context: org-dev
+          requires:
+            - aws_test
+          filters:
+            branches:
+              only:
+                - deploy-to-aws
