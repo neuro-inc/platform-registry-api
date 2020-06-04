@@ -14,7 +14,7 @@ NP_REGISTRY_REPLICAS: "2"
 NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES: "10000"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
-NP_CLUSTER_NAME: 'dev'
+NP_CLUSTER_NAME: 'default'
 AWS_DEFAULT_REGION: us-east-1
 annotations:
   iam.amazonaws.com/role: arn:aws:iam::771188043543:role/node-dd90951ac357be58726383e6e19a4699
