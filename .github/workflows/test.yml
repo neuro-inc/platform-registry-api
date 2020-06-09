@@ -1,0 +1,39 @@
+name: Continuous Integration
+
+on: [push]
+
+jobs:
+  test:
+    name: Run tests
+
+    runs-on: ubuntu-latest
+
+    env:
+      DEVPI_HOST: devpi-dev.neu.ro
+      DEVPI_INDEX: dev
+      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
+      DEVPI_USER: testuser
+
+
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7.5"
+      - name: Cache packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+#      - name: Install dependencies
+#        run: make setup
+      - name: Lint
+        run: make lint_after_building
+      - name: Run unit tests
+        run: make test_unit
+      - name: Run integration tests
+        run: make test_integration
+      - name: Run E2E tests
+        run: make test_e2e

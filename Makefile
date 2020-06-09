@@ -11,7 +11,11 @@ BLACK_DIRS := $(ISORT_DIRS)
 ifdef CIRCLECI
     PIP_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
 else
-    PIP_INDEX_URL ?= "$(shell python pip_extra_index_url.py)"
+	ifdef GITHUB_ACTIONS
+		PIP_EXTRA_INDEX_URL ?= https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)
+	else
+		PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
+	endif
 endif
 
 ifdef AWS_CLUSTER
