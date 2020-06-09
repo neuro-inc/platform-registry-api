@@ -27,8 +27,8 @@ jobs:
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
-      - name: Install dependencies
-        run: make init
+#      - name: Install dependencies
+#        run: make init
       - name: Lint
         run: make lint_after_building
       - name: Run unit tests
