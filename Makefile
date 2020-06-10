@@ -26,6 +26,7 @@ endif
 export IMAGE_REPO
 
 init:
+	@echo $PIP_EXTRA_INDEX_URL
 	pip install -r requirements-test.txt
 
 build:
