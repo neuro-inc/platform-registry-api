@@ -9,14 +9,14 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-#      DEVPI_HOST: devpi-dev.neu.ro
-#      DEVPI_INDEX: dev
-#      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
-#      DEVPI_USER: testuser
       DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
       DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
       DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
       DEVPI_USER: ${{ secrets.DEVPI_USER }}
+      GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
+      GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
+      GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
 
 
     steps:
@@ -31,19 +31,9 @@ jobs:
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
-      - name: Install dependencies
-#        env:
-#          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-#          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-#          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-#          DEVPI_USER: ${{ secrets.DEVPI_USER }}
-        run: make init
+      - name: Configure Docker client
+        run: make -s gke_login
       - name: Lint
-#        env:
-#          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-#          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-#          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-#          DEVPI_USER: ${{ secrets.DEVPI_USER }}
         run: make lint_after_building
       - name: Run unit tests
         run: make test_unit
