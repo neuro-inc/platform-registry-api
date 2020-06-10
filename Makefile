@@ -31,7 +31,7 @@ init:
 	pip install -r requirements-test.txt
 
 build:
-	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@docker build --build-arg PIP_EXTRA_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
