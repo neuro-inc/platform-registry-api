@@ -28,6 +28,11 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
+        env:
+          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+          DEVPI_USER: ${{ secrets.DEVPI_USER }}
         run: make init
       - name: Lint
         env:
