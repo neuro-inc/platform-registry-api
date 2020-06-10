@@ -44,6 +44,7 @@ build_up: build
             -f tests/docker/e2e.compose.yml up
 
 test_e2e_built: pull
+	echo FINDME
 	echo "$(IMAGE_REPO)"
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
 	    -f tests/docker/e2e.compose.yml up -d registry; \
