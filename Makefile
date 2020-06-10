@@ -93,8 +93,6 @@ format:
 	black $(BLACK_DIRS)
 
 gke_login:
-	sudo gcloud --quiet components update --version 204.0.0
-	sudo gcloud --quiet components update --version 204.0.0 kubectl
 	sudo chown circleci:circleci -R $$HOME
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
