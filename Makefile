@@ -44,8 +44,6 @@ build_up: build
             -f tests/docker/e2e.compose.yml up
 
 test_e2e_built: pull
-	echo FINDME
-	echo "$(IMAGE_REPO)"
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
 	    -f tests/docker/e2e.compose.yml up -d registry; \
 	tests/e2e/tests.sh; exit_code=$$?; \
@@ -73,6 +71,8 @@ _test_unit:
 test_integration: build_test test_integration_built
 
 test_integration_built: pull
+	echo FINDME
+	echo "$(IMAGE_REPO)"
 	docker-compose --verbose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
