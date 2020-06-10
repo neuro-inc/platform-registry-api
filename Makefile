@@ -9,7 +9,7 @@ FLAKE8_DIRS := $(ISORT_DIRS)
 BLACK_DIRS := $(ISORT_DIRS)
 
 ifdef CIRCLECI
-    PIP_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
+    PIP_EXTRA_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
 else
 	ifdef GITHUB_ACTIONS
 		PIP_EXTRA_INDEX_URL ?= https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)
@@ -17,6 +17,7 @@ else
 		PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
 	endif
 endif
+export PIP_EXTRA_INDEX_URL
 
 ifdef AWS_CLUSTER
     IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
@@ -26,7 +27,7 @@ endif
 export IMAGE_REPO
 
 init:
-	@echo $PIP_EXTRA_INDEX_URL
+	@echo $(PIP_EXTRA_INDEX_URL)
 	pip install -r requirements-test.txt
 
 build:
