@@ -8,11 +8,11 @@ jobs:
 
     runs-on: ubuntu-latest
 
-#    env:
-#      DEVPI_HOST: devpi-dev.neu.ro
-#      DEVPI_INDEX: dev
-#      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
-#      DEVPI_USER: testuser
+    env:
+      DEVPI_HOST: devpi-dev.neu.ro
+      DEVPI_INDEX: dev
+      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
+      DEVPI_USER: testuser
 
 
     steps:
@@ -28,18 +28,18 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
       - name: Install dependencies
-        env:
-          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-          DEVPI_USER: ${{ secrets.DEVPI_USER }}
+#        env:
+#          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+#          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+#          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+#          DEVPI_USER: ${{ secrets.DEVPI_USER }}
         run: make init
       - name: Lint
-        env:
-          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-          DEVPI_USER: ${{ secrets.DEVPI_USER }}
+#        env:
+#          DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+#          DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+#          DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+#          DEVPI_USER: ${{ secrets.DEVPI_USER }}
         run: make lint_after_building
       - name: Run unit tests
         run: make test_unit
