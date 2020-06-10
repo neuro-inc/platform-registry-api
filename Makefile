@@ -93,7 +93,6 @@ format:
 	black $(BLACK_DIRS)
 
 gke_login:
-	sudo chown circleci:circleci -R $$HOME
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
