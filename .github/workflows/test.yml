@@ -16,6 +16,7 @@ jobs:
       GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
       GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
       GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
       SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
 
 
