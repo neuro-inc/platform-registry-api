@@ -9,10 +9,14 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      DEVPI_HOST: devpi-dev.neu.ro
-      DEVPI_INDEX: dev
-      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
-      DEVPI_USER: testuser
+#      DEVPI_HOST: devpi-dev.neu.ro
+#      DEVPI_INDEX: dev
+#      DEVPI_PASS: hx364ty94hzz92axh373k2vf2
+#      DEVPI_USER: testuser
+      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+      DEVPI_USER: ${{ secrets.DEVPI_USER }}
 
 
     steps:
