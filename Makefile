@@ -20,11 +20,10 @@ endif
 export PIP_EXTRA_INDEX_URL
 
 ifdef AWS_CLUSTER
-    IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+    IMAGE_REPO = $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 else
-    IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
+    IMAGE_REPO = $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 endif
-IMAGE_REPO := gcr.io/light-reality-205619
 export IMAGE_REPO
 
 init:
