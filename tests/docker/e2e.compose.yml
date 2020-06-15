@@ -18,7 +18,7 @@ services:
     - auth
 
   auth_server:
-    image: "gcr.io/${IMAGE_REPO}/platformauthapi:latest"
+    image: "${IMAGE_REPO}/platformauthapi:latest"
     ports:
     - "5003:5003"
     environment:
