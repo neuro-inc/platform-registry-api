@@ -74,6 +74,7 @@ test_integration: build_test test_integration_built
 test_integration_built: pull
 	echo FINDME
 	echo $(IMAGE_REPO) | cat
+	python ./test.py
 	docker-compose --verbose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
