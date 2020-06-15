@@ -24,7 +24,7 @@ ifdef AWS_CLUSTER
 else
     IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 endif
-#IMAGE_REPO := gcr.io/light-reality-205619
+IMAGE_REPO := gcr.io/light-reality-205619
 export IMAGE_REPO
 
 init:
