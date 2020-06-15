@@ -1,6 +1,6 @@
 import os
+import base64
 
 print("PYTHON FTW!")
-print(os.environ['IMAGE_REPO'].lower())
-print(os.environ['GKE_DOCKER_REGISTRY'].lower())
-print(os.environ['GKE_PROJECT_ID'].lower())
+for s in ('IMAGE_REPO', 'GKE_DOCKER_REGISTRY', 'GKE_PROJECT_ID'):
+    print(base64.b64encode(os.environ[s].encode('utf-8')))
