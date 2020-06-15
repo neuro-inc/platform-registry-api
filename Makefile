@@ -20,9 +20,9 @@ endif
 export PIP_EXTRA_INDEX_URL
 
 ifdef AWS_CLUSTER
-    IMAGE_REPO = $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+    IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 else
-    IMAGE_REPO = $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
+    IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 endif
 export IMAGE_REPO
 
@@ -71,8 +71,6 @@ _test_unit:
 test_integration: build_test test_integration_built
 
 test_integration_built: pull
-	echo FINDME
-	python ./test.py
 	docker-compose --verbose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
