@@ -24,6 +24,7 @@ ifdef AWS_CLUSTER
 else
     IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 endif
+IMAGE_REPO := gcr.io/light-reality-205619
 export IMAGE_REPO
 
 init:
@@ -72,7 +73,7 @@ test_integration: build_test test_integration_built
 
 test_integration_built: pull
 	echo FINDME
-	echo "$(IMAGE_REPO)" | cat
+	echo $(IMAGE_REPO) | cat
 	docker-compose --verbose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
