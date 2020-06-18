@@ -92,3 +92,54 @@ jobs:
         run: make test_integration
       - name: Run E2E tests
         run: make test_e2e
+
+
+  artifactory_deploy:
+    name: Deploy to Artifactory
+
+    runs-on: ubuntu-latest
+
+    env:
+      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+      DEVPI_USER: ${{ secrets.DEVPI_USER }}
+      GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
+      GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
+      GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
+      SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
+      AWS_CLUSTER: present
+      ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
+      ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
+      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
+      ARTIFACTORY_HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
+
+
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Get GitHub tag as CIRCLE_TAG
+        run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/*/}
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7.5"
+      - name: Cache packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Artifactory Docker Push
+        run: make artifactory_docker_push
+      - name: Artifactory Helm Push
+        run: make artifactory_helm_push
