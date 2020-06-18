@@ -61,6 +61,8 @@ jobs:
       GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
       SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
       AWS_CLUSTER: present
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
 
 
     steps:
@@ -119,8 +121,8 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
-      - name: Get GitHub tag as CIRCLE_TAG
-        run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/*/}
+#      - name: Get GitHub tag as CIRCLE_TAG
+#        run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/*/}
       - name: Install python
         uses: actions/setup-python@v2
         with:
@@ -150,12 +152,14 @@ jobs:
       GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
       GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
       GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
+      CLUSTER_ZONE_REGION: ${{ secrets.CLUSTER_ZONE_REGION }}
       SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
       AWS_CLUSTER: present
       ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
       ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
       ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
       ARTIFACTORY_HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
+      HELM_ENV: ${{ secrets.HELM_ENV }}
 
 
     steps:
