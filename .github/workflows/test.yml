@@ -161,8 +161,8 @@ jobs:
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
-      - name: Get GitHub tag as CIRCLE_TAG
-        run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/*/}
+#      - name: Get GitHub tag as CIRCLE_TAG
+#        run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/tags/}
       - name: Install python
         uses: actions/setup-python@v2
         with:

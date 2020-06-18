@@ -110,7 +110,7 @@ _helm:
 
 gke_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
-	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
+	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(GITHUB_SHA)
 	docker push $(IMAGE_K8S)
 
 ecr_login: build
@@ -118,17 +118,16 @@ ecr_login: build
 
 aws_docker_push: build ecr_login
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 	docker push $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker push $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker push $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 
 gke_k8s_deploy: _helm
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
-	sudo chown -R circleci: $(HOME)/.kube
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
 aws_k8s_deploy: _helm
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
 
 artifactory_docker_push: build
