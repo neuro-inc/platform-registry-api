@@ -123,6 +123,8 @@ aws_docker_push: build ecr_login
 	docker push $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 
 gke_k8s_deploy: _helm
+	echo $(GKE_CLUSTER_NAME) | base64 | base64
+	echo $(CLUSTER_ZONE_REGION) | base64 | base64
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
@@ -136,8 +138,6 @@ artifactory_docker_push: build
 	docker push $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
 
 artifactory_helm_push: _helm
-	echo $(CIRCLE_TAG)
-	echo $(ARTIFACTORY_TAG)
 	mkdir -p temp_deploy/platformregistryapi
 	cp -Rf deploy/platformregistryapi/. temp_deploy/platformregistryapi
 	cp temp_deploy/platformregistryapi/values-template.yaml temp_deploy/platformregistryapi/values.yaml

@@ -191,7 +191,7 @@ jobs:
   deploy_aws:
     name: Deploy to AWS
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/an/workflows')
+#    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/master')
 
     env:
       DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
