@@ -137,6 +137,8 @@ artifactory_docker_push: build
 	docker push $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
 
 artifactory_helm_push: _helm
+	echo $(CIRCLE_TAG)
+	echo $(ARTIFACTORY_TAG)
 	mkdir -p temp_deploy/platformregistryapi
 	cp -Rf deploy/platformregistryapi/. temp_deploy/platformregistryapi
 	cp temp_deploy/platformregistryapi/values-template.yaml temp_deploy/platformregistryapi/values.yaml
