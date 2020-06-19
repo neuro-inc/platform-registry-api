@@ -92,7 +92,7 @@ kind: Service
 metadata:
   annotations:
     traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_SESSION
+    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_REGISTRY_SESSION
   name: platformregistryapi
 spec:
   type: ClusterIP
