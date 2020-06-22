@@ -204,6 +204,7 @@ jobs:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_CLUSTER_NAME: ${{ secrets.AWS_CLUSTER_NAME }}
+      HELM_ENV: ${{ secrets.HELM_ENV }}
 
     steps:
       - name: Checkout commit
