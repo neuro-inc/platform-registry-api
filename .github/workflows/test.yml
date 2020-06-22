@@ -95,12 +95,11 @@ jobs:
       - name: Run E2E tests
         run: make test_e2e
 
-
   artifactory_deploy:
     name: Deploy to Artifactory
     runs-on: ubuntu-latest
     # Run only on pushing a tag
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/artifactory.')
 
     env:
       DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
@@ -137,7 +136,6 @@ jobs:
         run: make artifactory_docker_push
       - name: Artifactory Helm Push
         run: make artifactory_helm_push
-
 
   gke_deploy:
     name: Deploy to GKE
@@ -187,7 +185,6 @@ jobs:
       - name: GKE K8S Deploy
         run: make gke_k8s_deploy
 
-
   deploy_aws:
     name: Deploy to AWS
     runs-on: ubuntu-latest
@@ -228,6 +225,8 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
+      - name: Update Kube config
+        run: aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
       - name: AWS Docker Push
         run: make aws_docker_push
       - name: AWS K8s Deploy
