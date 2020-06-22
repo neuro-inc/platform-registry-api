@@ -71,7 +71,7 @@ _test_unit:
 test_integration: build_test test_integration_built
 
 test_integration_built: pull
-	docker-compose --verbose --project-directory=`pwd` \
+	docker-compose --project-directory=`pwd` \
 	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
 	exit_code=$$?; \
 	docker-compose --project-directory=`pwd` \
@@ -123,8 +123,6 @@ aws_docker_push: build ecr_login
 	docker push $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 
 gke_k8s_deploy: _helm
-	echo $(GKE_CLUSTER_NAME) | base64 | base64
-	echo $(CLUSTER_ZONE_REGION) | base64 | base64
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
