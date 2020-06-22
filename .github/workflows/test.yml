@@ -203,6 +203,7 @@ jobs:
       AWS_CLUSTER: present
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_CLUSTER_NAME: ${{ secrets.AWS_CLUSTER_NAME }}
 
     steps:
       - name: Checkout commit
@@ -226,7 +227,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
       - name: Update Kube config
-        run: aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
+        run: aws eks --region ${AWS_REGION} update-kubeconfig --name ${AWS_CLUSTER_NAME}
       - name: AWS Docker Push
         run: make aws_docker_push
       - name: AWS K8s Deploy
