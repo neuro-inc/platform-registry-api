@@ -4,3 +4,5 @@ venv/
 .pytest_cache/
 .mypy_cache/
 *.egg-info/
+.venv
+.python-version
