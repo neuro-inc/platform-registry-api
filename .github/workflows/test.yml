@@ -34,6 +34,8 @@ jobs:
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
       - name: Setup Google Cloud
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: '297.0.1'
       - name: Configure Docker client
         run: make -s gke_login
       - name: Lint
