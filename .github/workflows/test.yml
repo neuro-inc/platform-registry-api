@@ -36,8 +36,8 @@ jobs:
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
           version: '297.0.1'
-#      - name: Configure Docker client
-#        run: make -s gke_login
+      - name: Configure Docker client
+        run: make -s gke_login
       - name: Lint
         run: make lint_after_building
       - name: Run unit tests
