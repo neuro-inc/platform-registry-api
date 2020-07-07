@@ -9,10 +9,15 @@ FLAKE8_DIRS := $(ISORT_DIRS)
 BLACK_DIRS := $(ISORT_DIRS)
 
 ifdef CIRCLECI
-    PIP_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
+    PIP_EXTRA_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
 else
-    PIP_INDEX_URL ?= "$(shell python pip_extra_index_url.py)"
+	ifdef GITHUB_ACTIONS
+		PIP_EXTRA_INDEX_URL ?= https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)
+	else
+		PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
+	endif
 endif
+export PIP_EXTRA_INDEX_URL
 
 ifdef AWS_CLUSTER
     IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
@@ -25,7 +30,7 @@ init:
 	pip install -r requirements-test.txt
 
 build:
-	@docker build --build-arg PIP_INDEX_URL="$(PIP_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@docker build --build-arg PIP_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
 
 pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
@@ -88,9 +93,6 @@ format:
 	black $(BLACK_DIRS)
 
 gke_login:
-	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0
-	sudo /opt/google-cloud-sdk/bin/gcloud --quiet components update --version 204.0.0 kubectl
-	sudo chown circleci:circleci -R $$HOME
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
@@ -108,7 +110,7 @@ _helm:
 
 gke_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
-	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(CIRCLE_SHA1)
+	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(GITHUB_SHA)
 	docker push $(IMAGE_K8S)
 
 ecr_login: build
@@ -116,17 +118,16 @@ ecr_login: build
 
 aws_docker_push: build ecr_login
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 	docker push $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker push $(IMAGE_K8S_AWS):$(CIRCLE_SHA1)
+	docker push $(IMAGE_K8S_AWS):$(GITHUB_SHA)
 
 gke_k8s_deploy: _helm
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
-	sudo chown -R circleci: $(HOME)/.kube
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
 aws_k8s_deploy: _helm
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(CIRCLE_SHA1)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
 
 artifactory_docker_push: build
