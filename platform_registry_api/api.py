@@ -10,6 +10,7 @@ import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
+import trafaret as t
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE
 from aiohttp.web import (
     Application,
@@ -38,6 +39,31 @@ from .upstream import Upstream
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class CatalogPage:
+    number: int = 100
+    last_repo: str = ""
+
+    @classmethod
+    def create_from_payload(cls, **kwargs: Any) -> "CatalogPage":
+        return cls(number=kwargs["n"], last_repo=kwargs["last"])
+
+    @classmethod
+    def default(cls) -> "CatalogPage":
+        return cls()
+
+
+CATALOG_PAGE_VALIDATOR = (
+    t.Dict(
+        {
+            t.Key("n", default=CatalogPage.number): t.Int(gt=0),
+            t.Key("last", default=CatalogPage.last_repo): t.String(),
+        }
+    ).allow_extra("*")
+    >> CatalogPage.create_from_payload
+)
 
 
 @dataclass(frozen=True)
@@ -78,6 +104,11 @@ class RepoURL:
         url = origin_url.join(url)
         return self.__class__(repo=self.repo, url=url)
 
+    def with_query(self, query: Dict[str, str]) -> "RepoURL":
+        query = {**self.url.query, **query}
+        url = self.url.with_query(query)
+        return self.__class__(repo=self.repo, url=url)
+
 
 class URLFactory:
     def __init__(
@@ -108,9 +139,16 @@ class URLFactory:
     def create_upstream_catalog_url(self) -> URL:
         return self._upstream_endpoint_url.with_path("/v2/_catalog")
 
-    def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
+    def create_upstream_repo_url(
+        self, registry_url: RepoURL, *, page: CatalogPage = CatalogPage.default()
+    ) -> RepoURL:
         repo = f"{self._upstream_project}/{registry_url.repo}"
-        return registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
+        url = registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
+        query: Dict[str, str] = dict(n=str(page.number))
+        if page.last_repo:
+            query["last"] = page.last_repo
+        url = url.with_query(query)
+        return url
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
