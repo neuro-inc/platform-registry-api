@@ -1,12 +1,20 @@
+import json
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Callable, Dict, List
+from typing import AsyncIterator, Dict, List
 
 import aiohttp.web
 import pytest
 from aiohttp import BasicAuth, hdrs, web
 from aiohttp.hdrs import LINK
 from aiohttp.test_utils import unused_port
-from aiohttp.web import Application, HTTPOk, Request, Response, json_response
+from aiohttp.web import (
+    Application,
+    HTTPNotFound,
+    HTTPOk,
+    Request,
+    Response,
+    json_response,
+)
 from yarl import URL
 
 from platform_registry_api.api import create_app
@@ -65,10 +73,24 @@ class _TestUpstreamHandler:
         last_repo = request.query.get("last", "")
         start_index = 0
         if last_repo:
+            assert last_repo.startswith(self._project)
+            _, _, last_repo = last_repo.partition("/")
             try:
                 start_index = self.images.index(last_repo) + 1
             except ValueError:
-                pass
+                raise HTTPNotFound(
+                    text=json.dumps(
+                        {
+                            "errors": [
+                                {
+                                    "code": "NAME_UNKNOWN",
+                                    "message": f"{last_repo!r} not found",
+                                    "detail": f"{last_repo!r} not found",
+                                }
+                            ]
+                        }
+                    )
+                )
         images = self.images[start_index : start_index + number]
         response_headers: Dict[str, str] = {}
         images = [f"{self._project}/{image}" for image in images]
@@ -151,6 +173,30 @@ class TestBasicUpstream:
             payload = await resp.json()
             assert payload == {"repositories": [user.name + "/test"]}
 
+    async def test_catalog__last_not_found(
+        self, config, regular_user_factory, aiohttp_client, handler
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+
+        async with client.get(
+            "/v2/_catalog",
+            auth=user.to_basic_auth(),
+            params={"last": f"{user.name}/whatever"},
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "errors": [
+                    {
+                        "code": "NAME_UNKNOWN",
+                        "message": f"'{user.name}/whatever' not found",
+                        "detail": f"'{user.name}/whatever' not found",
+                    }
+                ]
+            }
+
     async def test_catalog__multiple_users(
         self, config, regular_user_factory, aiohttp_client, handler
     ) -> None:
@@ -160,16 +206,23 @@ class TestBasicUpstream:
         user2 = await regular_user_factory()
         user3 = await regular_user_factory()
 
-        handler.images = [
-            user2.name + "/test2",
-            user1.name + "/test1",
-            user3.name + "/test3",
-        ]
+        handler.images = sorted(
+            [
+                user2.name + "/test2",
+                user1.name + "/test1",
+                user1.name + "/test4",
+                user3.name + "/test3",
+            ]
+        )
 
-        async with client.get("/v2/_catalog", auth=user1.to_basic_auth()) as resp:
+        async with client.get(
+            "/v2/_catalog",
+            auth=user1.to_basic_auth(),
+            params={"n": "1", "last": f"{user1.name}/test1"},
+        ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
-            assert payload == {"repositories": [user1.name + "/test1"]}
+            assert payload == {"repositories": [user1.name + "/test4"]}
 
     async def test_catalog__number(
         self, config, regular_user_factory, aiohttp_client, handler
@@ -196,7 +249,12 @@ class TestBasicUpstream:
         client = await aiohttp_client(app)
         user = await regular_user_factory()
 
-        handler.images = [user.name + f"/test{i}" for i in range(1, 10)]
+        expected = [user.name + f"/test{i}" for i in range(1, 10)]
+        handler.images = (
+            [f"aaaa{i}" for i in range(1, 10)]
+            + expected
+            + [f"zzzz{i}" for i in range(1, 10)]
+        )
 
         result: List[str] = []
         url = client.server.make_url("/") / "v2/_catalog"
@@ -209,4 +267,4 @@ class TestBasicUpstream:
                 result.extend(payload["repositories"])
                 url = resp.links.getone("next", {}).get("url")
 
-        assert result == handler.images
+        assert result == expected

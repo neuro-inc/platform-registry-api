@@ -21,10 +21,12 @@ import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
 import trafaret as t
+from aiohttp import ClientResponseError
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
+    HTTPNotFound,
     HTTPUnauthorized,
     Request,
     Response,
@@ -264,7 +266,9 @@ class V2Handler:
     def _prepare_catalog_request_params(self, page: CatalogPage) -> Dict[str, str]:
         params = {"n": str(page.number)}
         if page.last_repo:
-            params["last"] = page.last_repo
+            params[
+                "last"
+            ] = f"{self._config.upstream_registry.project}/{page.last_repo}"
         return params
 
     async def handle_catalog(self, request: Request) -> Response:
@@ -300,12 +304,13 @@ class V2Handler:
 
         response_headers: Dict[str, str] = {}
 
+        # NOTE: we collected the requested amount of images, but there might
+        # still be more
+        # trimming the list and using the last element as the 'last'
+        # parameter in the next link
+        filtered = filtered[: page.number]
+
         if url and filtered:
-            # NOTE: we collected the requested amount of images, but there might
-            # still be more
-            # trimming the list and using the last element as the 'last'
-            # parameter in the next link
-            filtered = filtered[: page.number]
             next_registry_url = url_factory.create_registry_catalog_url(
                 {"n": str(page.number), "last": filtered[-1]}
             )
@@ -326,7 +331,18 @@ class V2Handler:
             method="GET", url=url, headers=headers, timeout=timeout
         ) as client_response:
             logger.debug("upstream response: %s", client_response)
-            client_response.raise_for_status()
+            result_text = await client_response.text()
+            try:
+                client_response.raise_for_status()
+            except ClientResponseError as exc:
+                if exc.status == HTTPNotFound.status_code:
+                    result_text = result_text.replace(
+                        self._config.upstream_registry.project, ""
+                    )
+                    raise HTTPNotFound(
+                        text=result_text, content_type="application/json"
+                    )
+                raise
 
             # passing content_type=None here to disable the strict content
             # type check. GCR sends application/json, whereas ECR sends
