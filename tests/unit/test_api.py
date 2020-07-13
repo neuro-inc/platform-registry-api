@@ -106,7 +106,8 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever&n=100"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
+            "?what=ever&n=100"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url
@@ -120,7 +121,8 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url, page=page)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever&n=123&last=abc"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
+            "?what=ever&n=123&last=abc"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url
