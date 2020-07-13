@@ -3,15 +3,25 @@ import logging
 import re
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
-from typing import Any, AsyncIterator, ClassVar, Dict, Iterable, Iterator, List, Tuple
+from dataclasses import dataclass, replace
+from typing import (
+    Any,
+    AsyncIterator,
+    ClassVar,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
 
 import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
 import trafaret as t
-from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE
+from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
@@ -46,9 +56,12 @@ class CatalogPage:
     number: int = 100
     last_repo: str = ""
 
+    def with_last_repo(self, repo: str) -> "CatalogPage":
+        return replace(self, last_repo=repo)
+
     @classmethod
-    def create_from_payload(cls, **kwargs: Any) -> "CatalogPage":
-        return cls(number=kwargs["n"], last_repo=kwargs["last"])
+    def create(cls, payload: Dict[str, Any]) -> "CatalogPage":
+        return cls(number=int(payload["n"]), last_repo=payload.get("last", ""))
 
     @classmethod
     def default(cls) -> "CatalogPage":
@@ -59,10 +72,10 @@ CATALOG_PAGE_VALIDATOR = (
     t.Dict(
         {
             t.Key("n", default=CatalogPage.number): t.Int(gt=0),
-            t.Key("last", default=CatalogPage.last_repo): t.String(),
+            t.Key("last", optional=True): t.String(),
         }
     ).allow_extra("*")
-    >> CatalogPage.create_from_payload
+    >> CatalogPage.create
 )
 
 
@@ -136,8 +149,11 @@ class URLFactory:
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path("/v2/")
 
-    def create_upstream_catalog_url(self) -> URL:
-        return self._upstream_endpoint_url.with_path("/v2/_catalog")
+    def create_upstream_catalog_url(self, query: Dict[str, str]) -> URL:
+        return self._upstream_endpoint_url.with_path("/v2/_catalog").with_query(query)
+
+    def create_registry_catalog_url(self, query: Dict[str, str]) -> URL:
+        return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(
         self, registry_url: RepoURL, *, page: CatalogPage = CatalogPage.default()
@@ -245,22 +261,69 @@ class V2Handler:
                 msg = f'expected project "{project_name}" in image "{image}"'
                 logger.info(f"Bad image: {msg} (skipping)")
 
+    def _prepare_catalog_request_params(self, page: CatalogPage) -> Dict[str, str]:
+        params = {"n": str(page.number)}
+        if page.last_repo:
+            params["last"] = page.last_repo
+        return params
+
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
+        page: CatalogPage = CATALOG_PAGE_VALIDATOR.check(request.query)
+
+        logger.debug(f"requested catalog page: {page}")
+
         user = await self._get_user_from_request(request)
+        tree = await self._auth_client.get_permissions_tree(
+            user.name, f"image://{self._config.cluster_name}"
+        )
 
         url_factory = self._create_url_factory(request)
-        url = url_factory.create_upstream_catalog_url()
+        project_name = url_factory.upstream_project
+        url: Optional[URL] = url_factory.create_upstream_catalog_url(
+            self._prepare_catalog_request_params(page)
+        )
 
         auth_headers = await self._upstream.get_headers_for_catalog()
         headers = self._prepare_request_headers(request.headers, auth_headers)
-        params = {"n": self._config.upstream_registry.max_catalog_entries}
-
         timeout = self._create_registry_client_timeout(request)
 
+        filtered: List[str] = []
+        while url and len(filtered) < page.number:
+            images_list, url = await self._get_next_catalog_items(url, headers, timeout)
+            if not images_list:
+                break
+            filtered.extend(
+                img for img in self.filter_images(images_list, tree, project_name)
+            )
+
+        response_headers: Dict[str, str] = {}
+
+        if url and filtered:
+            # NOTE: we collected the requested amount of images, but there might
+            # still be more
+            # trimming the list and using the last element as the 'last'
+            # parameter in the next link
+            filtered = filtered[: page.number]
+            next_registry_url = url_factory.create_registry_catalog_url(
+                {"n": str(page.number), "last": filtered[-1]}
+            )
+            response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+
+        result_dict = {"repositories": filtered}
+
+        response = aiohttp.web.json_response(data=result_dict, headers=response_headers)
+
+        logger.debug("registry response: %s; headers: %s", response, response.headers)
+
+        return response
+
+    async def _get_next_catalog_items(
+        self, url: URL, headers: CIMultiDict[str], timeout: aiohttp.ClientTimeout,
+    ) -> Tuple[List[str], Optional[URL]]:
         async with self._registry_client.request(
-            method="GET", url=url, headers=headers, params=params, timeout=timeout
+            method="GET", url=url, headers=headers, timeout=timeout
         ) as client_response:
             logger.debug("upstream response: %s", client_response)
             client_response.raise_for_status()
@@ -269,29 +332,11 @@ class V2Handler:
             # type check. GCR sends application/json, whereas ECR sends
             # text/plan.
             result_dict = await client_response.json(content_type=None)
-            images_list = self.parse_catalog_repositories(result_dict)
-            logger.debug(
-                f"Received {len(images_list)} images "
-                f"(limit: {self._config.upstream_registry.max_catalog_entries})"
-            )
+            next_upstream_url: Optional[URL] = None
+            if client_response.links.get("next"):
+                next_upstream_url = client_response.links["next"]["url"]
 
-            tree = await self._auth_client.get_permissions_tree(
-                user.name, f"image://{self._config.cluster_name}"
-            )
-            project_name = url_factory.upstream_project
-            filtered = [
-                img for img in self.filter_images(images_list, tree, project_name)
-            ]
-
-            result_dict = {"repositories": filtered}
-
-            response = aiohttp.web.json_response(data=result_dict)
-
-            logger.debug(
-                "registry response: %s; headers: %s", response, response.headers
-            )
-
-            return response
+            return (self.parse_catalog_repositories(result_dict), next_upstream_url)
 
     async def handle_repo_tags_list(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
