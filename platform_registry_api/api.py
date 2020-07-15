@@ -312,7 +312,10 @@ class V2Handler:
 
         if url and filtered:
             next_registry_url = url_factory.create_registry_catalog_url(
-                {"n": str(page.number), "last": filtered[-1]}
+                {
+                    "n": str(self._config.upstream_registry.max_catalog_entries),
+                    "last": filtered[-1],
+                }
             )
             response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
 

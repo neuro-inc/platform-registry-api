@@ -1,5 +1,7 @@
+import itertools
 import json
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from typing import AsyncIterator, Dict, List
 
 import aiohttp.web
@@ -241,10 +243,25 @@ class TestBasicUpstream:
                 payload = await resp.json()
                 assert payload == {"repositories": handler.images[:i]}
 
-    @pytest.mark.parametrize("number", list(range(1, 10)))
+    @pytest.mark.parametrize(
+        "number, replace_max", list(itertools.product(range(1, 10), (True, False)))
+    )
     async def test_catalog__some_at_a_time(
-        self, config, regular_user_factory, aiohttp_client, handler, number: int
+        self,
+        config,
+        regular_user_factory,
+        aiohttp_client,
+        handler,
+        number: int,
+        replace_max: bool,
     ) -> None:
+        if replace_max:
+            config = replace(
+                config,
+                upstream_registry=replace(
+                    config.upstream_registry, max_catalog_entries=number
+                ),
+            )
         app = await create_app(config)
         client = await aiohttp_client(app)
         user = await regular_user_factory()
