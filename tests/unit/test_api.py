@@ -11,6 +11,7 @@ from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
 from platform_registry_api.api import (
+    CatalogPage,
     OAuthClient,
     OAuthUpstream,
     RepoURL,
@@ -73,6 +74,14 @@ class TestRepoURL:
             repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
         )
 
+    def test_with_query_no_query(self):
+        url = URL("https://example.com/v2/this/image/tags/list")
+        reg_url = RepoURL.from_url(url).with_query({"what": "ever"})
+        assert reg_url == RepoURL(
+            repo="this/image",
+            url=URL("https://example.com/v2/this/image/tags/list?what=ever"),
+        )
+
 
 class TestURLFactory:
     @pytest.fixture
@@ -97,7 +106,23 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
+            "?what=ever&n=100"
+        )
+        assert up_repo_url == RepoURL(
+            repo="upstream/nested/this/image", url=expected_url
+        )
+
+    def test_create_upstream_repo_url_with_page(self, url_factory):
+        reg_repo_url = RepoURL.from_url(
+            URL("http://registry:5000/v2/this/image/tags/list?what=ever")
+        )
+        page = CatalogPage(number=123, last_repo="abc")
+        up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url, page=page)
+
+        expected_url = URL(
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
+            "?what=ever&n=123&last=abc"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url
