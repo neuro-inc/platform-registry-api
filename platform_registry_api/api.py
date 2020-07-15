@@ -298,9 +298,7 @@ class V2Handler:
             images_list, url = await self._get_next_catalog_items(url, headers, timeout)
             if not images_list:
                 break
-            filtered.extend(
-                img for img in self.filter_images(images_list, tree, project_name)
-            )
+            filtered.extend(self.filter_images(images_list, tree, project_name))
 
         response_headers: Dict[str, str] = {}
 
@@ -308,7 +306,7 @@ class V2Handler:
         # still be more
         # trimming the list and using the last element as the 'last'
         # parameter in the next link
-        filtered = filtered[: page.number]
+        del filtered[page.number :]
 
         if url and filtered:
             next_registry_url = url_factory.create_registry_catalog_url(
