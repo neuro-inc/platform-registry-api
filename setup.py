@@ -12,6 +12,7 @@ install_requires = (
     "aiobotocore==1.0.4",
     "platform-logging==0.3",
     "trafaret==2.0.2",
+    "aiozipkin==0.7.0",
 )
 
 setup(
