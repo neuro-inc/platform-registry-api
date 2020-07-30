@@ -105,8 +105,7 @@ aws_login:
 	aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
 
 _helm:
-	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v v2.11.0
-
+	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
 
 gke_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
@@ -127,6 +126,7 @@ gke_k8s_deploy: _helm
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
 aws_k8s_deploy: _helm
+	helm init --client-only
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
 
