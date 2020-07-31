@@ -75,6 +75,7 @@ jobs:
       ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
       ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
       ARTIFACTORY_HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
+      HELM_VERSION: ${{ secrets.HELM_VERSION }}
 
 
     steps:
@@ -104,6 +105,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_CLUSTER_NAME: ${{ secrets.AWS_CLUSTER_NAME }}
       HELM_ENV: ${{ secrets.HELM_ENV }}
+      HELM_VERSION: ${{ secrets.HELM_VERSION }}
 
     steps:
       - name: Checkout commit
