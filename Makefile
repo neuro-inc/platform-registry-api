@@ -26,7 +26,7 @@ else
 endif
 export IMAGE_REPO
 
-init:
+setup init:
 	pip install -r requirements-test.txt
 
 build:
