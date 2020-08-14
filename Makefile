@@ -84,12 +84,12 @@ _test_integration:
 	pytest -vv tests/integration
 
 lint:
+	isort --check-only --diff ${ISORT_DIRS}
 	black --check $(BLACK_DIRS)
 	flake8 $(FLAKE8_DIRS)
-	isort -c -rc ${ISORT_DIRS}
 
 format:
-	isort -rc $(ISORT_DIRS)
+	isort $(ISORT_DIRS)
 	black $(BLACK_DIRS)
 
 gke_login:
