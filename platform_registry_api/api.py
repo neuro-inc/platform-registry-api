@@ -4,6 +4,7 @@ import re
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, replace
+from types import SimpleNamespace
 from typing import (
     Any,
     AsyncIterator,
@@ -13,6 +14,7 @@ from typing import (
     Iterator,
     List,
     Optional,
+    Pattern,
     Tuple,
 )
 
@@ -21,7 +23,7 @@ import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
 import trafaret as t
-from aiohttp import ClientResponseError
+from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
 from aiohttp.web import (
     Application,
@@ -83,7 +85,7 @@ CATALOG_PAGE_VALIDATOR = (
 
 @dataclass(frozen=True)
 class RepoURL:
-    _path_re: ClassVar[re.Pattern] = re.compile(
+    _path_re: ClassVar[Pattern[str]] = re.compile(
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
 
@@ -94,7 +96,7 @@ class RepoURL:
     def from_url(cls, url: URL) -> "RepoURL":
         # validating the url
         repo, _ = cls._parse(url)
-        return cls(repo=repo, url=url)  # type: ignore
+        return cls(repo=repo, url=url)
 
     @classmethod
     def _parse(cls, url: URL) -> Tuple[str, URL]:
@@ -137,7 +139,7 @@ class URLFactory:
         self._upstream_project = upstream_project
 
     @property
-    def upstream_project(self):
+    def upstream_project(self) -> str:
         return self._upstream_project
 
     @classmethod
@@ -198,7 +200,7 @@ class V2Handler:
     def _upstream(self) -> Upstream:
         return self._app["upstream"]
 
-    def register(self, app):
+    def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
             (
                 aiohttp.web.get("/", self.handle_version_check),
@@ -439,7 +441,7 @@ class V2Handler:
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")
 
-    async def _check_user_permissions(self, request, repo: str) -> None:
+    async def _check_user_permissions(self, request: Request, repo: str) -> None:
         assert self._config.cluster_name
         uri = f"image://{self._config.cluster_name}/{repo}"
         if self._is_pull_request(request):
@@ -526,9 +528,9 @@ class V2Handler:
                 data["name"] = repo
 
     def _prepare_request_headers(
-        self, headers: CIMultiDictProxy, auth_headers: Dict[str, str]
-    ) -> CIMultiDict:
-        request_headers: CIMultiDict = headers.copy()  # type: ignore
+        self, headers: CIMultiDictProxy[str], auth_headers: Dict[str, str]
+    ) -> CIMultiDict[str]:
+        request_headers: CIMultiDict[str] = headers.copy()
 
         for name in ("Host", "Transfer-Encoding", "Connection"):
             request_headers.pop(name, None)
@@ -537,9 +539,9 @@ class V2Handler:
         return request_headers
 
     def _prepare_response_headers(
-        self, headers: CIMultiDictProxy, url_factory: URLFactory
-    ) -> CIMultiDict:
-        response_headers: CIMultiDict = headers.copy()  # type: ignore
+        self, headers: CIMultiDictProxy[str], url_factory: URLFactory
+    ) -> CIMultiDict[str]:
+        response_headers: CIMultiDict[str] = headers.copy()
 
         for name in ("Transfer-Encoding", "Content-Encoding", "Connection"):
             response_headers.pop(name, None)
@@ -617,10 +619,12 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
     tracer = await create_tracer(config)
 
-    async def _init_app(app: aiohttp.web.Application):
+    async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
 
-            async def on_request_redirect(session, ctx, params):
+            async def on_request_redirect(
+                session: ClientSession, ctx: SimpleNamespace, params: Any
+            ) -> None:
                 logger.debug("upstream redirect response: %s", params.response)
 
             trace_config = aiohttp.TraceConfig()
@@ -677,7 +681,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
-def main():
+def main() -> None:
     init_logging()
 
     loop = asyncio.get_event_loop()
