@@ -2,7 +2,7 @@ import itertools
 import json
 from contextlib import asynccontextmanager
 from dataclasses import replace
-from typing import AsyncIterator, Dict, List
+from typing import AsyncIterator, Awaitable, Callable, Dict, List
 
 import aiohttp.web
 import pytest
@@ -29,6 +29,8 @@ from platform_registry_api.config import (
     UpstreamType,
     ZipkinConfig,
 )
+from tests import _TestClientFactory
+from tests.integration.conftest import _User
 
 
 pytestmark = pytest.mark.asyncio
@@ -150,7 +152,11 @@ def config(upstream: URL, auth_config: AuthConfig, project: str) -> Config:
 
 class TestBasicUpstream:
     async def test_catalog(
-        self, config, regular_user_factory, aiohttp_client, handler
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -162,7 +168,11 @@ class TestBasicUpstream:
             assert payload == {"repositories": []}
 
     async def test_catalog__only_one_and_matching(
-        self, config, regular_user_factory, aiohttp_client, handler
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -176,7 +186,11 @@ class TestBasicUpstream:
             assert payload == {"repositories": [user.name + "/test"]}
 
     async def test_catalog__last_not_found(
-        self, config, regular_user_factory, aiohttp_client, handler
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -200,7 +214,11 @@ class TestBasicUpstream:
             }
 
     async def test_catalog__multiple_users(
-        self, config, regular_user_factory, aiohttp_client, handler
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -227,7 +245,11 @@ class TestBasicUpstream:
             assert payload == {"repositories": [user1.name + "/test4"]}
 
     async def test_catalog__number(
-        self, config, regular_user_factory, aiohttp_client, handler
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -248,10 +270,10 @@ class TestBasicUpstream:
     )
     async def test_catalog__some_at_a_time(
         self,
-        config,
-        regular_user_factory,
-        aiohttp_client,
-        handler,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
         number: int,
         replace_max: bool,
     ) -> None:

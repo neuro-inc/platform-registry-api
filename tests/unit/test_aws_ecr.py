@@ -45,7 +45,7 @@ class TestAWSECRAuthToken:
         with pytest.raises(ValueError, match="invalid payload"):
             AWSECRAuthToken.create_from_payload(payload)
 
-    def test_create_from_payload_expires_at(self):
+    def test_create_from_payload_expires_at(self) -> None:
         token = AWSECRAuthToken.create_from_payload(
             {
                 "authorizationData": [
@@ -59,7 +59,7 @@ class TestAWSECRAuthToken:
         )
         assert token == AWSECRAuthToken(token="testtoken", expires_at=1560000075.0)
 
-    def test_create_from_payload_already_expired(self):
+    def test_create_from_payload_already_expired(self) -> None:
         with pytest.raises(ValueError, match="already expired"):
             AWSECRAuthToken.create_from_payload(
                 {
@@ -86,7 +86,7 @@ class _TestAWSECRUpstreamHandler:
             return await self._handle_create_repo(request)
         return json_response({}, status=500)
 
-    async def _handle_get_auth_token(self, request) -> StreamResponse:
+    async def _handle_get_auth_token(self, request: Request) -> StreamResponse:
         return json_response(
             {
                 "authorizationData": [
@@ -95,7 +95,7 @@ class _TestAWSECRUpstreamHandler:
             }
         )
 
-    async def _handle_create_repo(self, request) -> StreamResponse:
+    async def _handle_create_repo(self, request: Request) -> StreamResponse:
         payload = await request.json()
         repo = payload["repositoryName"]
         if repo == "test_repo":

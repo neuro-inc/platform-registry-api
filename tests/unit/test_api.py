@@ -1,6 +1,6 @@
 import datetime
 import time
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict, Optional
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional
 
 import aiohttp
 import pytest
@@ -31,28 +31,28 @@ class TestRepoURL:
     @pytest.mark.parametrize(
         "url", (URL("/"), URL("/v2/"), URL("/v2/tags/list"), URL("/v2/blobs/uploads/"))
     )
-    def test_from_url_value_error(self, url):
+    def test_from_url_value_error(self, url: URL) -> None:
         with pytest.raises(
             ValueError, match=f"unexpected path in a registry URL: {url}"
         ):
             RepoURL.from_url(url)
 
-    def test_from_url(self):
+    def test_from_url(self) -> None:
         url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="name", url=url)
 
-    def test_from_url_edge_case_1(self):
+    def test_from_url_edge_case_1(self) -> None:
         url = URL("/v2/tags/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="tags", url=url)
 
-    def test_from_url_edge_case_2(self):
+    def test_from_url_edge_case_2(self) -> None:
         url = URL("/v2/tags/tags/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="tags/tags", url=url)
 
-    def test_with_repo(self):
+    def test_with_repo(self) -> None:
         url = URL("https://example.com/v2/this/image/tags/list?what=ever")
         reg_url = RepoURL.from_url(url).with_repo("another/img")
         assert reg_url == RepoURL(
@@ -60,21 +60,21 @@ class TestRepoURL:
             url=URL("https://example.com/v2/another/img/tags/list?what=ever"),
         )
 
-    def test_with_origin(self):
+    def test_with_origin(self) -> None:
         url = URL("https://example.com/v2/this/image/tags/list?what=ever")
         reg_url = RepoURL.from_url(url).with_origin(URL("http://a.b"))
         assert reg_url == RepoURL(
             repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
         )
 
-    def test_with_origin_relative(self):
+    def test_with_origin_relative(self) -> None:
         url = URL("/v2/this/image/tags/list?what=ever")
         reg_url = RepoURL.from_url(url).with_origin(URL("http://a.b"))
         assert reg_url == RepoURL(
             repo="this/image", url=URL("http://a.b/v2/this/image/tags/list?what=ever")
         )
 
-    def test_with_query_no_query(self):
+    def test_with_query_no_query(self) -> None:
         url = URL("https://example.com/v2/this/image/tags/list")
         reg_url = RepoURL.from_url(url).with_query({"what": "ever"})
         assert reg_url == RepoURL(
@@ -85,7 +85,7 @@ class TestRepoURL:
 
 class TestURLFactory:
     @pytest.fixture
-    def url_factory(self):
+    def url_factory(self) -> URLFactory:
         registry_endpoint_url = URL("http://registry:5000")
         upstream_endpoint_url = URL("http://upstream:5000")
         return URLFactory(
@@ -94,12 +94,12 @@ class TestURLFactory:
             upstream_project="upstream/nested",
         )
 
-    def test_create_registry_version_check_url(self, url_factory):
+    def test_create_registry_version_check_url(self, url_factory: URLFactory) -> None:
         assert url_factory.create_registry_version_check_url() == URL(
             "http://upstream:5000/v2/"
         )
 
-    def test_create_upstream_repo_url(self, url_factory):
+    def test_create_upstream_repo_url(self, url_factory: URLFactory) -> None:
         reg_repo_url = RepoURL.from_url(
             URL("http://registry:5000/v2/this/image/tags/list?what=ever")
         )
@@ -113,7 +113,7 @@ class TestURLFactory:
             repo="upstream/nested/this/image", url=expected_url
         )
 
-    def test_create_upstream_repo_url_with_page(self, url_factory):
+    def test_create_upstream_repo_url_with_page(self, url_factory: URLFactory) -> None:
         reg_repo_url = RepoURL.from_url(
             URL("http://registry:5000/v2/this/image/tags/list?what=ever")
         )
@@ -128,7 +128,7 @@ class TestURLFactory:
             repo="upstream/nested/this/image", url=expected_url
         )
 
-    def test_create_registry_repo_url(self, url_factory):
+    def test_create_registry_repo_url(self, url_factory: URLFactory) -> None:
         up_repo_url = RepoURL.from_url(
             URL("http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=")
         )
@@ -137,14 +137,16 @@ class TestURLFactory:
         expected_url = URL("http://registry:5000/v2/this/image/tags/list?what=")
         assert reg_repo_url == RepoURL(repo="this/image", url=expected_url)
 
-    def test_create_registry_repo_url_no_project(self, url_factory):
+    def test_create_registry_repo_url_no_project(self, url_factory: URLFactory) -> None:
         up_repo_url = RepoURL.from_url(
             URL("http://upstream:5000/v2/image/tags/list?what=")
         )
         with pytest.raises(ValueError, match="'image' does not match"):
             url_factory.create_registry_repo_url(up_repo_url)
 
-    def test_create_registry_repo_url_wrong_project(self, url_factory):
+    def test_create_registry_repo_url_wrong_project(
+        self, url_factory: URLFactory
+    ) -> None:
         up_repo_url = RepoURL.from_url(
             URL("http://upstream:5000/v2/upstream/image/tags/list?what=")
         )
@@ -153,7 +155,7 @@ class TestURLFactory:
 
 
 class TestV2Handler:
-    def test_filter_images_by_project(self):
+    def test_filter_images_by_project(self) -> None:
         images_names = [
             "testproject/alice/img1",
             "testproject/alice/img2",
@@ -172,7 +174,7 @@ class TestV2Handler:
             "alice/img2",
         ]
 
-    def test_filter_images_by_tree_user_mismatch(self):
+    def test_filter_images_by_tree_user_mismatch(self) -> None:
         images_names = [
             "testproject/alice/img1",
             "testproject/alice/img2",
@@ -191,7 +193,7 @@ class TestV2Handler:
             "alice/img2",
         ]
 
-    def test_filter_images_by_tree_superuser(self):
+    def test_filter_images_by_tree_superuser(self) -> None:
         images_names = [
             "testproject/alice/img1",
             "testproject/alice/img2",
@@ -213,8 +215,8 @@ class TestV2Handler:
             "foo/img4",
         ]
 
-    def test_filter_images_no_elements(self):
-        images_names = []
+    def test_filter_images_no_elements(self) -> None:
+        images_names: List[str] = []
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -241,7 +243,7 @@ class TestV2Handler:
 
 
 class TestHelpers_CheckImageCatalogPermission:
-    def test_default_permissions(self):
+    def test_default_permissions(self) -> None:
         # alice checks her own image "alice/img"
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
@@ -253,7 +255,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_another_user_default_permissions__forbidden(self):
+    def test_another_user_default_permissions__forbidden(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -264,7 +266,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is False
 
-    def test_shared_image_read_permissions(self):
+    def test_shared_image_read_permissions(self) -> None:
         image = "alice/img"
         # tree requested by bob:
         tree = ClientSubTreeViewRoot._from_json(
@@ -282,7 +284,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_shared_image_manage_permissions(self):
+    def test_shared_image_manage_permissions(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -299,14 +301,14 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_shared_image_deny_permissions(self):
+    def test_shared_image_deny_permissions(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
             {"action": "deny", "children": {}, "path": "/"}
         )
         assert check_image_catalog_permission(image, tree) is False
 
-    def test_shared_image_slashes_in_image_name(self):
+    def test_shared_image_slashes_in_image_name(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -335,7 +337,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_shared_image_parent_read_permissions(self):
+    def test_shared_image_parent_read_permissions(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -352,7 +354,7 @@ class TestHelpers_CheckImageCatalogPermission:
         )
         assert check_image_catalog_permission(image, tree) is True
 
-    def test_shared_image_root_read_permissions(self):
+    def test_shared_image_root_read_permissions(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
             {"action": "read", "children": {}, "path": "/"}

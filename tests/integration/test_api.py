@@ -1,3 +1,5 @@
+from typing import Awaitable, Callable
+
 import pytest
 from yarl import URL
 
@@ -10,10 +12,12 @@ from platform_registry_api.config import (
     UpstreamRegistryConfig,
     ZipkinConfig,
 )
+from tests import _TestClientFactory
+from tests.integration.conftest import _User
 
 
 @pytest.fixture
-def config(in_docker, admin_token, cluster_name):
+def config(in_docker: bool, admin_token: str, cluster_name: str) -> Config:
     if in_docker:
         return EnvironConfigFactory().create()
 
@@ -40,7 +44,9 @@ def config(in_docker, admin_token, cluster_name):
 
 class TestV2Api:
     @pytest.mark.asyncio
-    async def test_unauthorized(self, aiohttp_client, config):
+    async def test_unauthorized(
+        self, aiohttp_client: _TestClientFactory, config: Config
+    ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         async with client.get("/v2/") as resp:
@@ -48,7 +54,9 @@ class TestV2Api:
             assert resp.headers["WWW-Authenticate"] == ('Basic realm="Docker Registry"')
 
     @pytest.mark.asyncio
-    async def test_invalid_credentials(self, aiohttp_client, config):
+    async def test_invalid_credentials(
+        self, aiohttp_client: _TestClientFactory, config: Config
+    ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         headers = {"Authorization": "Basic ab"}
@@ -56,7 +64,12 @@ class TestV2Api:
             assert resp.status == 400
 
     @pytest.mark.asyncio
-    async def test_version_check(self, aiohttp_client, config, regular_user_factory):
+    async def test_version_check(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -65,7 +78,12 @@ class TestV2Api:
             assert resp.status == 200
 
     @pytest.mark.asyncio
-    async def test_catalog(self, aiohttp_client, config, regular_user_factory):
+    async def test_catalog(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -78,7 +96,9 @@ class TestV2Api:
             assert isinstance(data["repositories"], list)
 
     @pytest.mark.asyncio
-    async def test_catalog__no_auth(self, aiohttp_client, config):
+    async def test_catalog__no_auth(
+        self, aiohttp_client: _TestClientFactory, config: Config
+    ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         url = "/v2/_catalog"
@@ -86,7 +106,9 @@ class TestV2Api:
             assert resp.status == 401, await resp.text()
 
     @pytest.mark.asyncio
-    async def test_repo_unauthorized(self, aiohttp_client, config):
+    async def test_repo_unauthorized(
+        self, aiohttp_client: _TestClientFactory, config: Config
+    ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         async with client.get("/v2/neuromation/unknown/tags/list") as resp:
@@ -94,7 +116,12 @@ class TestV2Api:
             assert resp.headers["WWW-Authenticate"] == ('Basic realm="Docker Registry"')
 
     @pytest.mark.asyncio
-    async def test_unknown_repo(self, aiohttp_client, config, regular_user_factory):
+    async def test_unknown_repo(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -115,8 +142,11 @@ class TestV2Api:
 
     @pytest.mark.asyncio
     async def test_x_forwarded_proto(
-        self, aiohttp_client, config, regular_user_factory
-    ):
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)

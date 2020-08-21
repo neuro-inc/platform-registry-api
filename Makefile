@@ -7,6 +7,7 @@ IMAGE_K8S_AWS ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_N
 ISORT_DIRS := platform_registry_api tests setup.py
 FLAKE8_DIRS := $(ISORT_DIRS)
 BLACK_DIRS := $(ISORT_DIRS)
+MYPY_DIRS := $(ISORT_DIRS)
 
 ifdef CIRCLECI
     PIP_EXTRA_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
@@ -87,6 +88,7 @@ lint:
 	isort --check-only --diff ${ISORT_DIRS}
 	black --check $(BLACK_DIRS)
 	flake8 $(FLAKE8_DIRS)
+	mypy $(MYPY_DIRS)
 
 format:
 	isort $(ISORT_DIRS)

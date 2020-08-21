@@ -79,7 +79,7 @@ class EnvironConfigFactory:
 
     def create_server(self) -> ServerConfig:
         port = int(self._environ.get("NP_REGISTRY_API_PORT", ServerConfig.port))
-        return ServerConfig(port=port)  # type: ignore
+        return ServerConfig(port=port)
 
     def create_upstream_registry(self) -> UpstreamRegistryConfig:
         endpoint_url = URL(self._environ["NP_REGISTRY_UPSTREAM_URL"])
@@ -130,12 +130,12 @@ class EnvironConfigFactory:
             basic_password = self._environ.get("NP_REGISTRY_UPSTREAM_BASIC_PASSWORD")
             if basic_password is not None:
                 upstream["basic_password"] = basic_password
-        return UpstreamRegistryConfig(**upstream)  # type: ignore
+        return UpstreamRegistryConfig(**upstream)
 
     def create_auth(self) -> AuthConfig:
         url = URL(self._environ["NP_REGISTRY_AUTH_URL"])
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
-        return AuthConfig(server_endpoint_url=url, service_token=token)  # type: ignore
+        return AuthConfig(server_endpoint_url=url, service_token=token)
 
     def create_zipkin(self) -> ZipkinConfig:
         url = URL(self._environ["NP_REGISTRY_ZIPKIN_URL"])
@@ -149,7 +149,7 @@ class EnvironConfigFactory:
         zipkin_config = self.create_zipkin()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
         assert cluster_name
-        return Config(  # type: ignore
+        return Config(
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
