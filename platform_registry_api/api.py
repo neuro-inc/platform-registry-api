@@ -58,14 +58,14 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class CatalogPage:
     number: int = 100
-    last_repo: str = ""
+    last_token: str = ""
 
-    def with_last_repo(self, repo: str) -> "CatalogPage":
-        return replace(self, last_repo=repo)
+    def with_last_token(self, token: str) -> "CatalogPage":
+        return replace(self, last_token=token)
 
     @classmethod
     def create(cls, payload: Dict[str, Any]) -> "CatalogPage":
-        return cls(number=int(payload["n"]), last_repo=payload.get("last", ""))
+        return cls(number=int(payload["n"]), last_token=payload.get("last", ""))
 
     @classmethod
     def default(cls) -> "CatalogPage":
@@ -165,8 +165,8 @@ class URLFactory:
         repo = f"{self._upstream_project}/{registry_url.repo}"
         url = registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
         query: Dict[str, str] = dict(n=str(page.number))
-        if page.last_repo:
-            query["last"] = page.last_repo
+        if page.last_token:
+            query["last"] = page.last_token
         url = url.with_query(query)
         return url
 
@@ -251,32 +251,37 @@ class V2Handler:
         return payload.get("repositories") or []
 
     @classmethod
-    def filter_images(
+    def filter_images_indexed(
         cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
-    ) -> Iterator[str]:
+    ) -> Iterator[Tuple[int, str]]:
         project_prefix = project_name + "/"
         len_project_prefix = len(project_prefix)
-        for image in images_names:
+        for index, image in enumerate(images_names):
             if image.startswith(project_prefix):
                 image = image[len_project_prefix:]
                 if check_image_catalog_permission(image, tree):
-                    yield image
+                    yield index, image
             else:
                 msg = f'expected project "{project_name}" in image "{image}"'
                 logger.info(f"Bad image: {msg} (skipping)")
 
     def _prepare_catalog_request_params(self, page: CatalogPage) -> Dict[str, str]:
         params = {"n": str(page.number)}
-        if page.last_repo:
-            params[
-                "last"
-            ] = f"{self._config.upstream_registry.project}/{page.last_repo}"
+        if page.last_token:
+            params["last"] = page.last_token
         return params
 
     async def handle_catalog(self, request: Request) -> Response:
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         page: CatalogPage = CATALOG_PAGE_VALIDATOR.check(request.query)
+        # Because we filter out some repos, we should not use "number"
+        # provided for client directly. For example, user requests 2 repos,
+        # but first available repo that user is only 1000s. Basic approach
+        # will give us at least 500 requests.
+        page_for_upstream: CatalogPage = replace(
+            page, number=self._config.upstream_registry.max_catalog_entries
+        )
 
         logger.debug(f"requested catalog page: {page}")
 
@@ -287,8 +292,8 @@ class V2Handler:
 
         url_factory = self._create_url_factory(request)
         project_name = url_factory.upstream_project
-        url: Optional[URL] = url_factory.create_upstream_catalog_url(
-            self._prepare_catalog_request_params(page)
+        previous_paging_url = url_factory.create_upstream_catalog_url(
+            self._prepare_catalog_request_params(page_for_upstream)
         )
 
         auth_headers = await self._upstream.get_headers_for_catalog()
@@ -296,28 +301,47 @@ class V2Handler:
         timeout = self._create_registry_client_timeout(request)
 
         filtered: List[str] = []
-        while url and len(filtered) < page.number:
-            images_list, url = await self._get_next_catalog_items(url, headers, timeout)
+        next_paging_url: Optional[URL] = previous_paging_url
+        last_used_index: Optional[int] = None
+        while next_paging_url and len(filtered) < page.number:
+            previous_paging_url = next_paging_url
+            images_list, next_paging_url = await self._get_next_catalog_items(
+                next_paging_url, headers, timeout
+            )
             if not images_list:
                 break
-            filtered.extend(self.filter_images(images_list, tree, project_name))
+            for index, image in self.filter_images_indexed(
+                images_list, tree, project_name
+            ):
+                if len(filtered) == page.number:
+                    break
+                filtered.append(image)
+                last_used_index = index
 
         response_headers: Dict[str, str] = {}
 
-        # NOTE: we collected the requested amount of images, but there might
-        # still be more
-        # trimming the list and using the last element as the 'last'
-        # parameter in the next link
-        del filtered[page.number :]
-
-        if url and filtered:
-            next_registry_url = url_factory.create_registry_catalog_url(
-                {
-                    "n": str(self._config.upstream_registry.max_catalog_entries),
-                    "last": filtered[-1],
-                }
+        if last_used_index is not None:
+            # We have to make on more request to get correct last token from upstream
+            url_exact_last = previous_paging_url.update_query(
+                n=str(last_used_index + 1)
             )
-            response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+
+            _, url_last_token = await self._get_next_catalog_items(
+                url_exact_last, headers, timeout
+            )
+
+            if url_last_token:
+                last_token = url_last_token.query.get("last")
+            else:
+                last_token = None
+            if last_token:
+                next_registry_url = url_factory.create_registry_catalog_url(
+                    {
+                        "n": str(self._config.upstream_registry.max_catalog_entries),
+                        "last": last_token,
+                    }
+                )
+                response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
 
         result_dict = {"repositories": filtered}
 
