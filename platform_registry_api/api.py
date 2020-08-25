@@ -292,7 +292,7 @@ class V2Handler:
 
         url_factory = self._create_url_factory(request)
         project_name = url_factory.upstream_project
-        previous_paging_url = url_factory.create_upstream_catalog_url(
+        paging_url: Optional[URL] = url_factory.create_upstream_catalog_url(
             self._prepare_catalog_request_params(page_for_upstream)
         )
 
@@ -301,12 +301,12 @@ class V2Handler:
         timeout = self._create_registry_client_timeout(request)
 
         filtered: List[str] = []
-        next_paging_url: Optional[URL] = previous_paging_url
-        last_used_index: Optional[int] = None
-        while next_paging_url and len(filtered) < page.number:
-            previous_paging_url = next_paging_url
-            images_list, next_paging_url = await self._get_next_catalog_items(
-                next_paging_url, headers, timeout
+        used_index: Optional[int] = None
+        last_token: str = ""
+        while paging_url and len(filtered) < page.number:
+            last_token = paging_url.query.get("last", "")
+            images_list, paging_url = await self._get_next_catalog_items(
+                paging_url, headers, timeout
             )
             if not images_list:
                 break
@@ -316,14 +316,15 @@ class V2Handler:
                 if len(filtered) == page.number:
                     break
                 filtered.append(image)
-                last_used_index = index
+                used_index = index
 
         response_headers: Dict[str, str] = {}
 
-        if last_used_index is not None:
+        if used_index is not None:
             # We have to make on more request to get correct last token from upstream
-            url_exact_last = previous_paging_url.update_query(
-                n=str(last_used_index + 1)
+            page_exact_last = CatalogPage(number=used_index + 1, last_token=last_token)
+            url_exact_last = url_factory.create_upstream_catalog_url(
+                self._prepare_catalog_request_params(page_exact_last)
             )
 
             _, url_last_token = await self._get_next_catalog_items(
@@ -331,14 +332,14 @@ class V2Handler:
             )
 
             if url_last_token:
-                last_token = url_last_token.query.get("last")
+                client_last_token = url_last_token.query.get("last")
             else:
-                last_token = None
-            if last_token:
+                client_last_token = None
+            if client_last_token:
                 next_registry_url = url_factory.create_registry_catalog_url(
                     {
                         "n": str(self._config.upstream_registry.max_catalog_entries),
-                        "last": last_token,
+                        "last": client_last_token,
                     }
                 )
                 response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
