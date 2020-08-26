@@ -63,6 +63,9 @@ class CatalogPage:
     def with_last_token(self, token: str) -> "CatalogPage":
         return replace(self, last_token=token)
 
+    def with_number(self, number: int) -> "CatalogPage":
+        return replace(self, number=number)
+
     @classmethod
     def create(cls, payload: Dict[str, Any]) -> "CatalogPage":
         return cls(number=int(payload["n"]), last_token=payload.get("last", ""))
@@ -279,8 +282,8 @@ class V2Handler:
         # provided for client directly. For example, user requests 2 repos,
         # but first available repo that user is only 1000s. Basic approach
         # will give us at least 500 requests.
-        page_for_upstream: CatalogPage = replace(
-            page, number=self._config.upstream_registry.max_catalog_entries
+        page_for_upstream: CatalogPage = page.with_number(
+            number=self._config.upstream_registry.max_catalog_entries
         )
 
         logger.debug(f"requested catalog page: {page}")
