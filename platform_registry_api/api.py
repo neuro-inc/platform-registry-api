@@ -283,7 +283,7 @@ class V2Handler:
         # but first available repo that user is only 1000s. Basic approach
         # will give us at least 500 requests.
         page_for_upstream: CatalogPage = page.with_number(
-            number=self._config.upstream_registry.max_catalog_entries
+            number=max(page.number, self._config.upstream_registry.max_catalog_entries)
         )
 
         logger.debug(f"requested catalog page: {page}")
@@ -316,10 +316,10 @@ class V2Handler:
             for index, image in self.filter_images_indexed(
                 images_list, tree, project_name
             ):
-                if len(filtered) == page.number:
-                    break
                 filtered.append(image)
                 used_index = index
+                if len(filtered) == page.number:
+                    break
 
         response_headers: Dict[str, str] = {}
 
