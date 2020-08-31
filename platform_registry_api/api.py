@@ -278,13 +278,6 @@ class V2Handler:
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         page: CatalogPage = CATALOG_PAGE_VALIDATOR.check(request.query)
-        # Because we filter out some repos, we should not use "number"
-        # provided for client directly. For example, user requests 2 repos,
-        # but first available repo that user is only 1000s. Basic approach
-        # will give us at least 500 requests.
-        page_for_upstream: CatalogPage = page.with_number(
-            number=max(page.number, self._config.upstream_registry.max_catalog_entries)
-        )
 
         logger.debug(f"requested catalog page: {page}")
 
@@ -296,7 +289,7 @@ class V2Handler:
         url_factory = self._create_url_factory(request)
         project_name = url_factory.upstream_project
         paging_url: Optional[URL] = url_factory.create_upstream_catalog_url(
-            self._prepare_catalog_request_params(page_for_upstream)
+            self._prepare_catalog_request_params(page)
         )
 
         auth_headers = await self._upstream.get_headers_for_catalog()
@@ -304,45 +297,63 @@ class V2Handler:
         timeout = self._create_registry_client_timeout(request)
 
         filtered: List[str] = []
-        used_index: Optional[int] = None
+        index: int = 0
+        more_images = False
+        last_token_is_correct = False
         last_token: str = ""
         while paging_url and len(filtered) < page.number:
+            number = max(
+                page.number - len(filtered),
+                self._config.upstream_registry.max_catalog_entries,
+            )
+            paging_url = paging_url.update_query(number=str(number))
             last_token = paging_url.query.get("last", "")
             images_list, paging_url = await self._get_next_catalog_items(
                 paging_url, headers, timeout
             )
+            logger.warning(paging_url)
             if not images_list:
                 break
             for index, image in self.filter_images_indexed(
                 images_list, tree, project_name
             ):
                 filtered.append(image)
-                used_index = index
                 if len(filtered) == page.number:
+                    if paging_url or index != len(images_list) - 1:
+                        more_images = True
+                    if index == len(images_list) - 1:
+                        last_token_is_correct = True
+                        if paging_url:
+                            last_token = paging_url.query.get("last", "")
+                        else:
+                            last_token = ""
                     break
 
         response_headers: Dict[str, str] = {}
 
-        if used_index is not None:
-            # We have to make on more request to get correct last token from upstream
-            page_exact_last = CatalogPage(number=used_index + 1, last_token=last_token)
-            url_exact_last = url_factory.create_upstream_catalog_url(
-                self._prepare_catalog_request_params(page_exact_last)
-            )
+        if more_images:
+            if not last_token_is_correct:
+                # We have to make one more request to get correct
+                # last token from upstream
+                page_exact_last = CatalogPage(number=index + 1, last_token=last_token)
+                url_exact_last = url_factory.create_upstream_catalog_url(
+                    self._prepare_catalog_request_params(page_exact_last)
+                )
 
-            _, url_last_token = await self._get_next_catalog_items(
-                url_exact_last, headers, timeout
-            )
+                _, url_last_token = await self._get_next_catalog_items(
+                    url_exact_last, headers, timeout
+                )
 
-            if url_last_token:
-                client_last_token = url_last_token.query.get("last")
-            else:
-                client_last_token = None
-            if client_last_token:
+                if url_last_token:
+                    last_token = url_last_token.query.get("last", "")
+                else:
+                    last_token = ""
+
+            if last_token:
                 next_registry_url = url_factory.create_registry_catalog_url(
                     {
                         "n": str(self._config.upstream_registry.max_catalog_entries),
-                        "last": client_last_token,
+                        "last": last_token,
                     }
                 )
                 response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
