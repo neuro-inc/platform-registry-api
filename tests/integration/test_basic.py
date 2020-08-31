@@ -77,9 +77,10 @@ class _TestUpstreamHandler:
         last_repo = request.query.get("last", "")
         start_index = 0
         if last_repo:
-            assert last_repo.startswith(self._project)
-            _, _, last_repo = last_repo.partition("/")
             try:
+                if not last_repo.startswith(self._project):
+                    raise ValueError
+                _, _, last_repo = last_repo.partition("/")
                 start_index = self.images.index(last_repo) + 1
             except ValueError:
                 raise HTTPNotFound(
@@ -236,9 +237,15 @@ class TestBasicUpstream:
         )
 
         async with client.get(
+            "/v2/_catalog", auth=user1.to_basic_auth(), params={"n": "1"},
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            last_token = URL(resp.links.getone("next", {}).get("url")).query.get("last")
+
+        async with client.get(
             "/v2/_catalog",
             auth=user1.to_basic_auth(),
-            params={"n": "1", "last": f"{user1.name}/test1"},
+            params={"n": "1", "last": last_token},
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
