@@ -254,12 +254,12 @@ class V2Handler:
         return payload.get("repositories") or []
 
     @classmethod
-    def filter_images_indexed(
+    def filter_images_1_indexed(
         cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
     ) -> Iterator[Tuple[int, str]]:
         project_prefix = project_name + "/"
         len_project_prefix = len(project_prefix)
-        for index, image in enumerate(images_names):
+        for index, image in enumerate(images_names, 1):
             if image.startswith(project_prefix):
                 image = image[len_project_prefix:]
                 if check_image_catalog_permission(image, tree):
@@ -314,14 +314,14 @@ class V2Handler:
             logger.warning(paging_url)
             if not images_list:
                 break
-            for index, image in self.filter_images_indexed(
+            for index, image in self.filter_images_1_indexed(
                 images_list, tree, project_name
             ):
                 filtered.append(image)
                 if len(filtered) == page.number:
-                    if paging_url or index != len(images_list) - 1:
+                    if paging_url or index != len(images_list):
                         more_images = True
-                    if index == len(images_list) - 1:
+                    if index == len(images_list):
                         last_token_is_correct = True
                         if paging_url:
                             last_token = paging_url.query.get("last", "")
@@ -335,7 +335,7 @@ class V2Handler:
             if not last_token_is_correct:
                 # We have to make one more request to get correct
                 # last token from upstream
-                page_exact_last = CatalogPage(number=index + 1, last_token=last_token)
+                page_exact_last = CatalogPage(number=index, last_token=last_token)
                 url_exact_last = url_factory.create_upstream_catalog_url(
                     self._prepare_catalog_request_params(page_exact_last)
                 )

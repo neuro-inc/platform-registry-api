@@ -169,9 +169,9 @@ class TestV2Handler:
                 "path": "/",
             }
         )
-        assert list(V2Handler.filter_images_indexed(images_names, tree, project)) == [
-            (0, "alice/img1"),
-            (1, "alice/img2"),
+        assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
+            (1, "alice/img1"),
+            (2, "alice/img2"),
         ]
 
     def test_filter_images_by_tree_user_mismatch(self) -> None:
@@ -188,9 +188,9 @@ class TestV2Handler:
                 "path": "/",
             }
         )
-        assert list(V2Handler.filter_images_indexed(images_names, tree, project)) == [
-            (0, "alice/img1"),
-            (1, "alice/img2"),
+        assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
+            (1, "alice/img1"),
+            (2, "alice/img2"),
         ]
 
     def test_filter_images_by_tree_superuser(self) -> None:
@@ -208,11 +208,11 @@ class TestV2Handler:
                 "path": "/",
             }
         )
-        assert list(V2Handler.filter_images_indexed(images_names, tree, project)) == [
-            (0, "alice/img1"),
-            (1, "alice/img2"),
-            (2, "bob/img3"),
-            (3, "foo/img4"),
+        assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
+            (1, "alice/img1"),
+            (2, "alice/img2"),
+            (3, "bob/img3"),
+            (4, "foo/img4"),
         ]
 
     def test_filter_images_no_elements(self) -> None:
@@ -225,7 +225,9 @@ class TestV2Handler:
                 "path": "/",
             }
         )
-        assert list(V2Handler.filter_images_indexed(images_names, tree, project)) == []
+        assert (
+            list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == []
+        )
 
     def test_parse_catalog_repositories_no_key(self) -> None:
         assert V2Handler.parse_catalog_repositories({}) == []
