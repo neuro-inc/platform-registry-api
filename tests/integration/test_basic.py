@@ -144,8 +144,8 @@ class _TestUpstreamHandler:
                             "errors": [
                                 {
                                     "code": "NAME_UNKNOWN",
-                                    "message": f"{last_tag!r} not found",
-                                    "detail": f"{last_tag!r} not found",
+                                    "message": f"Tag {last_tag!r} not found",
+                                    "detail": f"Tag {last_tag!r} not found",
                                 }
                             ]
                         }
