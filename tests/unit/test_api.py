@@ -11,7 +11,6 @@ from neuro_auth_client.client import ClientSubTreeViewRoot
 from yarl import URL
 
 from platform_registry_api.api import (
-    CatalogPage,
     OAuthClient,
     OAuthUpstream,
     RepoURL,
@@ -106,23 +105,7 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
-            "?what=ever&n=100"
-        )
-        assert up_repo_url == RepoURL(
-            repo="upstream/nested/this/image", url=expected_url
-        )
-
-    def test_create_upstream_repo_url_with_page(self, url_factory: URLFactory) -> None:
-        reg_repo_url = RepoURL.from_url(
-            URL("http://registry:5000/v2/this/image/tags/list?what=ever")
-        )
-        page = CatalogPage(number=123, last_token="abc")
-        up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url, page=page)
-
-        expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list"
-            "?what=ever&n=123&last=abc"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list" "?what=ever"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url

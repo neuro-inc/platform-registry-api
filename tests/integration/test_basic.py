@@ -66,6 +66,7 @@ class _TestUpstreamHandler:
     def __init__(self, project: str) -> None:
         self._project = project
         self.images: List[str] = []
+        self.tags: List[str] = []
         self.base_url = URL()
 
     async def handle_catalog(self, request: Request) -> Response:
@@ -78,9 +79,9 @@ class _TestUpstreamHandler:
         start_index = 0
         if last_repo:
             try:
-                if not last_repo.startswith(self._project):
+                if not last_repo.startswith(self._project + "/"):
                     raise ValueError
-                _, _, last_repo = last_repo.partition("/")
+                last_repo = last_repo[len(self._project + "/") :]
                 start_index = self.images.index(last_repo) + 1
             except ValueError:
                 raise HTTPNotFound(
@@ -107,6 +108,60 @@ class _TestUpstreamHandler:
 
         return json_response({"repositories": images}, headers=response_headers)
 
+    async def handle_repo_tags_list(self, request: Request) -> Response:
+        auth_header_value = request.headers[hdrs.AUTHORIZATION]
+        assert BasicAuth.decode(auth_header_value) == BasicAuth(
+            login="testuser", password="testpassword"
+        )
+        repo = request.match_info["repo"]
+        if (
+            not repo.startswith(self._project + "/")
+            or repo[len(self._project + "/") :] not in self.images
+        ):
+            raise HTTPNotFound(
+                text=json.dumps(
+                    {
+                        "errors": [
+                            {
+                                "code": "NAME_UNKNOWN",
+                                "message": f"The repository with name {repo!r} "
+                                "does not exist",
+                            }
+                        ]
+                    }
+                )
+            )
+        number = int(request.query.get("n", 10))
+        last_tag = request.query.get("last", "")
+        start_index = 0
+        if last_tag:
+            try:
+                start_index = self.tags.index(last_tag) + 1
+            except ValueError:
+                raise HTTPNotFound(
+                    text=json.dumps(
+                        {
+                            "errors": [
+                                {
+                                    "code": "NAME_UNKNOWN",
+                                    "message": f"{last_tag!r} not found",
+                                    "detail": f"{last_tag!r} not found",
+                                }
+                            ]
+                        }
+                    )
+                )
+        tags = self.tags[start_index : start_index + number]
+        response_headers: Dict[str, str] = {}
+        tags = [f"{self._project}/{image}" for image in tags]
+        if tags and self.tags[start_index + number :]:
+            next_url = (self.base_url / "v2" / repo / "tags/list").with_query(
+                {"n": str(number), "last": tags[-1]}
+            )
+            response_headers[LINK] = f'<{next_url!s}>; rel="next"'
+
+        return json_response({"name": repo, "tags": tags}, headers=response_headers)
+
 
 @pytest.fixture
 def handler(project: str) -> _TestUpstreamHandler:
@@ -116,7 +171,12 @@ def handler(project: str) -> _TestUpstreamHandler:
 @pytest.fixture
 async def upstream(handler: _TestUpstreamHandler) -> AsyncIterator[URL]:
     app = Application()
-    app.add_routes([web.get("/v2/_catalog", handler.handle_catalog)])
+    app.add_routes(
+        [
+            web.get("/v2/_catalog", handler.handle_catalog),
+            web.get(r"/{repo:.+}/tags/list", handler.handle_repo_tags_list),
+        ]
+    )
 
     async with create_local_app_server(app, port=unused_port()) as url:
         handler.base_url = url
@@ -314,3 +374,106 @@ class TestBasicUpstream:
                 url = resp.links.getone("next", {}).get("url")
 
         assert result == expected
+
+    async def test_tags_list(
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+        repo = user.name + "/test"
+        handler.images = [repo]
+        handler.tags = ["alpha", "beta", "gamma"]
+
+        async with client.get(
+            f"/v2/{repo}/tags/list", auth=user.to_basic_auth()
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {"name": repo, "tags": handler.tags}
+
+    async def test_tags_list__last_not_found(
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+        repo = user.name + "/test"
+        handler.images = [repo]
+
+        async with client.get(
+            f"/v2/{repo}/tags/list",
+            auth=user.to_basic_auth(),
+            params={"last": "whatever"},
+        ) as resp:
+            assert resp.status == HTTPNotFound.status_code, await resp.text()
+            payload = await resp.json()
+            assert payload == {
+                "errors": [
+                    {
+                        "code": "NAME_UNKNOWN",
+                        "message": "Tag 'whatever' not found",
+                        "detail": "Tag 'whatever' not found",
+                    }
+                ]
+            }
+
+    async def test_tags_list__number(
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+        repo = user.name + "/test"
+        handler.images = [repo]
+        handler.tags = [f"tag{i}" for i in range(1, 10)]
+
+        for i in range(1, 9):
+            async with client.get(
+                f"/v2/{repo}/tags/list", auth=user.to_basic_auth(), params={"n": str(i)}
+            ) as resp:
+                assert resp.status == HTTPOk.status_code, await resp.text()
+                payload = await resp.json()
+                assert payload == {"name": repo, "tags": handler.tags[:i]}
+
+    @pytest.mark.parametrize("number", range(1, 10))
+    async def test_tags_list__some_at_a_time(
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
+        number: int,
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+        repo = user.name + "/test"
+        handler.images = [repo]
+        handler.tags = [f"tag{i}" for i in range(1, 10)]
+
+        result: List[str] = []
+        url = client.server.make_url("/") / "v2/{repo}/tags/list"
+        while url:
+            async with client.session.get(
+                url, auth=user.to_basic_auth(), params={"n": str(number)}
+            ) as resp:
+                assert resp.status == HTTPOk.status_code, await resp.text()
+                payload = await resp.json()
+                assert payload["name"] == repo, payload
+                result.extend(payload["tags"])
+                url = resp.links.getone("next", {}).get("url")
+
+        assert result == handler.tags
