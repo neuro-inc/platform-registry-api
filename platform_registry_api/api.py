@@ -162,16 +162,9 @@ class URLFactory:
     def create_registry_catalog_url(self, query: Dict[str, str]) -> URL:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
-    def create_upstream_repo_url(
-        self, registry_url: RepoURL, *, page: CatalogPage = CatalogPage.default()
-    ) -> RepoURL:
+    def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
         repo = f"{self._upstream_project}/{registry_url.repo}"
-        url = registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
-        query: Dict[str, str] = dict(n=str(page.number))
-        if page.last_token:
-            query["last"] = page.last_token
-        url = url.with_query(query)
-        return url
+        return registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -436,6 +429,15 @@ class V2Handler:
             # Content-Type in headers conflicts with the explicit content_type
             # added in json_response()
             response_headers.pop(CONTENT_TYPE, None)
+
+            if "next" in client_response.links:
+                next_upstream_url = client_response.links["next"]["url"]
+                next_registry_url = registry_repo_url.url.with_query(
+                    next_upstream_url.query
+                )
+                response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+            else:
+                response_headers.pop(LINK, None)
 
             # See the comment in handle_catalog() about content_type=None.
             data = await client_response.json(content_type=None)
