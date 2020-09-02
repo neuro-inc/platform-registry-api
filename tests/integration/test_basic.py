@@ -100,7 +100,7 @@ class _TestUpstreamHandler:
         images = self.images[start_index : start_index + number]
         response_headers: Dict[str, str] = {}
         images = [f"{self._project}/{image}" for image in images]
-        if images and self.images[start_index + number :]:
+        if self.images[start_index + number :]:
             next_url = (self.base_url / "v2/_catalog").with_query(
                 {"n": str(number), "last": images[-1]}
             )
@@ -153,8 +153,7 @@ class _TestUpstreamHandler:
                 )
         tags = self.tags[start_index : start_index + number]
         response_headers: Dict[str, str] = {}
-        tags = [f"{self._project}/{image}" for image in tags]
-        if tags and self.tags[start_index + number :]:
+        if self.tags[start_index + number :]:
             next_url = (self.base_url / "v2" / repo / "tags/list").with_query(
                 {"n": str(number), "last": tags[-1]}
             )
