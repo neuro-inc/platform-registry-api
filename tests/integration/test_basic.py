@@ -174,7 +174,7 @@ async def upstream(handler: _TestUpstreamHandler) -> AsyncIterator[URL]:
     app.add_routes(
         [
             web.get("/v2/_catalog", handler.handle_catalog),
-            web.get(r"/{repo:.+}/tags/list", handler.handle_repo_tags_list),
+            web.get(r"/v2/{repo:.+}/tags/list", handler.handle_repo_tags_list),
         ]
     )
 
