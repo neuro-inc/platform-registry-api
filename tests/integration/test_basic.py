@@ -464,9 +464,8 @@ class TestBasicUpstream:
         handler.tags = [f"tag{i}" for i in range(1, 10)]
 
         result: List[str] = []
-        url = client.server.make_url("/") / "v2/{repo}/tags/list"
+        url = client.server.make_url("/") / f"v2/{repo}/tags/list"
         while url:
-            print("url =", url)
             async with client.session.get(
                 url, auth=user.to_basic_auth(), params={"n": str(number)}
             ) as resp:
