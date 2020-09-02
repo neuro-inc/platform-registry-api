@@ -466,6 +466,7 @@ class TestBasicUpstream:
         result: List[str] = []
         url = client.server.make_url("/") / "v2/{repo}/tags/list"
         while url:
+            print("url =", url)
             async with client.session.get(
                 url, auth=user.to_basic_auth(), params={"n": str(number)}
             ) as resp:
