@@ -328,7 +328,7 @@ class V2Handler:
         return response
 
     async def _get_next_catalog_items(
-        self, url: URL, headers: CIMultiDict[str], timeout: aiohttp.ClientTimeout,
+        self, url: URL, headers: CIMultiDict[str], timeout: aiohttp.ClientTimeout
     ) -> Tuple[List[str], Optional[URL]]:
         async with self._registry_client.request(
             method="GET", url=url, headers=headers, timeout=timeout
