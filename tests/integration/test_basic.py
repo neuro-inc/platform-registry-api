@@ -296,7 +296,7 @@ class TestBasicUpstream:
         )
 
         async with client.get(
-            "/v2/_catalog", auth=user1.to_basic_auth(), params={"n": "1"},
+            "/v2/_catalog", auth=user1.to_basic_auth(), params={"n": "1"}
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             last_token = URL(resp.links.getone("next", {}).get("url")).query.get("last")
