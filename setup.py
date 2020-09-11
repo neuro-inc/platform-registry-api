@@ -11,7 +11,7 @@ install_requires = (
     "uvloop==0.14.0",
     "aiobotocore==1.1.1",
     "platform-logging==0.3",
-    "trafaret==2.0.2",
+    "trafaret==2.1.0",
     "aiozipkin==0.7.0",
 )
 
