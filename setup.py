@@ -13,7 +13,7 @@ install_requires = (
     "platform-logging==0.3",
     "trafaret==2.1.0",
     "aiozipkin==0.7.1",
-    "yarl==1.5.1",
+    "yarl==1.6.0",
 )
 
 setup(
