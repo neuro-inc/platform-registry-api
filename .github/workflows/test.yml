@@ -124,7 +124,7 @@ jobs:
   deploy_aws_azure:
     name: Deploy to AWS
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/master')
+    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/deploy-to-azure')
 #    needs: test
     env:
       DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
