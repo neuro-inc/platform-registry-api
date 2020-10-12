@@ -2,12 +2,18 @@ IMAGE_NAME ?= platformregistryapi
 IMAGE_TAG ?= latest
 ARTIFACTORY_TAG ?=$(shell echo "$(CIRCLE_TAG)" | awk -F/ '{print $$2}')
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
-IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
-IMAGE_K8S_AWS ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
+#IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
+#IMAGE_K8S_AWS ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
 ISORT_DIRS := platform_registry_api tests setup.py
 FLAKE8_DIRS := $(ISORT_DIRS)
 BLACK_DIRS := $(ISORT_DIRS)
 MYPY_DIRS := $(ISORT_DIRS)
+
+#CLOUD_IMAGE_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME)
+#CLOUD_IMAGE_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
+#CLOUD_IMAGE_azure ?= $(AZURE_DEV_ACR_NAME).azurecr.io/$(IMAGE_NAME)
+#
+#CLOUD_IMAGE  = ${CLOUD_IMAGE_${CLOUD_PROVIDER}}
 
 ifdef CIRCLECI
     PIP_EXTRA_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
@@ -20,12 +26,21 @@ else
 endif
 export PIP_EXTRA_INDEX_URL
 
-ifdef AWS_CLUSTER
-    IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-else
-    IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
-endif
+#ifdef AWS_CLUSTER
+#    IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+#else
+#    IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
+#endif
+
+IMAGE_REPO_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
+IMAGE_REPO_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+IMAGE_REPO_azure ?= $(AZURE_DEV_ACR_NAME).azurecr.io
+
+IMAGE_REPO  ?= ${IMAGE_REPO_${CLOUD_PROVIDER}}
+
 export IMAGE_REPO
+
+CLOUD_IMAGE  ?=$(IMAGE_REPO)/$(IMAGE_NAME)
 
 setup init:
 	pip install -r requirements-test.txt
@@ -106,6 +121,9 @@ aws_login:
 	pip install --upgrade awscli
 	aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
 
+aks_login:
+	az aks get-credentials --resource-group $(AZURE_DEV_RG_NAME) --name $(CLUSTER_NAME)
+
 _helm:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
 
@@ -117,19 +135,19 @@ gke_docker_push: build
 ecr_login: build
 	$$(aws ecr get-login --no-include-email --region $(AWS_REGION) )
 
-aws_docker_push: build ecr_login
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S_AWS):$(GITHUB_SHA)
-	docker push $(IMAGE_K8S_AWS):$(IMAGE_TAG)
-	docker push $(IMAGE_K8S_AWS):$(GITHUB_SHA)
+docker_push: build ecr_login
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(IMAGE_TAG)
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(GITHUB_SHA)
+	docker push $(CLOUD_IMAGE):$(IMAGE_TAG)
+	docker push $(CLOUD_IMAGE):$(GITHUB_SHA)
 
 gke_k8s_deploy: _helm
 	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(IMAGE_K8S):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
 
-aws_k8s_deploy: _helm
+k8s_deploy: _helm
 	helm init --client-only
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-aws.yaml --set "IMAGE=$(IMAGE_K8S_AWS):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
+	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
 
 artifactory_docker_push: build
