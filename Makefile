@@ -135,7 +135,7 @@ gke_docker_push: build
 ecr_login: build
 	$$(aws ecr get-login --no-include-email --region $(AWS_REGION) )
 
-docker_push: build ecr_login
+docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(IMAGE_TAG)
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(GITHUB_SHA)
 	docker push $(CLOUD_IMAGE):$(IMAGE_TAG)
