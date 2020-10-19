@@ -46,7 +46,7 @@ from platform_registry_api.helpers import check_image_catalog_permission
 
 from .aws_ecr import AWSECRUpstream
 from .basic import BasicUpstream
-from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig
+from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig, UpstreamType
 from .oauth import OAuthClient, OAuthUpstream
 from .typedefs import TimeFactory
 from .upstream import Upstream
@@ -525,14 +525,21 @@ class V2Handler:
         else:
             data = request.content.iter_any()
 
-        async with self._registry_client.request(
-            method=request.method,
-            url=url,
-            headers=request_headers,
-            skip_auto_headers=("Content-Type",),
-            data=data,
-            timeout=timeout,
-        ) as client_response:
+        if (
+            request.method == "DELETE"
+            and self._config.upstream_registry.type == UpstreamType.AWS_ECR
+        ):
+            _, _, user, repository, _, digest = request.path.split("/")
+            client_response = (
+                await self._registry_client.batch_delete_image(  # type: ignore
+                    repositoryName=repository,
+                    imageIds=[
+                        {
+                            "imageDigest": digest,
+                        }
+                    ],
+                )
+            )
 
             logger.debug("upstream response: %s", client_response)
 
@@ -554,6 +561,36 @@ class V2Handler:
 
             await response.write_eof()
             return response
+        else:
+            async with self._registry_client.request(
+                method=request.method,
+                url=url,
+                headers=request_headers,
+                skip_auto_headers=("Content-Type",),
+                data=data,
+                timeout=timeout,
+            ) as client_response:
+
+                logger.debug("upstream response: %s", client_response)
+
+                response_headers = self._prepare_response_headers(
+                    client_response.headers, url_factory
+                )
+                response = aiohttp.web.StreamResponse(
+                    status=client_response.status, headers=response_headers
+                )
+
+                await response.prepare(request)
+
+                logger.debug(
+                    "registry response: %s; headers: %s", response, response.headers
+                )
+
+                async for chunk in client_response.content.iter_any():
+                    await response.write(chunk)
+
+                await response.write_eof()
+                return response
 
     def _fixup_repo_name(self, data: Any, repo: str) -> None:
         if isinstance(data, dict):
