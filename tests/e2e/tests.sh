@@ -41,7 +41,7 @@ function share_resource_on_read() {
 }
 
 function wait_for_registry() {
-    local cmd="curl http://localhost:5000/v2/ &> /dev/null"
+    local cmd="curl http://127.0.0.1:5000/v2/ &> /dev/null"
     # this for loop waits until the registry api is available
     for _ in {1..150}; do # timeout for 5 minutes
         if eval "$cmd"; then
@@ -55,7 +55,7 @@ function wait_for_registry() {
 function docker_login() {
     local name=$1
     local token=$2
-    docker login -u $name -p $token localhost:5000
+    docker login -u $name -p $token 127.0.0.1:5000
 }
 
 function test_push_catalog_pull() {
@@ -67,12 +67,12 @@ function test_push_catalog_pull() {
     docker_login $name $token
 
     echo "step 1: pull non existent"
-    local output=$(docker pull localhost:5000/$name/unknown:latest 2>&1)
-    [[ $output == *"manifest for localhost:5000/$name/unknown:latest not found"* ]]
+    local output=$(docker pull 127.0.0.1:5000/$name/unknown:latest 2>&1)
+    [[ $output == *"manifest for 127.0.0.1:5000/$name/unknown:latest not found"* ]]
 
     echo "step 2: remove images and check catalog"
-    docker rmi ubuntu:latest localhost:5000/$name/ubuntu:latest || :
-    docker rmi alpine:latest localhost:5000/$name/alpine:latest || :
+    docker rmi ubuntu:latest 127.0.0.1:5000/$name/ubuntu:latest || :
+    docker rmi alpine:latest 127.0.0.1:5000/$name/alpine:latest || :
     test_catalog $name $token ""
 
     echo "step 3: push ubuntu, check catalog"
@@ -88,11 +88,15 @@ function test_push_catalog_pull() {
 
     echo "step 5: remove ubuntu, check pull"
     docker rmi ubuntu:latest
-    docker pull localhost:5000/$name/ubuntu:latest
+    docker pull 127.0.0.1:5000/$name/ubuntu:latest
 
     echo "step 6: remove alpine, check pull"
     docker rmi alpine:latest
-    docker pull localhost:5000/$name/alpine:latest
+    docker pull 127.0.0.1:5000/$name/alpine:latest
+
+    echo "step 7: remove alpine, check pull"
+    docker rmi alpine:latest
+    docker pull 127.0.0.1:5000/$name/alpine:latest
 }
 
 
@@ -110,7 +114,7 @@ function test_push_share_catalog() {
     docker_login $name1 $token1
     local image_name="$name1/alpine"
     local image_uri="\"image://$CLUSTER_NAME/$name1/alpine\""
-    docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
+    docker rmi alpine:latest 127.0.0.1:5000/$name1/alpine:latest || :
 
     echo "step 1: test catalog, expect empty"
     test_catalog $name1 $token1 ""
@@ -129,8 +133,12 @@ function test_push_share_catalog() {
     test_catalog $name2 $token2 "\"$image_name\""
     test_repo_tags_list $name2 $token2 "$image_name"
 
-    echo "step 6: remove alpine"
-    docker rmi alpine:latest localhost:5000/$name1/alpine:latest || :
+    echo "step 6: test digest"
+    test_digest $name1 $token1 $image_name latest
+
+    echo "step 7: remove alpine"
+    docker rmi alpine:latest 127.0.0.1:5000/$name1/alpine:latest || :
+
 }
 
 function docker_tag_push() {
@@ -138,26 +146,37 @@ function docker_tag_push() {
     local token=$2
     local image=$3
     docker pull $image:latest
-    docker tag $image:latest localhost:5000/$name/$image:latest
-    docker push localhost:5000/$name/$image:latest
+    docker tag $image:latest 127.0.0.1:5000/$name/$image:latest
+    docker push 127.0.0.1:5000/$name/$image:latest
 }
 
 function test_catalog() {
     local name=$1
     local token=$2
     local expected="$3"
-    local url="http://localhost:5000/v2/_catalog"
+    local url="http://127.0.0.1:5000/v2/_catalog"
     local auth_basic_token=$(echo -n $name:$token | fix_base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
     echo $output | grep -w "{\"repositories\": \[$expected\]}"
+}
+
+function test_digest() {
+    local name=$1
+    local token=$2
+    local image=$3
+    local tag=$4
+    local url="http://127.0.0.1:5000/v2/$image/manifests/$tag"
+    local auth_basic_token=$(echo -n $name:$token | fix_base64 -w 0)
+    local output=$(curl --verbose -sH "Authorization: Basic $auth_basic_token" $url 2>&1)
+    echo $output | grep -w "Docker-Content-Digest:"
 }
 
 function test_repo_tags_list() {
     local name=$1
     local token=$2
     local repo="$3"
-    local url="http://localhost:5000/v2/$repo/tags/list"
-    local auth_basic_token=$(echo -n $name:$token | base64 -w 0)
+    local url="http://127.0.0.1:5000/v2/$repo/tags/list"
+    local auth_basic_token=$(echo -n $name:$token | fix_base64 -w 0)
     local output=$(curl -sH "Authorization: Basic $auth_basic_token" $url)
     echo $output | grep "\"name\": \"$repo\""
     echo $output | grep "\"tags\": \["
