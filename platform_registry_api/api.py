@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 import time
@@ -531,8 +532,9 @@ class V2Handler:
         ):
             _, _, user, repository, _, digest = request.path.split("/")
             client_response = (
-                await self._registry_client.batch_delete_image(  # type: ignore
-                    repositoryName=repository,
+                await self._upstream._client.batch_delete_image(  # type: ignore
+                    repositoryName=f"{self._upstream_registry_config.project}/"
+                    f"{user}/{repository}",
                     imageIds=[
                         {
                             "imageDigest": digest,
@@ -544,11 +546,14 @@ class V2Handler:
             logger.debug("upstream response: %s", client_response)
 
             response_headers = self._prepare_response_headers(
-                client_response.headers, url_factory
+                client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
             )
             response = aiohttp.web.StreamResponse(
-                status=client_response.status, headers=response_headers
+                status=client_response["ResponseMetadata"]["HTTPStatusCode"],
+                headers=response_headers,
             )
+
+            del client_response["ResponseMetadata"]
 
             await response.prepare(request)
 
@@ -556,8 +561,11 @@ class V2Handler:
                 "registry response: %s; headers: %s", response, response.headers
             )
 
-            async for chunk in client_response.content.iter_any():
-                await response.write(chunk)
+            response_content = bytes(json.dumps(client_response), "utf-8")
+            response.headers["Content-Length"] = str(len(response_content))
+            logger.debug("length %d", len(response_content))
+            logger.debug("response headers: %s", response.headers)
+            await response.write(response_content)
 
             await response.write_eof()
             return response
