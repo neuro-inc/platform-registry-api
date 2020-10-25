@@ -2,68 +2,76 @@ name: Continuous Integration
 
 on: [push]
 
+env:
+  DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
+  DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
+  DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
+  DEVPI_USER: ${{ secrets.DEVPI_USER }}
+
 jobs:
-#  test:
-#    name: Run tests
-#
-#    runs-on: ubuntu-latest
-#
-#    env:
-#      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-#      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-#      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-#      DEVPI_USER: ${{ secrets.DEVPI_USER }}
-#      GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
-#      GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
-#      GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-#      GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
-#      SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
-#      AWS_CLUSTER: present
-#      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-#      AWS_REGION: ${{ secrets.AWS_REGION }}
-#
-#
-#    steps:
-#      - name: Checkout commit
-#        uses: actions/checkout@v2
-#      - name: Install python
-#        uses: actions/setup-python@v2
-#        with:
-#          python-version: "3.7.5"
-#      - name: Cache packages
-#        uses: actions/cache@v1
-#        with:
-#          path: ~/.cache/pip
-#          key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
-#      - name: Configure AWS credentials
-#        uses: aws-actions/configure-aws-credentials@v1
-#        with:
-#          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#          aws-region: ${{ secrets.AWS_REGION }}
-#      - name: Login to Amazon ECR
-#        id: login-ecr
-#        uses: aws-actions/amazon-ecr-login@v1
-#      - name: Lint
-#        run: make lint_after_building
-#      - name: Run unit tests
-#        run: make test_unit
-#      - name: Run integration tests
-#        run: make test_integration
-#      - name: Run E2E tests
-#        run: make test_e2e
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    env:
+      GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
+      GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
+      GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
+      SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
+      AWS_CLUSTER: present
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER_DEV }}
+    steps:
+      - name: Checkout commit
+        uses: actions/checkout@v2
+      - name: Install python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7.5"
+      - name: Cache packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+      - name: Configure AWS credentials
+        if: env.CLOUD_PROVIDER == 'aws'
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Login to AWS ECR
+        if: env.CLOUD_PROVIDER == 'aws'
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Configure Azure credentials
+        if: env.CLOUD_PROVIDER == 'azure'
+        uses: azure/login@v1.1
+        with:
+          creds: ${{secrets.AZURE_CREDENTIALS}}
+      - name: Login to Azure ACR
+        if: env.CLOUD_PROVIDER == 'azure'
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURE_DEV_ACR_SERVER }}
+          username: ${{ secrets.AZURE_DEV_ACR_USERNAME }}
+          password: ${{ secrets.AZURE_DEV_ACR_PASSWORD }}
+      - name: Lint
+        run: make lint_after_building
+      - name: Run unit tests
+        run: make test_unit
+      - name: Run integration tests
+        run: make test_integration
+      - name: Run E2E tests
+        run: make test_e2e
 
   artifactory_deploy:
     name: Deploy to Artifactory
     runs-on: ubuntu-latest
     # Run only on pushing a tag
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/artifactory')
-#    needs: test
+    needs: test
     env:
-      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-      DEVPI_USER: ${{ secrets.DEVPI_USER }}
       GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
       GKE_PROJECT_ID: ${{ secrets.GKE_PROJECT_ID }}
       GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
@@ -85,75 +93,51 @@ jobs:
       - name: Artifactory Helm Push
         run: make artifactory_helm_push
 
-  deploy_aws:
+  deploy_dev:
     name: Deploy to AWS
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && contains(github.ref, 'refs/heads/master')
-#    needs: test
+    needs: test
     env:
-      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-      DEVPI_USER: ${{ secrets.DEVPI_USER }}
-      SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      CLUSTER_NAME: ${{ secrets.AWS_DEV_CLUSTER_NAME }}
+      AZURE_ACR_NAME: ${{ secrets.AZURE_DEV_ACR_NAME }}
+      AZURE_REGION: ${{ secrets.AZURE_DEV_REGION }}
+      AZURE_RG_NAME: ${{ secrets.AZURE_DEV_RG_NAME }}
+      CLUSTER_NAME: dev
       HELM_ENV: dev
       HELM_VERSION: ${{ secrets.HELM_VERSION }}
-      CLOUD_PROVIDER: aws
+      CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER_DEV }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
       - name: Configure AWS credentials
+        if: env.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-      - name: Login to Amazon ECR
-        id: login-ecr
+      - name: Login to AWS ECR
+        if: env.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Update Kube config
-        run: aws eks --region ${AWS_REGION} update-kubeconfig --name ${AWS_CLUSTER_NAME}
-      - name: AWS Docker Push
-        run: make docker_push
-      - name: AWS K8s Deploy
-        run: make k8s_deploy
-
-  deploy_aws_azure:
-    name: Deploy to Azure
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/deploy-to-azure')
-#    needs: test
-    env:
-      DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-      DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-      DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-      DEVPI_USER: ${{ secrets.DEVPI_USER }}
-      AZURE_DEV_ACR_NAME: ${{ secrets.AZURE_DEV_ACR_NAME }}
-      AZURE_DEV_REGION: ${{ secrets.AZURE_DEV_REGION }}
-      AZURE_DEV_RG_NAME: ${{ secrets.AZURE_DEV_RG_NAME }}
-      CLUSTER_NAME: dev
-      HELM_ENV: dev
-      HELM_VERSION: ${{ secrets.HELM_VERSION }}
-      CLOUD_PROVIDER: azure
-    steps:
-      - name: Checkout commit
-        uses: actions/checkout@v2
       - name: Configure Azure credentials
+        if: env.CLOUD_PROVIDER == 'azure'
         uses: azure/login@v1.1
         with:
           creds: ${{secrets.AZURE_CREDENTIALS}}
       - name: Login to Azure ACR
+        if: env.CLOUD_PROVIDER == 'azure'
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.AZURE_DEV_ACR_SERVER }}
           username: ${{ secrets.AZURE_DEV_ACR_USERNAME }}
           password: ${{ secrets.AZURE_DEV_ACR_PASSWORD }}
-      - name: Update Kube config
-        run: make aks_login
-      - name: Docker Push
+      - name: Push image to registry
         run: make docker_push
-      - name: K8s Deploy
-        run: make k8s_deploy
+      - name: Update kube config
+        run: make ${{ env.CLOUD_PROVIDER }}_k8s_login
+      - name: Install helm
+        run: make helm_install
+      - name: Deploy to kubernetes
+        run: make helm_deploy

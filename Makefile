@@ -2,18 +2,10 @@ IMAGE_NAME ?= platformregistryapi
 IMAGE_TAG ?= latest
 ARTIFACTORY_TAG ?=$(shell echo "$(CIRCLE_TAG)" | awk -F/ '{print $$2}')
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
-#IMAGE_K8S ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME_K8S)
-#IMAGE_K8S_AWS ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
 ISORT_DIRS := platform_registry_api tests setup.py
 FLAKE8_DIRS := $(ISORT_DIRS)
 BLACK_DIRS := $(ISORT_DIRS)
 MYPY_DIRS := $(ISORT_DIRS)
-
-#CLOUD_IMAGE_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)/$(IMAGE_NAME)
-#CLOUD_IMAGE_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/$(IMAGE_NAME)
-#CLOUD_IMAGE_azure ?= $(AZURE_DEV_ACR_NAME).azurecr.io/$(IMAGE_NAME)
-#
-#CLOUD_IMAGE  = ${CLOUD_IMAGE_${CLOUD_PROVIDER}}
 
 ifdef CIRCLECI
     PIP_EXTRA_INDEX_URL ?= "https://$(DEVPI_USER):$(DEVPI_PASS)@$(DEVPI_HOST)/$(DEVPI_USER)/$(DEVPI_INDEX)"
@@ -25,12 +17,6 @@ else
 	endif
 endif
 export PIP_EXTRA_INDEX_URL
-
-#ifdef AWS_CLUSTER
-#    IMAGE_REPO ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-#else
-#    IMAGE_REPO ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
-#endif
 
 IMAGE_REPO_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 IMAGE_REPO_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
@@ -109,7 +95,7 @@ format:
 	isort $(ISORT_DIRS)
 	black $(BLACK_DIRS)
 
-gke_login:
+gke_k8s_login:
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
 	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
 	gcloud config set project $(GKE_PROJECT_ID)
@@ -117,15 +103,16 @@ gke_login:
 	gcloud config set $(SET_CLUSTER_ZONE_REGION)
 	gcloud auth configure-docker
 
-aws_login:
+aws_k8s_login:
 	pip install --upgrade awscli
 	aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
 
-aks_login:
+azure_k8s_login:
 	az aks get-credentials --resource-group $(AZURE_DEV_RG_NAME) --name $(CLUSTER_NAME)
 
-_helm:
+helm_install:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
+	helm init --client-only
 
 gke_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
@@ -141,11 +128,7 @@ docker_push: build
 	docker push $(CLOUD_IMAGE):$(IMAGE_TAG)
 	docker push $(CLOUD_IMAGE):$(GITHUB_SHA)
 
-gke_k8s_deploy: _helm
-	gcloud --quiet container clusters get-credentials $(GKE_CLUSTER_NAME) $(CLUSTER_ZONE_REGION)
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --wait --timeout 600
-
-k8s_deploy: _helm
+helm_deploy:
 	helm init --client-only
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
@@ -155,7 +138,7 @@ artifactory_docker_push: build
 	docker login $(ARTIFACTORY_DOCKER_REPO) --username=$(ARTIFACTORY_USERNAME) --password=$(ARTIFACTORY_PASSWORD)
 	docker push $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
 
-artifactory_helm_push: _helm
+artifactory_helm_push: helm_install
 	mkdir -p temp_deploy/platformregistryapi
 	cp -Rf deploy/platformregistryapi/. temp_deploy/platformregistryapi
 	cp temp_deploy/platformregistryapi/values-template.yaml temp_deploy/platformregistryapi/values.yaml
