@@ -95,25 +95,28 @@ class _TestAWSECRUpstreamHandler:
             }
         )
 
+    def _already_exist_response(self, repo: str) -> StreamResponse:
+        return json_response(
+            {
+                "__type": "RepositoryAlreadyExistsException",
+                "message": (
+                    f"The repository with name '{repo}' "
+                    "already exists in the registry with id '1234567890'"
+                ),
+            },
+            status=400,
+        )
+
     async def _handle_create_repo(self, request: Request) -> StreamResponse:
         payload = await request.json()
         repo = payload["repositoryName"]
         if repo == "test_repo":
             if self._test_repo_is_created:
-                return json_response({}, status=500)
+                return self._already_exist_response(repo)
             self._test_repo_is_created = True
             return json_response({})
         if repo == "test_repo_already_exists":
-            return json_response(
-                {
-                    "__type": "RepositoryAlreadyExistsException",
-                    "message": (
-                        "The repository with name 'test_repo_already_exists' "
-                        "already exists in the registry with id '1234567890'"
-                    ),
-                },
-                status=400,
-            )
+            return self._already_exist_response(repo)
         return json_response({}, status=500)
 
 
