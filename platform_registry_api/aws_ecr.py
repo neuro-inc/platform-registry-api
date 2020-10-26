@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Set, Tuple
+from typing import Any, Dict, Tuple
 
 from aiobotocore.client import AioBaseClient
 from aiohttp.hdrs import AUTHORIZATION
