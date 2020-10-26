@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 import re
 import time
@@ -548,26 +547,22 @@ class V2Handler:
             response_headers = self._prepare_response_headers(
                 client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
             )
-            response = aiohttp.web.StreamResponse(
-                status=client_response["ResponseMetadata"]["HTTPStatusCode"],
-                headers=response_headers,
+            for header in ("content-length", "content-type", "x-amzn-requestid"):
+                response_headers.pop(header, None)
+
+            (
+                status,
+                content,
+            ) = await self._upstream.get_image_delete_response(  # type: ignore
+                client_response
             )
 
-            del client_response["ResponseMetadata"]
-
-            await response.prepare(request)
-
+            response = aiohttp.web.json_response(
+                content, headers=response_headers, status=status
+            )
             logger.debug(
                 "registry response: %s; headers: %s", response, response.headers
             )
-
-            response_content = bytes(json.dumps(client_response), "utf-8")
-            response.headers["Content-Length"] = str(len(response_content))
-            logger.debug("length %d", len(response_content))
-            logger.debug("response headers: %s", response.headers)
-            await response.write(response_content)
-
-            await response.write_eof()
             return response
         else:
             async with self._registry_client.request(
@@ -584,7 +579,7 @@ class V2Handler:
                 response_headers = self._prepare_response_headers(
                     client_response.headers, url_factory
                 )
-                response = aiohttp.web.StreamResponse(
+                response = aiohttp.web.StreamResponse(  # type: ignore
                     status=client_response.status, headers=response_headers
                 )
 

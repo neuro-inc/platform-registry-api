@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Set
+from typing import Any, Dict, Set, Tuple
 
 from aiobotocore.client import AioBaseClient
 from aiohttp.hdrs import AUTHORIZATION
@@ -79,3 +79,49 @@ class AWSECRUpstream(Upstream):
 
     async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
         return await self._get_headers()
+
+    async def get_image_delete_response(
+        self, upstream_response: Dict[str, Any]
+    ) -> Tuple[int, Dict[str, Any]]:
+        response_metadata = upstream_response["ResponseMetadata"]
+        assert response_metadata["HTTPStatusCode"] == 200
+        content: Dict[str, Any] = {}
+        if len(upstream_response["failures"]) == 0:
+            status = 202
+        else:
+            failure = upstream_response["failures"][0]
+            if failure["failureCode"] == "ImageNotFound":
+                status = 404
+                content = {
+                    "errors": [
+                        {
+                            "code": "NAME_INVALID",
+                            "message": "Invalid image name",
+                            "detail": failure["failureReason"],
+                        }
+                    ]
+                }
+            elif failure["failureCode"] == "RepositoryNotFound":
+                status = 404
+                content = {
+                    "errors": [
+                        {
+                            "code": "NAME_UNKNOWN",
+                            "message": "Repository name not known to registry",
+                            "detail": failure["failureReason"],
+                        }
+                    ]
+                }
+            else:
+                status = 500
+                content = {
+                    "errors": [
+                        {
+                            "code": 0,
+                            "message": failure["failureCode"],
+                            "detail": failure["failureReason"],
+                        }
+                    ]
+                }
+
+        return (status, content)
