@@ -43,7 +43,6 @@ class AWSECRUpstream(Upstream):
         self._client = client
         self._time_factory = time_factory
         self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
-        self._existing_repos: Set[str] = set()
 
     async def _get_token(self) -> AWSECRAuthToken:
         payload = await self._client.get_authorization_token()
@@ -61,15 +60,10 @@ class AWSECRUpstream(Upstream):
         return dict(headers)
 
     async def create_repo(self, repo: str) -> None:
-        if repo in self._existing_repos:
-            return
-
         try:
             await self._client.create_repository(repositoryName=repo)
         except self._client.exceptions.RepositoryAlreadyExistsException:
             pass
-
-        self._existing_repos.add(repo)
 
     async def get_headers_for_version(self) -> Dict[str, str]:
         return await self._get_headers()
