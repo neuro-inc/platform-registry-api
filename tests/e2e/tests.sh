@@ -93,10 +93,6 @@ function test_push_catalog_pull() {
     echo "step 6: remove alpine, check pull"
     docker rmi alpine:latest
     docker pull 127.0.0.1:5000/$name/alpine:latest
-
-    echo "step 7: remove alpine, check pull"
-    docker rmi alpine:latest
-    docker pull 127.0.0.1:5000/$name/alpine:latest
 }
 
 
