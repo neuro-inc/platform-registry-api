@@ -20,7 +20,7 @@ export PIP_EXTRA_INDEX_URL
 
 IMAGE_REPO_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 IMAGE_REPO_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-IMAGE_REPO_azure ?= $(AZURE_DEV_ACR_NAME).azurecr.io
+IMAGE_REPO_azure ?= $(AZURE_ACR_NAME).azurecr.io
 
 IMAGE_REPO  ?= ${IMAGE_REPO_${CLOUD_PROVIDER}}
 
@@ -108,7 +108,7 @@ aws_k8s_login:
 	aws eks --region $(AWS_REGION) update-kubeconfig --name $(AWS_CLUSTER_NAME)
 
 azure_k8s_login:
-	az aks get-credentials --resource-group $(AZURE_DEV_RG_NAME) --name $(CLUSTER_NAME)
+	az aks get-credentials --resource-group $(AZURE_RG_NAME) --name $(CLUSTER_NAME)
 
 helm_install:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
