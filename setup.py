@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 install_requires = (
     "aiodns==2.0.0",
-    "aiohttp==3.6.3",
+    "aiohttp==3.7.1",
     "aiohttp-remotes==0.1.2",
     "cchardet==2.1.6",
     "iso8601==0.1.13",
