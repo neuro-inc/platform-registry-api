@@ -18,11 +18,10 @@ jobs:
       GKE_CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
       GKE_DOCKER_REGISTRY: ${{ secrets.GKE_DOCKER_REGISTRY }}
       SET_CLUSTER_ZONE_REGION: ${{ secrets.SET_CLUSTER_ZONE_REGION }}
-      AWS_CLUSTER: present
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER_DEV }}
       AZURE_ACR_NAME: ${{ secrets.AZURE_DEV_ACR_NAME }}
+      CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER_DEV }}
     steps:
       - name: Checkout commit
         uses: actions/checkout@v2
@@ -95,7 +94,7 @@ jobs:
         run: make artifactory_helm_push
 
   deploy_dev:
-    name: Deploy to AWS
+    name: Deploy on dev
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && contains(github.ref, 'refs/heads/master')
     needs: test
