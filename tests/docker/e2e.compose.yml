@@ -25,74 +25,44 @@ services:
     - NP_AUTH_API_PORT=5003
     - NP_JWT_SECRET=secret
 
-#  registry:
-#    image: platformregistryapi:latest
-#    ports:
-#    - "5000:5000"
-#    environment:
-#    - NP_REGISTRY_API_PORT=5000
-#    - NP_REGISTRY_AUTH_URL=http://auth_server:5003
-#    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6ImFkbWluIn0.ZWS9jwSdIbCxWfihvJfKwMkO27-R1Q5X7fQUwYbuO_E
-#    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
-#    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
-#    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
-#    - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
-#    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
-#    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
-#    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
-#    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
-#    - NP_CLUSTER_NAME=test-cluster
-#    links:
-#    - auth
-#    - upstream
-#    - auth_server
-
-  registry_aws:
+  registry:
     image: platformregistryapi:latest
     ports:
-      - "5000:5000"
+    - "5000:5000"
     environment:
-      - AWS_ACCESS_KEY_ID=AKIA3HDTDV4L76ECJLKI
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_SECRET_ACCESS_KEY=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
-      - NP_CLUSTER_NAME=default
-      - NP_REGISTRY_API_PORT=5000
-      - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6InJlZ2lzdHJ5In0.N9DE1eGIIehR725IZA2BN7TMQzIHzI3FucGqJDurRPg
-      - NP_REGISTRY_AUTH_URL=https://dev.neu.ro
-      - NP_REGISTRY_LIMITS_CPU=0.2
-      - NP_REGISTRY_LIMITS_MEMORY="150Mi"
-      - NP_REGISTRY_REPLICAS=2
-      - NP_REGISTRY_REQUESTS_CPU=0.1
-      - NP_REGISTRY_REQUESTS_MEMORY="100Mi"
-      - NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES=1000
-      - NP_REGISTRY_UPSTREAM_PROJECT=dev
-      - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=""
-      - NP_REGISTRY_UPSTREAM_TOKEN_URL=""
-      - NP_REGISTRY_UPSTREAM_TYPE=aws_ecr
-      - NP_REGISTRY_UPSTREAM_URL=https://771188043543.dkr.ecr.us-east-1.amazonaws.com
-      - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
-      - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
+    - NP_REGISTRY_API_PORT=5000
+    - NP_REGISTRY_AUTH_URL=http://auth_server:5003
+    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6ImFkbWluIn0.ZWS9jwSdIbCxWfihvJfKwMkO27-R1Q5X7fQUwYbuO_E
+    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
+    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
+    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
+    - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
+    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
+    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
+    - NP_CLUSTER_NAME=test-cluster
     links:
-      - auth
-      - upstream
-      - auth_server
+    - auth
+    - upstream
+    - auth_server
 
-#  test:
-#    image: platformregistryapi-test
-#    environment:
-#    - NP_REGISTRY_API_PORT=5000
-#    - NP_REGISTRY_AUTH_URL=http://auth_server:5003
-#    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6ImFkbWluIn0.ZWS9jwSdIbCxWfihvJfKwMkO27-R1Q5X7fQUwYbuO_E
-#    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
-#    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
-#    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
-#    - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
-#    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
-#    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
-#    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
-#    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
-#    - NP_CLUSTER_NAME=test-cluster
-#    links:
-#    - auth
-#    - upstream
-#    - auth_server
+  test:
+    image: platformregistryapi-test
+    environment:
+    - NP_REGISTRY_API_PORT=5000
+    - NP_REGISTRY_AUTH_URL=http://auth_server:5003
+    - NP_REGISTRY_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6ImFkbWluIn0.ZWS9jwSdIbCxWfihvJfKwMkO27-R1Q5X7fQUwYbuO_E
+    - NP_REGISTRY_UPSTREAM_URL=http://upstream:5002
+    - NP_REGISTRY_UPSTREAM_PROJECT=testproject
+    - NP_REGISTRY_UPSTREAM_TOKEN_URL=http://auth:5001/auth
+    - NP_REGISTRY_UPSTREAM_TOKEN_SERVICE=upstream
+    - NP_REGISTRY_UPSTREAM_TOKEN_USERNAME=testuser
+    - NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD=testpassword
+    - NP_REGISTRY_ZIPKIN_URL=http://zipkin:9411
+    - NP_REGISTRY_ZIPKIN_SAMPLE_RATE=0
+    - NP_CLUSTER_NAME=test-cluster
+    links:
+    - auth
+    - upstream
+    - auth_server
