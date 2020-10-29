@@ -8,7 +8,7 @@ from aiohttp.web import Application, Request, StreamResponse, json_response
 from yarl import URL
 
 from platform_registry_api.api import create_aws_ecr_upstream
-from platform_registry_api.aws_ecr import AWSECRAuthToken
+from platform_registry_api.aws_ecr import AWSECRAuthToken, AWSECRUpstream
 from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.upstream import Upstream
 
@@ -170,3 +170,92 @@ class TestAWSECRUpstream:
 
         headers = await upstream.get_headers_for_repo("test_repo")
         assert headers == {"Authorization": "Basic test_token"}
+
+    @pytest.mark.asyncio
+    async def test_get_image_delete_response_success(
+        self, upstream: AWSECRUpstream
+    ) -> None:
+        upstream_response: Dict[str, Any] = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+            "failures": [],
+        }
+        response_status, response_content = await upstream.get_image_delete_response(
+            upstream_response
+        )
+        assert response_status == 202
+        assert response_content == {}
+
+    @pytest.mark.asyncio
+    async def test_get_image_delete_response_image_not_found(
+        self, upstream: AWSECRUpstream
+    ) -> None:
+        upstream_response: Dict[str, Any] = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+            "failures": [
+                {"failureCode": "ImageNotFound", "failureReason": "Can't find image"}
+            ],
+        }
+        response_status, response_content = await upstream.get_image_delete_response(
+            upstream_response
+        )
+        assert response_status == 404
+        assert response_content == {
+            "errors": [
+                {
+                    "code": "NAME_INVALID",
+                    "detail": "Can't find image",
+                    "message": "Invalid image name",
+                }
+            ]
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_image_delete_response_repository_not_found(
+        self, upstream: AWSECRUpstream
+    ) -> None:
+        upstream_response: Dict[str, Any] = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+            "failures": [
+                {
+                    "failureCode": "RepositoryNotFound",
+                    "failureReason": "Can't find repository",
+                }
+            ],
+        }
+        response_status, response_content = await upstream.get_image_delete_response(
+            upstream_response
+        )
+        assert response_status == 404
+        assert response_content == {
+            "errors": [
+                {
+                    "code": "NAME_UNKNOWN",
+                    "detail": "Can't find repository",
+                    "message": "Repository name not known to registry",
+                }
+            ]
+        }
+
+    @pytest.mark.asyncio
+    async def test_get_image_delete_response_unknown_error(
+        self, upstream: AWSECRUpstream
+    ) -> None:
+        upstream_response: Dict[str, Any] = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+            "failures": [
+                {"failureCode": "Some other error", "failureReason": "Unknown error"}
+            ],
+        }
+        response_status, response_content = await upstream.get_image_delete_response(
+            upstream_response
+        )
+        assert response_status == 500
+        assert response_content == {
+            "errors": [
+                {
+                    "code": 0,
+                    "detail": "Unknown error",
+                    "message": "Some other error",
+                }
+            ]
+        }
