@@ -1,4 +1,4 @@
-IMAGE: 
+IMAGE:
 NP_REGISTRY_UPSTREAM_PROJECT: light-reality-205619
 INGRESS_HOST: registry-staging.neu.ro
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080

@@ -174,7 +174,7 @@ class URLFactory:
                 f"{upstream_repo!r} does not match the configured "
                 f"upstream project {self._upstream_project!r}"
             )
-        repo = upstream_repo[len(prefix) :]  # noqa
+        repo = upstream_repo[len(prefix) :]
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 

@@ -34,6 +34,8 @@ jobs:
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+      - name: Install dependencies
+        run: make setup
       - name: Configure AWS credentials
         if: env.CLOUD_PROVIDER == 'aws'
         uses: aws-actions/configure-aws-credentials@v1
@@ -57,7 +59,7 @@ jobs:
           username: ${{ secrets.AZURE_DEV_ACR_USERNAME }}
           password: ${{ secrets.AZURE_DEV_ACR_PASSWORD }}
       - name: Lint
-        run: make lint_after_building
+        run: make lint
       - name: Run unit tests
         run: make test_unit
       - name: Run integration tests
