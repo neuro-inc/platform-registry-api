@@ -30,6 +30,7 @@ CLOUD_IMAGE  ?=$(IMAGE_REPO)/$(IMAGE_NAME)
 
 setup init:
 	pip install -r requirements-test.txt
+	pre-commit install
 
 build:
 	@docker build --build-arg PIP_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
@@ -57,10 +58,6 @@ test_e2e_built: pull
 
 test_e2e: build test_e2e_built
 
-lint_after_building: build_test lint_built
-
-lint_built:
-	docker run --rm platformregistryapi-test make lint
 
 test_unit: build_test test_unit_built
 
@@ -85,15 +82,11 @@ test_integration_built: pull
 _test_integration:
 	pytest -vv tests/integration
 
-lint:
-	isort --check-only --diff ${ISORT_DIRS}
-	black --check $(BLACK_DIRS)
-	flake8 $(FLAKE8_DIRS)
+lint: format
 	mypy $(MYPY_DIRS)
 
 format:
-	isort $(ISORT_DIRS)
-	black $(BLACK_DIRS)
+	pre-commit run --all-files --show-diff-on-failure
 
 gke_k8s_login:
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
@@ -147,4 +140,3 @@ artifactory_helm_push: helm_install
 	helm package --app-version=$(ARTIFACTORY_TAG) --version=$(ARTIFACTORY_TAG) temp_deploy/platformregistryapi/
 	helm plugin install https://github.com/belitre/helm-push-artifactory-plugin
 	helm push-artifactory $(IMAGE_NAME)-$(ARTIFACTORY_TAG).tgz $(ARTIFACTORY_HELM_REPO) --username $(ARTIFACTORY_USERNAME) --password $(ARTIFACTORY_PASSWORD)
-

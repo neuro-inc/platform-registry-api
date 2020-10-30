@@ -119,4 +119,3 @@ spec:
         backend:
           serviceName: platformregistryapi
           servicePort: 8080
-
