@@ -86,7 +86,12 @@ lint: format
 	mypy $(MYPY_DIRS)
 
 format:
+ifdef CI_LINT_RUN
 	pre-commit run --all-files --show-diff-on-failure
+else
+	pre-commit run --all-files
+endif
+
 
 gke_k8s_login:
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
