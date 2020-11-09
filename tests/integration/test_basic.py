@@ -299,7 +299,9 @@ class TestBasicUpstream:
             "/v2/_catalog", auth=user1.to_basic_auth(), params={"n": "1"}
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
-            last_token = URL(resp.links.getone("next", {}).get("url")).query.get("last")
+            last_token = URL(
+                resp.links.getone("next", {}).get("url")  # type: ignore
+            ).query.get("last")
 
         async with client.get(
             "/v2/_catalog",
@@ -370,7 +372,7 @@ class TestBasicUpstream:
                 assert resp.status == HTTPOk.status_code, await resp.text()
                 payload = await resp.json()
                 result.extend(payload["repositories"])
-                url = resp.links.getone("next", {}).get("url")
+                url = resp.links.getone("next", {}).get("url")  # type: ignore
 
         assert result == expected
 
@@ -473,6 +475,6 @@ class TestBasicUpstream:
                 payload = await resp.json()
                 assert payload["name"] == repo, payload
                 result.extend(payload["tags"])
-                url = resp.links.getone("next", {}).get("url")
+                url = resp.links.getone("next", {}).get("url")  # type: ignore
 
         assert result == handler.tags

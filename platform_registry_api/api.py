@@ -385,7 +385,7 @@ class V2Handler:
             result_dict = await client_response.json(content_type=None)
             next_upstream_url: Optional[URL] = None
             if client_response.links.get("next"):
-                next_upstream_url = client_response.links["next"]["url"]
+                next_upstream_url = URL(client_response.links["next"]["url"])
 
             return (self.parse_catalog_repositories(result_dict), next_upstream_url)
 
@@ -433,7 +433,7 @@ class V2Handler:
             if "next" in client_response.links:
                 next_upstream_url = client_response.links["next"]["url"]
                 next_registry_url = registry_repo_url.url.with_query(
-                    next_upstream_url.query
+                    URL(next_upstream_url).query
                 )
                 response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
             else:
