@@ -12,7 +12,7 @@ install_requires = (
     "aiobotocore==1.1.2",
     "platform-logging==0.3",
     "trafaret==2.1.0",
-    "aiozipkin==0.7.1",
+    "aiozipkin==1.0.0",
     "yarl==1.5.1",
 )
 
