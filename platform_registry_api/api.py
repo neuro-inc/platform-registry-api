@@ -22,6 +22,7 @@ import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
+import sentry_sdk
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
@@ -40,6 +41,8 @@ from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from platform_logging import init_logging
+from sentry_sdk import set_tag
+from sentry_sdk.integrations.aiohttp import AioHttpIntegration
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
@@ -769,6 +772,13 @@ def main() -> None:
 
     config = EnvironConfigFactory().create()
     logger.info("Loaded config: %r", config)
+
+    sentry_url = config.sentry_url
+    if sentry_url:
+        sentry_sdk.init(dsn=sentry_url, integrations=[AioHttpIntegration()])
+
+    set_tag("cluster", config.sentry_cluster_name)
+    set_tag("app", "platformregistryapi")
 
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)

@@ -71,6 +71,9 @@ class Config:
     auth: AuthConfig
     zipkin: ZipkinConfig
     cluster_name: str
+    sentry_url: str = ""
+    sentry_cluster_name: str = ""
+
 
 
 class EnvironConfigFactory:
@@ -148,6 +151,8 @@ class EnvironConfigFactory:
         auth_config = self.create_auth()
         zipkin_config = self.create_zipkin()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
+        sentry_url = self._environ.get("NP_SENTRY_URL", Config.sentry_url)
+        sentry_cluster_name = self._environ.get("NP_CLUSTER_NAME", Config.cluster_name)
         assert cluster_name
         return Config(
             server=server_config,
@@ -155,4 +160,6 @@ class EnvironConfigFactory:
             auth=auth_config,
             zipkin=zipkin_config,
             cluster_name=cluster_name,
+            sentry_url=sentry_url,
+            sentry_cluster_name=sentry_cluster_name,
         )

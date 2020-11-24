@@ -86,6 +86,14 @@ spec:
       imagePullSecrets:
         - name: {{ .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
       {{- end }}
+        {{- if .Values.NP_SENTRY_URL }}
+        - name: NP_SENTRY_URL
+          value: {{ .Values.NP_SENTRY_URL }}
+        {{- end }}
+        {{- if .Values.NP_SENTRY_CLUSTER_NAME }}
+        - name: NP_SENTRY_CLUSTER_NAME
+          value: {{ .Values.NP_SENTRY_CLUSTER_NAME }}
+        {{- end }}
 ---
 apiVersion: v1
 kind: Service
