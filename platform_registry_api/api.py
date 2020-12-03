@@ -442,44 +442,78 @@ class V2Handler:
 
         timeout = self._create_registry_client_timeout(request)
 
-        async with self._registry_client.request(
-            method=request.method,
-            url=upstream_repo_url.url,
-            headers=request_headers,
-            skip_auto_headers=("Content-Type",),
-            data=request.content.iter_any(),
-            timeout=timeout,
-        ) as client_response:
-
+        if self._config.upstream_registry.type == UpstreamType.AWS_ECR:
+            _, _, user, repository, _, _ = request.path.split("/")
+            args = {
+                "repositoryName": f"{self._upstream_registry_config.project}/"
+                f"{user}/{repository}",
+                "filter": {"tagStatus": "TAGGED"},
+            }
+            if "next" in registry_repo_url.url.query:
+                args["nextToken"] = registry_repo_url.url.query["next"]
+            client_response = await self._upstream._client.list_images(  # type: ignore
+                **args
+            )
             logger.debug("upstream response: %s", client_response)
 
             response_headers = self._prepare_response_headers(
-                client_response.headers, url_factory
+                client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
             )
-            response_headers.pop(CONTENT_LENGTH, None)
-            # Content-Type in headers conflicts with the explicit content_type
-            # added in json_response()
-            response_headers.pop(CONTENT_TYPE, None)
+            for header in ("content-length", "content-type", "x-amzn-requestid"):
+                response_headers.pop(header, None)
 
-            if "next" in client_response.links:
-                next_upstream_url = client_response.links["next"]["url"]
-                next_registry_url = registry_repo_url.url.with_query(
-                    URL(next_upstream_url).query
-                )
+            data = {
+                "name": registry_repo_url.repo,
+                "tags": [image["imageTag"] for image in client_response["imageIds"]],
+            }
+            if "nextToken" in client_response.keys():
+                next_token = client_response["nextToken"]
+                next_registry_url = registry_repo_url.url.with_query(next=next_token)
                 response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
             else:
                 response_headers.pop(LINK, None)
-
-            # See the comment in handle_catalog() about content_type=None.
-            data = await client_response.json(content_type=None)
-            self._fixup_repo_name(data, registry_repo_url.repo)
             response = aiohttp.web.json_response(
-                data, status=client_response.status, headers=response_headers
+                data, status=200, headers=response_headers
             )
-            logger.debug(
-                "registry response: %s; headers: %s", response, response.headers
-            )
-            return response
+        else:
+            async with self._registry_client.request(
+                method=request.method,
+                url=upstream_repo_url.url,
+                headers=request_headers,
+                skip_auto_headers=("Content-Type",),
+                data=request.content.iter_any(),
+                timeout=timeout,
+            ) as client_response:
+
+                logger.debug("upstream response: %s", client_response)
+
+                response_headers = self._prepare_response_headers(
+                    client_response.headers, url_factory
+                )
+                response_headers.pop(CONTENT_LENGTH, None)
+                # Content-Type in headers conflicts with the explicit content_type
+                # added in json_response()
+                response_headers.pop(CONTENT_TYPE, None)
+
+                logger.info(await client_response.json())
+
+                if "next" in client_response.links:
+                    next_upstream_url = client_response.links["next"]["url"]
+                    next_registry_url = registry_repo_url.url.with_query(
+                        URL(next_upstream_url).query
+                    )
+                    response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+                else:
+                    response_headers.pop(LINK, None)
+
+                # See the comment in handle_catalog() about content_type=None.
+                data = await client_response.json(content_type=None)
+                self._fixup_repo_name(data, registry_repo_url.repo)
+                response = aiohttp.web.json_response(
+                    data, status=client_response.status, headers=response_headers
+                )
+        logger.debug("registry response: %s; headers: %s", response, response.headers)
+        return response
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
@@ -775,7 +809,11 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     config=config.upstream_registry, client=session
                 )
             else:
-                upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
+                upstream_cm = create_aws_ecr_upstream(
+                    config=config.upstream_registry,
+                    aws_access_key_id="AKIA3HDTDV4L76ECJLKI",
+                    aws_secret_access_key="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",
+                )
             app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
                 upstream_cm
             )
