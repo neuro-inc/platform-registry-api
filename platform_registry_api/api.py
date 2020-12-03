@@ -15,6 +15,7 @@ from typing import (
     List,
     Optional,
     Pattern,
+    Sequence,
     Tuple,
 )
 
@@ -97,40 +98,57 @@ class RepoURL:
 
     repo: str
     url: URL
+    mounted_repo: str = ""
 
     @classmethod
     def from_url(cls, url: URL) -> "RepoURL":
         # validating the url
-        repo, _ = cls._parse(url)
-        return cls(repo=repo, url=url)
+        repo, mounted_repo, _ = cls._parse(url)
+        return cls(repo=repo, mounted_repo=mounted_repo, url=url)
 
     @classmethod
-    def _parse(cls, url: URL) -> Tuple[str, URL]:
+    def _parse(cls, url: URL) -> Tuple[str, str, URL]:
         match = cls._path_re.fullmatch(url.path)
         if not match:
             raise ValueError(f"unexpected path in a registry URL: {url}")
         path_suffix = URL.build(path=match.group("path_suffix"), query=url.query)
         assert not path_suffix.is_absolute()
-        return match.group("repo"), path_suffix
+        mounted_repo = ""
+        if "blobs/uploads" in path_suffix.path and "from" in path_suffix.query:
+            # Support cross repository blob mount
+            mounted_repo = path_suffix.query["from"]
+        return match.group("repo"), mounted_repo, path_suffix
+
+    def with_project(self, project: str) -> "RepoURL":
+        _, _, url_suffix = self._parse(self.url)
+        new_mounted_repo = ""
+        if self.mounted_repo:
+            new_mounted_repo = f"{project}/{self.mounted_repo}"
+            url_suffix = url_suffix.update_query([("from", new_mounted_repo)])
+        new_repo = f"{project}/{self.repo}"
+        rel_url = URL(f"/v2/{new_repo}/").join(url_suffix)
+        url = self.url.join(rel_url)
+        # TODO: dataclasses.replace turns out out be buggy :D
+        return self.__class__(repo=new_repo, mounted_repo=new_mounted_repo, url=url)
 
     def with_repo(self, repo: str) -> "RepoURL":
-        _, url_suffix = self._parse(self.url)
+        _, _, url_suffix = self._parse(self.url)
         rel_url = URL(f"/v2/{repo}/").join(url_suffix)
         url = self.url.join(rel_url)
         # TODO: dataclasses.replace turns out out be buggy :D
-        return self.__class__(repo=repo, url=url)
+        return self.__class__(repo=repo, mounted_repo=self.mounted_repo, url=url)
 
     def with_origin(self, origin_url: URL) -> "RepoURL":
         url = self.url
         if url.is_absolute():
             url = url.relative()
         url = origin_url.join(url)
-        return self.__class__(repo=self.repo, url=url)
+        return self.__class__(repo=self.repo, mounted_repo=self.mounted_repo, url=url)
 
     def with_query(self, query: Dict[str, str]) -> "RepoURL":
         query = {**self.url.query, **query}
         url = self.url.with_query(query)
-        return self.__class__(repo=self.repo, url=url)
+        return self.__class__(repo=self.repo, mounted_repo=self.mounted_repo, url=url)
 
 
 class URLFactory:
@@ -166,8 +184,9 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        repo = f"{self._upstream_project}/{registry_url.repo}"
-        return registry_url.with_repo(repo).with_origin(self._upstream_endpoint_url)
+        return registry_url.with_project(self._upstream_project).with_origin(
+            self._upstream_endpoint_url
+        )
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -398,7 +417,14 @@ class V2Handler:
 
         registry_repo_url = RepoURL.from_url(request.url)
 
-        await self._check_user_permissions(request, registry_repo_url.repo)
+        await self._check_user_permissions(
+            request,
+            [
+                Permission(
+                    uri=self._create_image_uri(registry_repo_url.repo), action="read"
+                )
+            ],
+        )
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
@@ -409,7 +435,9 @@ class V2Handler:
             upstream_repo_url,
         )
 
-        auth_headers = await self._upstream.get_headers_for_repo(upstream_repo_url.repo)
+        auth_headers = await self._upstream.get_headers_for_repo(
+            upstream_repo_url.repo, upstream_repo_url.mounted_repo
+        )
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
 
         timeout = self._create_registry_client_timeout(request)
@@ -459,7 +487,20 @@ class V2Handler:
 
         registry_repo_url = RepoURL.from_url(request.url)
 
-        await self._check_user_permissions(request, registry_repo_url.repo)
+        permissions = [
+            Permission(
+                uri=self._create_image_uri(registry_repo_url.repo),
+                action="read" if self._is_pull_request(request) else "write",
+            )
+        ]
+        if registry_repo_url.mounted_repo:
+            permissions.append(
+                Permission(
+                    uri=self._create_image_uri(registry_repo_url.mounted_repo),
+                    action="read",
+                )
+            )
+        await self._check_user_permissions(request, permissions)
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
@@ -473,7 +514,9 @@ class V2Handler:
         if not self._is_pull_request(request):
             await self._upstream.create_repo(upstream_repo_url.repo)
 
-        auth_headers = await self._upstream.get_headers_for_repo(upstream_repo_url.repo)
+        auth_headers = await self._upstream.get_headers_for_repo(
+            upstream_repo_url.repo, upstream_repo_url.mounted_repo
+        )
 
         return await self._proxy_request(
             request,
@@ -485,17 +528,16 @@ class V2Handler:
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")
 
-    async def _check_user_permissions(self, request: Request, repo: str) -> None:
+    def _create_image_uri(self, repo: str) -> str:
+        return f"image://{self._config.cluster_name}/{repo}"
+
+    async def _check_user_permissions(
+        self, request: Request, permissions: Sequence[Permission]
+    ) -> None:
         assert self._config.cluster_name
-        uri = f"image://{self._config.cluster_name}/{repo}"
-        if self._is_pull_request(request):
-            action = "read"
-        else:  # POST, PUT, PATCH, DELETE
-            action = "write"
-        permission = Permission(uri=uri, action=action)
-        logger.info(f"Checking {permission}")
+        logger.info(f"Checking {permissions}")
         try:
-            await check_permission(request, action, [permission])
+            await check_permission(request, "ignored", permissions)
         except HTTPUnauthorized:
             self._raise_unauthorized()
 

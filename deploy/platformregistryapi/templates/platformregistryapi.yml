@@ -82,10 +82,6 @@ spec:
         - name: AWS_DEFAULT_REGION
           value: {{ .Values.AWS_DEFAULT_REGION }}
         {{- end }}
-      {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
-      imagePullSecrets:
-        - name: {{ .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
-      {{- end }}
         {{- if .Values.NP_SENTRY_URL }}
         - name: NP_SENTRY_URL
           value: {{ .Values.NP_SENTRY_URL }}
@@ -94,6 +90,10 @@ spec:
         - name: NP_SENTRY_CLUSTER_NAME
           value: {{ .Values.NP_SENTRY_CLUSTER_NAME }}
         {{- end }}
+      {{- if .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+      imagePullSecrets:
+        - name: {{ .Values.DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME }}
+      {{- end }}
 ---
 apiVersion: v1
 kind: Service

@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Sequence
 
 import iso8601
 from aiohttp import BasicAuth, ClientSession
@@ -79,10 +79,10 @@ class OAuthClient:
         self._auth = BasicAuth(login=username, password=password)
         self._time_factory = time_factory
 
-    async def get_token(self, scope: Optional[str] = None) -> OAuthToken:
+    async def get_token(self, scopes: Sequence[str] = ()) -> OAuthToken:
         url = self._url
-        if scope is not None:
-            url = url.update_query({"scope": scope})
+        if scopes:
+            url = url.update_query([("scope", s) for s in scopes])
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
@@ -110,20 +110,26 @@ class OAuthUpstream(Upstream):
         )
         self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
 
-    async def _get_headers(self, scope: Optional[str] = None) -> Dict[str, str]:
-        headers = self._cache.get(scope)
+    async def _get_headers(self, scopes: Sequence[str] = ()) -> Dict[str, str]:
+        key = " ".join(scopes)
+        headers = self._cache.get(key)
         if headers is None:
-            token = await self._client.get_token(scope)
+            token = await self._client.get_token(scopes)
             headers = {str(AUTHORIZATION): BearerAuth(token.access_token).encode()}
-            self._cache.put(scope, headers, token.expires_at)
+            self._cache.put(key, headers, token.expires_at)
         return dict(headers)
 
     async def get_headers_for_version(self) -> Dict[str, str]:
         return await self._get_headers()
 
     async def get_headers_for_catalog(self) -> Dict[str, str]:
-        return await self._get_headers(self._registry_catalog_scope)
+        return await self._get_headers([self._registry_catalog_scope])
 
-    async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
-        scope = self._repository_scope_template.format(repo=repo)
-        return await self._get_headers(scope)
+    async def get_headers_for_repo(
+        self, repo: str, mounted_repo: str = ""
+    ) -> Dict[str, str]:
+        scopes = []
+        scopes.append(self._repository_scope_template.format(repo=repo))
+        if mounted_repo:
+            scopes.append(self._repository_scope_template.format(repo=mounted_repo))
+        return await self._get_headers(scopes)

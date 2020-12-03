@@ -51,6 +51,42 @@ class TestRepoURL:
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="tags/tags", url=url)
 
+    def test_from_url_with_cross_repo_blob_mount(self) -> None:
+        url = URL(
+            "https://example.com/v2/this/img/blobs/uploads/?what=ever&from=another/img"
+        )
+        reg_url = RepoURL.from_url(url)
+        assert reg_url == RepoURL(
+            repo="this/img",
+            mounted_repo="another/img",
+            url=URL(
+                "https://example.com/v2/this/img/blobs/uploads/"
+                "?what=ever&from=another/img"
+            ),
+        )
+
+    def test_with_project(self) -> None:
+        url = URL("https://example.com/v2/this/img/tags/list?what=ever")
+        reg_url = RepoURL.from_url(url).with_project("neuro")
+        assert reg_url == RepoURL(
+            repo="neuro/this/img",
+            url=URL("https://example.com/v2/neuro/this/img/tags/list?what=ever"),
+        )
+
+    def test_with_project_and_cross_repo_blob_mount(self) -> None:
+        url = URL(
+            "https://example.com/v2/this/img/blobs/uploads/?what=ever&from=another/img"
+        )
+        reg_url = RepoURL.from_url(url).with_project("neuro")
+        assert reg_url == RepoURL(
+            repo="neuro/this/img",
+            mounted_repo="neuro/another/img",
+            url=URL(
+                "https://example.com/v2/neuro/this/img/blobs/uploads/"
+                "?what=ever&from=neuro/another/img"
+            ),
+        )
+
     def test_with_repo(self) -> None:
         url = URL("https://example.com/v2/this/image/tags/list?what=ever")
         reg_url = RepoURL.from_url(url).with_repo("another/img")
@@ -354,9 +390,9 @@ class MockAuthServer:
 
     async def handle(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         service = request.query.get("service")
-        scope = request.query.get("scope")
+        scopes = "-".join(request.query.getall("scope", ())) or None
         self.counter += 1
-        payload: Dict[str, Any] = {"token": f"token-{service}-{scope}-{self.counter}"}
+        payload: Dict[str, Any] = {"token": f"token-{service}-{scopes}-{self.counter}"}
         if self.expires_in is not None:
             payload["expires_in"] = self.expires_in
         if self.issued_at is not None:
@@ -403,8 +439,8 @@ class UpstreamTokenManager:
         headers = await self._oauth_upstream.get_headers_for_catalog()
         return BearerAuth.decode(headers[AUTHORIZATION]).token
 
-    async def get_token_for_repo(self, repo: str) -> str:
-        headers = await self._oauth_upstream.get_headers_for_repo(repo)
+    async def get_token_for_repo(self, repo: str, mounted_repo: str = "") -> str:
+        headers = await self._oauth_upstream.get_headers_for_repo(repo, mounted_repo)
         return BearerAuth.decode(headers[AUTHORIZATION]).token
 
 
@@ -529,3 +565,5 @@ class TestUpstreamTokenManager:
         mock_time.sleep(100)
         token = await utm.get_token_for_repo("testrepo")
         assert token == "token-upstream-repository:testrepo:*-2"
+        token = await utm.get_token_for_repo("testrepo", "testrepo2")
+        assert token == "token-upstream-repository:testrepo:*-repository:testrepo2:*-3"

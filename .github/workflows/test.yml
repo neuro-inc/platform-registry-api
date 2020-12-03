@@ -101,8 +101,8 @@ jobs:
   deploy_dev:
     name: Deploy on dev
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && contains(github.ref, 'refs/heads/sentry-dev')
-#    needs: test
+    if: github.ref == 'refs/heads/master'
+    needs: test
     env:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
