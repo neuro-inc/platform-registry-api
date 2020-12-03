@@ -141,6 +141,36 @@ class TestV2Api:
             }
 
     @pytest.mark.asyncio
+    async def test_cross_repo_blob_mount(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
+        user = await regular_user_factory()
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        auth = user.to_basic_auth()
+        url = f"/v2/{user.name}/unknown/blobs/uploads/?from={user.name}/unknown2"
+        async with client.post(url, auth=auth) as resp:
+            assert resp.status == 202, await resp.text()
+
+    @pytest.mark.asyncio
+    async def test_cross_repo_blob_mount_forbidden(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
+        user = await regular_user_factory()
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        auth = user.to_basic_auth()
+        url = f"/v2/{user.name}/unknown/blobs/uploads/?from={user.name}-other/unknown"
+        async with client.post(url, auth=auth) as resp:
+            assert resp.status == 403
+
+    @pytest.mark.asyncio
     async def test_x_forwarded_proto(
         self,
         aiohttp_client: _TestClientFactory,

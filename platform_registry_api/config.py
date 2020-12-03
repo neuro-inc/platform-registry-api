@@ -75,7 +75,6 @@ class Config:
     sentry_cluster_name: str = ""
 
 
-
 class EnvironConfigFactory:
     def __init__(self, environ: Optional[Dict[str, str]] = None) -> None:
         self._environ = environ or os.environ
@@ -152,7 +151,9 @@ class EnvironConfigFactory:
         zipkin_config = self.create_zipkin()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
         sentry_url = self._environ.get("NP_SENTRY_URL", Config.sentry_url)
-        sentry_cluster_name = self._environ.get("NP_CLUSTER_NAME", Config.cluster_name)
+        sentry_cluster_name = self._environ.get(
+            "NP_SENTRY_CLUSTER_NAME", Config.sentry_cluster_name
+        )
         assert cluster_name
         return Config(
             server=server_config,

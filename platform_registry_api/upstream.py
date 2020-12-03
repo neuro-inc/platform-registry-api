@@ -15,5 +15,7 @@ class Upstream(ABC):
         pass
 
     @abstractmethod
-    async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
+    async def get_headers_for_repo(
+        self, repo: str, mounted_repo: str = ""
+    ) -> Dict[str, str]:
         pass

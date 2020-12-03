@@ -71,7 +71,9 @@ class AWSECRUpstream(Upstream):
     async def get_headers_for_catalog(self) -> Dict[str, str]:
         return await self._get_headers()
 
-    async def get_headers_for_repo(self, repo: str) -> Dict[str, str]:
+    async def get_headers_for_repo(
+        self, repo: str, mounted_repo: str = ""
+    ) -> Dict[str, str]:
         return await self._get_headers()
 
     async def get_image_delete_response(
