@@ -92,7 +92,7 @@ jobs:
     - name: Checkout commit
       uses: actions/checkout@v2
     - name: Get GitHub tag as CIRCLE_TAG
-      run: echo ::set-env name=CIRCLE_TAG::${GITHUB_REF#refs/*/}
+      run: echo "CIRCLE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Artifactory Docker Push
       run: make artifactory_docker_push
     - name: Artifactory Helm Push
