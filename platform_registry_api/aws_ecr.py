@@ -76,12 +76,12 @@ class AWSECRUpstream(Upstream):
     ) -> Dict[str, str]:
         return await self._get_headers()
 
-    async def get_image_delete_response(
+    async def convert_upstream_response(
         self, upstream_response: Dict[str, Any]
     ) -> Tuple[int, Dict[str, Any]]:
         response_metadata = upstream_response["ResponseMetadata"]
         assert response_metadata["HTTPStatusCode"] == 200
-        content: Dict[str, Any] = {}
+        content: Dict[str, Any] = upstream_response
         if len(upstream_response["failures"]) == 0:
             status = 202
         else:

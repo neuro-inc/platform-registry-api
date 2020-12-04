@@ -451,29 +451,51 @@ class V2Handler:
             }
             if "next" in registry_repo_url.url.query:
                 args["nextToken"] = registry_repo_url.url.query["next"]
-            client_response = await self._upstream._client.list_images(  # type: ignore
-                **args
-            )
-            logger.debug("upstream response: %s", client_response)
+            response_headers: CIMultiDict[str] = CIMultiDict()
+            client = self._upstream._client  # type: ignore
+            try:
+                client_response = await client.list_images(**args)
+                logger.debug("upstream response: %s", client_response)
 
-            response_headers = self._prepare_response_headers(
-                client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
-            )
-            for header in ("content-length", "content-type", "x-amzn-requestid"):
-                response_headers.pop(header, None)
+                response_headers = self._prepare_response_headers(
+                    client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
+                )
+                for header in ("content-length", "content-type", "x-amzn-requestid"):
+                    response_headers.pop(header, None)
 
-            data = {
-                "name": registry_repo_url.repo,
-                "tags": [image["imageTag"] for image in client_response["imageIds"]],
-            }
-            if "nextToken" in client_response.keys():
-                next_token = client_response["nextToken"]
-                next_registry_url = registry_repo_url.url.with_query(next=next_token)
-                response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
-            else:
-                response_headers.pop(LINK, None)
+                (
+                    status,
+                    data,
+                ) = await self._upstream.convert_upstream_response(  # type: ignore
+                    client_response
+                )
+
+                data = {
+                    "name": registry_repo_url.repo,
+                    "tags": [image["imageTag"] for image in data["imageIds"]],
+                }
+
+                if "nextToken" in client_response.keys():
+                    next_token = client_response["nextToken"]
+                    next_registry_url = registry_repo_url.url.with_query(
+                        next=next_token
+                    )
+                    response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+                else:
+                    response_headers.pop(LINK, None)
+            except client.exceptions.RepositoryNotFoundException:
+                status = 404
+                data = {
+                    "errors": [
+                        {
+                            "code": "NAME_UNKNOWN",
+                            "message": f"Repository {registry_repo_url.repo} not found",
+                            "detail": "",
+                        }
+                    ]
+                }
             response = aiohttp.web.json_response(
-                data, status=200, headers=response_headers
+                data, status=status, headers=response_headers
             )
         else:
             async with self._registry_client.request(
@@ -495,7 +517,12 @@ class V2Handler:
                 # added in json_response()
                 response_headers.pop(CONTENT_TYPE, None)
 
-                logger.info(await client_response.json())
+                (
+                    status,
+                    data,
+                ) = await self._upstream.convert_upstream_response(  # type: ignore
+                    client_response
+                )
 
                 if "next" in client_response.links:
                     next_upstream_url = client_response.links["next"]["url"]
@@ -507,10 +534,9 @@ class V2Handler:
                     response_headers.pop(LINK, None)
 
                 # See the comment in handle_catalog() about content_type=None.
-                data = await client_response.json(content_type=None)
                 self._fixup_repo_name(data, registry_repo_url.repo)
                 response = aiohttp.web.json_response(
-                    data, status=client_response.status, headers=response_headers
+                    data, headers=response_headers, status=status
                 )
         logger.debug("registry response: %s; headers: %s", response, response.headers)
         return response
@@ -632,7 +658,7 @@ class V2Handler:
             (
                 status,
                 content,
-            ) = await self._upstream.get_image_delete_response(  # type: ignore
+            ) = await self._upstream.convert_upstream_response(  # type: ignore
                 client_response
             )
 

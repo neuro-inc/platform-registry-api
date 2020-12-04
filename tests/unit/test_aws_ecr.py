@@ -179,7 +179,7 @@ class TestAWSECRUpstream:
             "ResponseMetadata": {"HTTPStatusCode": 200},
             "failures": [],
         }
-        response_status, response_content = await upstream.get_image_delete_response(
+        response_status, response_content = await upstream.convert_upstream_response(
             upstream_response
         )
         assert response_status == 202
@@ -195,7 +195,7 @@ class TestAWSECRUpstream:
                 {"failureCode": "ImageNotFound", "failureReason": "Can't find image"}
             ],
         }
-        response_status, response_content = await upstream.get_image_delete_response(
+        response_status, response_content = await upstream.convert_upstream_response(
             upstream_response
         )
         assert response_status == 404
@@ -222,7 +222,7 @@ class TestAWSECRUpstream:
                 }
             ],
         }
-        response_status, response_content = await upstream.get_image_delete_response(
+        response_status, response_content = await upstream.convert_upstream_response(
             upstream_response
         )
         assert response_status == 404
@@ -246,7 +246,7 @@ class TestAWSECRUpstream:
                 {"failureCode": "Some other error", "failureReason": "Unknown error"}
             ],
         }
-        response_status, response_content = await upstream.get_image_delete_response(
+        response_status, response_content = await upstream.convert_upstream_response(
             upstream_response
         )
         assert response_status == 500
