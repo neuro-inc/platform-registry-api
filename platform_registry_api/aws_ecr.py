@@ -120,4 +120,6 @@ class AWSECRUpstream(Upstream):
                     ]
                 }
 
+        content.pop("failures", None)
+        content.pop("ResponseMetadata", None)
         return (status, content)
