@@ -517,8 +517,6 @@ class V2Handler:
                 # added in json_response()
                 response_headers.pop(CONTENT_TYPE, None)
 
-                logger.info(await client_response.json())
-
                 if "next" in client_response.links:
                     next_upstream_url = client_response.links["next"]["url"]
                     next_registry_url = registry_repo_url.url.with_query(
