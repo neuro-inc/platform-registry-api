@@ -517,12 +517,7 @@ class V2Handler:
                 # added in json_response()
                 response_headers.pop(CONTENT_TYPE, None)
 
-                (
-                    status,
-                    data,
-                ) = await self._upstream.convert_upstream_response(  # type: ignore
-                    client_response
-                )
+                logger.info(await client_response.json())
 
                 if "next" in client_response.links:
                     next_upstream_url = client_response.links["next"]["url"]
@@ -534,9 +529,10 @@ class V2Handler:
                     response_headers.pop(LINK, None)
 
                 # See the comment in handle_catalog() about content_type=None.
+                data = await client_response.json(content_type=None)
                 self._fixup_repo_name(data, registry_repo_url.repo)
                 response = aiohttp.web.json_response(
-                    data, headers=response_headers, status=status
+                    data, headers=response_headers, status=client_response.status
                 )
         logger.debug("registry response: %s; headers: %s", response, response.headers)
         return response
