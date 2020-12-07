@@ -427,6 +427,21 @@ class V2Handler:
         )
 
         url_factory = self._create_url_factory(request)
+
+        if self._config.upstream_registry.type == UpstreamType.AWS_ECR:
+            response = await self._handle_aws_ecr_tags_list(
+                registry_repo_url, request, url_factory
+            )
+        else:
+            response = await self._handle_generic_tags_list(
+                registry_repo_url, request, url_factory
+            )
+        logger.debug("registry response: %s; headers: %s", response, response.headers)
+        return response
+
+    async def _handle_generic_tags_list(
+        self, registry_repo_url: RepoURL, request: Request, url_factory: URLFactory
+    ) -> Response:
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
 
         logger.info(
@@ -474,12 +489,66 @@ class V2Handler:
             data = await client_response.json(content_type=None)
             self._fixup_repo_name(data, registry_repo_url.repo)
             response = aiohttp.web.json_response(
-                data, status=client_response.status, headers=response_headers
+                data, headers=response_headers, status=client_response.status
             )
-            logger.debug(
-                "registry response: %s; headers: %s", response, response.headers
+        return response
+
+    async def _handle_aws_ecr_tags_list(
+        self, registry_repo_url: RepoURL, request: Request, url_factory: URLFactory
+    ) -> Response:
+        _, _, user, repository, _, _ = request.path.split("/")
+        args = {
+            "repositoryName": f"{self._upstream_registry_config.project}/"
+            f"{user}/{repository}",
+            "filter": {"tagStatus": "TAGGED"},
+        }
+        if "next" in registry_repo_url.url.query:
+            args["nextToken"] = registry_repo_url.url.query["next"]
+        response_headers: CIMultiDict[str] = CIMultiDict()
+        client = self._upstream._client  # type: ignore
+        try:
+            client_response = await client.list_images(**args)
+            logger.debug("upstream response: %s", client_response)
+
+            response_headers = self._prepare_response_headers(
+                client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
             )
-            return response
+            for header in ("content-length", "content-type", "x-amzn-requestid"):
+                response_headers.pop(header, None)
+
+            (
+                status,
+                data,
+            ) = await self._upstream.convert_upstream_response(  # type: ignore
+                client_response
+            )
+
+            data = {
+                "name": registry_repo_url.repo,
+                "tags": [image["imageTag"] for image in data["imageIds"]],
+            }
+
+            if "nextToken" in client_response.keys():
+                next_token = client_response["nextToken"]
+                next_registry_url = registry_repo_url.url.with_query(next=next_token)
+                response_headers[LINK] = f'<{next_registry_url!s}>; rel="next"'
+            else:
+                response_headers.pop(LINK, None)
+        except client.exceptions.RepositoryNotFoundException:
+            status = 404
+            data = {
+                "errors": [
+                    {
+                        "code": "NAME_UNKNOWN",
+                        "message": f"Repository {registry_repo_url.repo} not found",
+                        "detail": "",
+                    }
+                ]
+            }
+        response = aiohttp.web.json_response(
+            data, status=status, headers=response_headers
+        )
+        return response
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
@@ -598,7 +667,7 @@ class V2Handler:
             (
                 status,
                 content,
-            ) = await self._upstream.get_image_delete_response(  # type: ignore
+            ) = await self._upstream.convert_upstream_response(  # type: ignore
                 client_response
             )
 
@@ -775,7 +844,11 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     config=config.upstream_registry, client=session
                 )
             else:
-                upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
+                upstream_cm = create_aws_ecr_upstream(
+                    config=config.upstream_registry,
+                    aws_access_key_id="AKIA3HDTDV4L76ECJLKI",
+                    aws_secret_access_key="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",
+                )
             app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
                 upstream_cm
             )
