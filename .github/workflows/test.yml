@@ -25,10 +25,12 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7.5
+        python-version: 3.7.7
     - name: Cache packages
       uses: actions/cache@v1
       with:
@@ -91,6 +93,12 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7.7
     - name: Get GitHub tag as CIRCLE_TAG
       run: echo "CIRCLE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Artifactory Docker Push
@@ -116,6 +124,12 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7.7
     - name: Configure AWS credentials
       if: env.CLOUD_PROVIDER == 'aws'
       uses: aws-actions/configure-aws-credentials@v1

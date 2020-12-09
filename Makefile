@@ -29,11 +29,15 @@ export IMAGE_REPO
 CLOUD_IMAGE  ?=$(IMAGE_REPO)/$(IMAGE_NAME)
 
 setup init:
+	pip install -e .
 	pip install -r requirements-test.txt
 	pre-commit install
 
 build:
-	@docker build --build-arg PIP_INDEX_URL="$(PIP_EXTRA_INDEX_URL)" -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	python setup.py sdist
+	docker build -f Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) \
+	--build-arg PIP_EXTRA_INDEX_URL \
+	--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz .
 
 pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
