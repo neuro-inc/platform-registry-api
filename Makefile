@@ -29,6 +29,7 @@ export IMAGE_REPO
 CLOUD_IMAGE  ?=$(IMAGE_REPO)/$(IMAGE_NAME)
 
 setup init:
+	pip install -e .
 	pip install -r requirements-test.txt
 	pre-commit install
 
