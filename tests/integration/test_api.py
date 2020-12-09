@@ -77,6 +77,20 @@ class TestV2Api:
         async with client.get("/v2/", auth=auth) as resp:
             assert resp.status == 200
 
+    async def test_version_check_includes_service_version(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+    ) -> None:
+        user = await regular_user_factory()
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        auth = user.to_basic_auth()
+        async with client.get("/v2/", auth=auth) as resp:
+            assert resp.status == 200
+            assert "platform-registry-api" in resp.headers["X-Service-Version"]
+
     @pytest.mark.asyncio
     async def test_catalog(
         self,

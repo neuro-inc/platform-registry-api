@@ -23,6 +23,7 @@ import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
 import aiozipkin
+import pkg_resources
 import sentry_sdk
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
@@ -808,6 +809,13 @@ async def create_tracer(config: Config) -> aiozipkin.Tracer:
     return tracer
 
 
+package_version = pkg_resources.get_distribution("platform-registry-api").version
+
+
+async def add_version_to_header(request: Request, response: StreamResponse) -> None:
+    response.headers["X-Service-Version"] = f"platform-registry-api/{package_version}"
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
@@ -877,6 +885,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
+
+    app.on_response_prepare.append(add_version_to_header)
+
     return app
 
 
