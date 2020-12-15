@@ -1,6 +1,11 @@
 name: Continuous Integration
 
-on: [push]
+on:
+  push:
+    branches: [master]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [master]
 
 env:
   DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
@@ -76,7 +81,7 @@ jobs:
     name: Deploy to Artifactory
     runs-on: ubuntu-latest
     # Run only on pushing a tag
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/artifactory')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: test
     env:
       GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
