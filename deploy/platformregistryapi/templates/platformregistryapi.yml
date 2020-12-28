@@ -126,13 +126,13 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.frontend.rule.type: PathPrefix
-    {{- if eq .Values.env "dev" }}
-    external-dns.platform.neuromation.io: "true"
-    {{- end }}
+{{- if .Values.ingress.extraAnnotations }}
+{{ toYaml .Values.ingress.extraAnnotations | indent 4 }}
+{{- end }}
 spec:
   rules:
   {{- range .Values.ingress.hosts }}
-  - host: {{ .Values.INGRESS_HOST }}
+  - host: {{ . | quote }}
     http:
       paths:
       - path: /

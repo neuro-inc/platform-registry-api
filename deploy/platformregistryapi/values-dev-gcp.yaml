@@ -5,8 +5,6 @@ NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
 NP_CLUSTER_NAME: 'default'
 
-env: dev
-
 platform:
   token:
     valueFrom:
@@ -47,4 +45,6 @@ resources:
 secrets: []
 
 ingress:
+  extraAnnotations:
+    external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]

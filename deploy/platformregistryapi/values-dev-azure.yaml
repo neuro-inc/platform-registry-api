@@ -7,8 +7,6 @@ NP_CLUSTER_NAME: 'default'
 NP_SENTRY_URL: "https://066c0e4ae50a428e84dd7bb505095319@sentry-dev-azure.neu.ro/9"
 NP_SENTRY_CLUSTER_NAME: "dev-azure"
 
-env: dev
-
 platform:
   token:
     valueFrom:
@@ -49,4 +47,6 @@ resources:
 secrets: []
 
 ingress:
+  extraAnnotations:
+    external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]

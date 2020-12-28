@@ -6,8 +6,6 @@ NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
 NP_CLUSTER_NAME: 'default'
 AWS_DEFAULT_REGION: us-east-1
 
-env: dev
-
 annotations:
   iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-d04bce531282b98cb801932de6c118c7
 
@@ -51,4 +49,6 @@ resources:
 secrets: []
 
 ingress:
+  extraAnnotations:
+    external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]
