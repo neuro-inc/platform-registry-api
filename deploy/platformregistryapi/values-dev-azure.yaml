@@ -1,19 +1,50 @@
 IMAGE:
-NP_REGISTRY_UPSTREAM_PROJECT: dev
-INGRESS_HOST: registry-dev.neu.ro
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_UPSTREAM_URL: https://crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io
-NP_REGISTRY_UPSTREAM_TYPE: oauth
-NP_REGISTRY_UPSTREAM_TOKEN_SERVICE: "crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io"
-NP_REGISTRY_UPSTREAM_TOKEN_URL: "https://crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io/oauth2/token"
-NP_REGISTRY_REQUESTS_CPU: "0.1"
-NP_REGISTRY_LIMITS_CPU: "0.2"
-NP_REGISTRY_REQUESTS_MEMORY: "100Mi"
-NP_REGISTRY_LIMITS_MEMORY: "150Mi"
 NP_REGISTRY_REPLICAS: "2"
-NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES: "10000"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
 NP_CLUSTER_NAME: 'default'
 NP_SENTRY_URL: "https://066c0e4ae50a428e84dd7bb505095319@sentry-dev-azure.neu.ro/9"
 NP_SENTRY_CLUSTER_NAME: "dev-azure"
+
+platform:
+  token:
+    valueFrom:
+      secretKeyRef:
+        name: platformservices-secret
+        key: registry_token
+
+upstreamRegistry:
+  type: oauth
+  url: https://crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io
+
+  tokenUrl: https://crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io/oauth2/token
+  tokenService: crc570d91c95c6aac0ea80afb1019a0c6f.azurecr.io
+  tokenUsername:
+    valueFrom:
+      secretKeyRef:
+        name: gcr-secret
+        key: username
+  tokenPassword:
+    valueFrom:
+      secretKeyRef:
+        name: gcr-secret
+        key: username
+
+  catalogScope: ""
+  repositoryScopeActions: ""
+  maxCatalogEntries: 10000
+  project: dev
+
+resources:
+  requests:
+    cpu: "0.1"
+    memory: "100Mi"
+  limits:
+    cpu: "0.2"
+    memory: "150Mi"
+
+secrets: []
+
+ingress:
+  hosts: [registry-dev.neu.ro]

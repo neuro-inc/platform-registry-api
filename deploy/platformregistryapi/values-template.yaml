@@ -1,18 +1,24 @@
 IMAGE: neuro-docker-local-public.jfrog.io/platformregistryapi:IMAGE_TAG
-NP_REGISTRY_UPSTREAM_PROJECT: ''
-INGRESS_HOST: ''
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_UPSTREAM_URL: https://gcr.io
-NP_REGISTRY_UPSTREAM_TYPE: oauth
-NP_REGISTRY_UPSTREAM_TOKEN_SERVICE: gcr.io
-NP_REGISTRY_UPSTREAM_TOKEN_URL: https://gcr.io/v2/token
-NP_REGISTRY_REQUESTS_CPU: "0.1"
-NP_REGISTRY_LIMITS_CPU: "0.2"
-NP_REGISTRY_REQUESTS_MEMORY: "100Mi"
-NP_REGISTRY_LIMITS_MEMORY: "200Mi"
 NP_REGISTRY_REPLICAS: "2"
-NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES: "10000"
 DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME: "artifactory-regcred"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '0.1'  # 10% of traces are saved
 NP_CLUSTER_NAME: ''
+
+platform:
+  token: {}
+
+upstreamRegistry: {}
+
+resources:
+  requests:
+    cpu: "0.1"
+    memory: "100Mi"
+  limits:
+    cpu: "0.2"
+    memory: "200Mi"
+
+secrets: []
+
+ingress: {}
