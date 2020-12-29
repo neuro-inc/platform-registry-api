@@ -4,10 +4,6 @@ NP_REGISTRY_REPLICAS: "2"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
 NP_CLUSTER_NAME: 'default'
-AWS_DEFAULT_REGION: us-east-1
-
-annotations:
-  iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-d04bce531282b98cb801932de6c118c7
 
 platform:
   token:
@@ -17,11 +13,11 @@ platform:
         key: registry_token
 
 upstreamRegistry:
-  type: aws_ecr
-  url: https://771188043543.dkr.ecr.us-east-1.amazonaws.com
+  type: oauth
+  url: https://gcr.io
 
-  tokenUrl: ""
-  tokenService: ""
+  tokenUrl: https://gcr.io/v2/token
+  tokenService: gcr.io
   tokenUsername:
     valueFrom:
       secretKeyRef:
@@ -35,8 +31,8 @@ upstreamRegistry:
 
   catalogScope: ""
   repositoryScopeActions: ""
-  maxCatalogEntries: 1000
-  project: dev
+  maxCatalogEntries: 10000
+  project: light-reality-205619/neuro/default
 
 resources:
   requests:

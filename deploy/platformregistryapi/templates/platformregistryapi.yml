@@ -16,69 +16,69 @@ spec:
     metadata:
       labels:
         service: platformregistryapi
-      {{- with .Values.annotations }}
-      annotations:
-        {{ toYaml . | indent 2 }}
-      {{- end }}
+        annotations:
+{{- with .Values.annotations }}
+{{ toYaml . | indent 10 }}
+{{- end }}
+{{- if .Values.secrets }}
+         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+{{- end }}
     spec:
       containers:
       - name: platformregistryapi
         image: {{ .Values.IMAGE }}
         imagePullPolicy: Always
-        resources:
-          requests:
-            cpu: {{ .Values.NP_REGISTRY_REQUESTS_CPU }}
-            memory: {{ .Values.NP_REGISTRY_REQUESTS_MEMORY }}
-          limits:
-            cpu: {{ .Values.NP_REGISTRY_LIMITS_CPU }}
-            memory: {{ .Values.NP_REGISTRY_LIMITS_MEMORY }}
+        {{- if .Values.resources }}
+        resources: {{ toYaml .Values.resources | nindent 10 }}
+        {{- end }}
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
         env:
         - name: NP_REGISTRY_AUTH_URL
           value: {{ .Values.NP_REGISTRY_AUTH_URL }}
         - name: NP_REGISTRY_AUTH_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: platformservices-secret
-              key: registry_token
+{{- if .Values.platform.token }}
+{{ toYaml .Values.platform.token | indent 10 }}
+{{- end }}
         - name: NP_REGISTRY_ZIPKIN_URL
           value: {{ .Values.NP_REGISTRY_ZIPKIN_URL }}
         - name: NP_REGISTRY_ZIPKIN_SAMPLE_RATE
           value: "{{ .Values.NP_REGISTRY_ZIPKIN_SAMPLE_RATE }}"
         - name: NP_REGISTRY_UPSTREAM_TYPE
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TYPE }}
+          value: {{ .Values.upstreamRegistry.type | quote }}
         - name: NP_REGISTRY_UPSTREAM_URL
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_URL }}
+          value: {{ .Values.upstreamRegistry.url | quote }}
         - name: NP_REGISTRY_UPSTREAM_PROJECT
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_PROJECT }}
+          value: {{ .Values.upstreamRegistry.project | quote }}
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
-          value: "{{ .Values.NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES }}"
+          value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME
           value: {{ .Values.NP_CLUSTER_NAME }}
-        {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "oauth" }}
+        {{- if eq .Values.upstreamRegistry.type "oauth" }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_SERVICE }}
+          value: {{ .Values.upstreamRegistry.tokenService | quote }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_URL
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_URL }}
+          value: {{ .Values.upstreamRegistry.tokenUrl | quote }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: gcr-secret
-              key: username
+{{- if .Values.upstreamRegistry.tokenUsername }}
+{{ toYaml .Values.upstreamRegistry.tokenUsername | indent 10 }}
+{{- end }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: gcr-secret
-              key: password
-        {{- if .Values.NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE }}
+{{- if .Values.upstreamRegistry.tokenPassword }}
+{{ toYaml .Values.upstreamRegistry.tokenPassword | indent 10 }}
+{{- end }}
+        {{- if .Values.upstreamRegistry.catalogScope }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE }}
+          value: {{ .Values.upstreamRegistry.catalogScope | quote }}
         {{- end }}
-        {{- if .Values.NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS }}
+        {{- if .Values.upstreamRegistry.repositoryScopeActions }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS
-          value: {{ .Values.NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS }}
+          value: {{ .Values.upstreamRegistry.repositoryScopeActions | quote }}
         {{- end }}
         {{- end }}
-        {{- if eq .Values.NP_REGISTRY_UPSTREAM_TYPE "aws_ecr" }}
+        {{- if eq .Values.upstreamRegistry.type "aws_ecr" }}
         - name: AWS_DEFAULT_REGION
           value: {{ .Values.AWS_DEFAULT_REGION }}
         {{- end }}
@@ -105,10 +105,12 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8080
-    targetPort: 8080
+  - name: http
+    port: 8080
+    targetPort: http
   selector:
     service: platformregistryapi
+{{- if .Values.ingress }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
@@ -117,13 +119,18 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.frontend.rule.type: PathPrefix
-    external-dns.platform.neuromation.io: "true"
+{{- if .Values.ingress.extraAnnotations }}
+{{ toYaml .Values.ingress.extraAnnotations | indent 4 }}
+{{- end }}
 spec:
   rules:
-  - host: {{ .Values.INGRESS_HOST }}
+  {{- range .Values.ingress.hosts }}
+  - host: {{ . | quote }}
     http:
       paths:
       - path: /
         backend:
           serviceName: platformregistryapi
-          servicePort: 8080
+          servicePort: http
+  {{- end }}
+{{- end }}
