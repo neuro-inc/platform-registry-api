@@ -29,7 +29,7 @@ upstreamRegistry:
     valueFrom:
       secretKeyRef:
         name: gcr-secret
-        key: username
+        key: password
 
   catalogScope: ""
   repositoryScopeActions: ""
