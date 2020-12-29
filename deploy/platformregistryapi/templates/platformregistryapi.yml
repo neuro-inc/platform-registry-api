@@ -31,13 +31,6 @@ spec:
         {{- if .Values.resources }}
         resources: {{ toYaml .Values.resources | nindent 10 }}
         {{- end }}
-        resources:
-          requests:
-            cpu: {{ .Values.NP_REGISTRY_REQUESTS_CPU }}
-            memory: {{ .Values.NP_REGISTRY_REQUESTS_MEMORY }}
-          limits:
-            cpu: {{ .Values.NP_REGISTRY_LIMITS_CPU }}
-            memory: {{ .Values.NP_REGISTRY_LIMITS_MEMORY }}
         ports:
         - name: http
           containerPort: 8080
