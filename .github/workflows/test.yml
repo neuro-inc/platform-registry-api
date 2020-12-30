@@ -97,7 +97,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set tag
-      run: echo "CIRCLE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      run: echo "CIRCLE_TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
     - name: Artifactory Docker Push
       run: make artifactory_docker_push
     - name: Artifactory Helm Push

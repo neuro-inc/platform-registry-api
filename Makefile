@@ -124,7 +124,6 @@ helm_deploy:
 	helm init --client-only
 	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
 
-
 artifactory_docker_push: build
 	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
 	docker login $(ARTIFACTORY_DOCKER_REPO) --username=$(ARTIFACTORY_USERNAME) --password=$(ARTIFACTORY_PASSWORD)
