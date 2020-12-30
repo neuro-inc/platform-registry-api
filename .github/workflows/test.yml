@@ -1,12 +1,14 @@
 name: Continuous Integration
 
-on: [push]
+on:
+  push:
+    branches: [master]
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [master]
 
 env:
-  DEVPI_HOST: ${{ secrets.DEVPI_HOST }}
-  DEVPI_INDEX: ${{ secrets.DEVPI_INDEX }}
-  DEVPI_PASS: ${{ secrets.DEVPI_PASS }}
-  DEVPI_USER: ${{ secrets.DEVPI_USER }}
+  PIP_EXTRA_INDEX_URL: ${{ format('https://{0}:{1}@{2}/{0}/{3}', secrets.DEVPI_USER, secrets.DEVPI_PASS, secrets.DEVPI_HOST, secrets.DEVPI_INDEX) }}
 
 jobs:
   test:
@@ -30,12 +32,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7.7
+        python-version: "3.7"
     - name: Cache packages
       uses: actions/cache@v1
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.7.5-${{ hashFiles('requirements/*.txt') }}-${{
+        key: ${{ runner.os }}-py-3.7-${{ hashFiles('requirements/*.txt') }}-${{
           hashFiles('setup.py') }}
     - name: Install dependencies
       run: make setup
@@ -72,11 +74,10 @@ jobs:
     - name: Run E2E tests
       run: make test_e2e
 
-  artifactory_deploy:
+  release:
     name: Deploy to Artifactory
     runs-on: ubuntu-latest
-    # Run only on pushing a tag
-    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/artifactory')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs: test
     env:
       GKE_ACCT_AUTH: ${{ secrets.GKE_ACCT_AUTH }}
@@ -95,11 +96,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.7.7
-    - name: Get GitHub tag as CIRCLE_TAG
+    - name: Set tag
       run: echo "CIRCLE_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
     - name: Artifactory Docker Push
       run: make artifactory_docker_push
@@ -126,10 +123,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.7.7
     - name: Configure AWS credentials
       if: env.CLOUD_PROVIDER == 'aws'
       uses: aws-actions/configure-aws-credentials@v1
