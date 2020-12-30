@@ -1,6 +1,5 @@
 IMAGE_NAME ?= platformregistryapi
 IMAGE_TAG ?= latest
-ARTIFACTORY_TAG ?=$(shell echo "$(CIRCLE_TAG)" | awk -F/ '{print $$2}')
 IMAGE_NAME_K8S ?= $(IMAGE_NAME)
 ISORT_DIRS := platform_registry_api tests setup.py
 FLAKE8_DIRS := $(ISORT_DIRS)
