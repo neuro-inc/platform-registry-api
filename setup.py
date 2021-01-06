@@ -12,7 +12,7 @@ install_requires = (
     "neuro_auth_client==21.1.4",
     "uvloop==0.14.0",
     "aiobotocore==1.1.2",
-    "urllib3>=1.20,<1.26",  # botocore requirements
+    "urllib3>=1.20,<1.27",  # botocore requirements
     "platform-logging==0.3",
     "trafaret==2.1.0",
     "aiozipkin==1.0.0",
