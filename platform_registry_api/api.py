@@ -852,11 +852,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     config=config.upstream_registry, client=session
                 )
             else:
-                upstream_cm = create_aws_ecr_upstream(
-                    config=config.upstream_registry,
-                    aws_access_key_id="AKIA3HDTDV4L76ECJLKI",
-                    aws_secret_access_key="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",
-                )
+                upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
             app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
                 upstream_cm
             )

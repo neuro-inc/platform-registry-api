@@ -45,6 +45,7 @@ resources:
 secrets: []
 
 ingress:
+  enabled: true
   extraAnnotations:
     external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]

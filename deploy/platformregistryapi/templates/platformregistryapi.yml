@@ -56,6 +56,16 @@ spec:
           value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME
           value: {{ .Values.NP_CLUSTER_NAME }}
+        {{- if eq .Values.upstreamRegistry.type "basic" }}
+        - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
+{{- if .Values.upstreamRegistry.basicUsername }}
+{{ toYaml .Values.upstreamRegistry.basicUsername | indent 10 }}
+{{- end }}
+        - name: NP_REGISTRY_UPSTREAM_BASIC_PASSWORD
+{{- if .Values.upstreamRegistry.basicPassword }}
+{{ toYaml .Values.upstreamRegistry.basicPassword | indent 10 }}
+{{- end }}
+        {{- end }}
         {{- if eq .Values.upstreamRegistry.type "oauth" }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
           value: {{ .Values.upstreamRegistry.tokenService | quote }}
@@ -110,7 +120,7 @@ spec:
     targetPort: http
   selector:
     service: platformregistryapi
-{{- if .Values.ingress }}
+{{- if .Values.ingress.enabled }}
 ---
 apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
