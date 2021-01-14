@@ -8,3 +8,5 @@ venv/
 .python-version
 dist/
 .eggs
+
+temp_deploy/

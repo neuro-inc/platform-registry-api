@@ -1,10 +1,15 @@
-IMAGE: neuro-docker-local-public.jfrog.io/platformregistryapi:IMAGE_TAG
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_REPLICAS: "2"
-DOCKER_LOGIN_ARTIFACTORY_SECRET_NAME: "artifactory-regcred"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '0.1'  # 10% of traces are saved
 NP_CLUSTER_NAME: ''
+
+image:
+  repository: "$IMAGE_REPO"
+  tag: "$IMAGE_TAG"
+
+imagePullSecrets: []
+
+replicas: 2
 
 platform:
   token: {}

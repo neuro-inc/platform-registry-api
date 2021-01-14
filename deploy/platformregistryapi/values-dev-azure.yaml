@@ -1,6 +1,4 @@
-IMAGE:
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_REPLICAS: "2"
 NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
 NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
 NP_CLUSTER_NAME: 'default'
@@ -36,18 +34,9 @@ upstreamRegistry:
   maxCatalogEntries: 10000
   project: dev
 
-resources:
-  requests:
-    cpu: "0.1"
-    memory: "100Mi"
-  limits:
-    cpu: "0.2"
-    memory: "150Mi"
-
-secrets: []
-
 ingress:
   enabled: true
+
   extraAnnotations:
     external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]
