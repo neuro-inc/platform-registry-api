@@ -128,7 +128,7 @@ _helm_fetch:
 	find temp_deploy/$(HELM_CHART) -type f -name 'values*' -delete
 
 _helm_expand_vars:
-	export IMAGE_REPO=$(ARTIFACTORY_IMAGE); \
+	export IMAGE_REPO=$(ARTIFACTORY_IMAGE_REPO); \
 	export IMAGE_TAG=$(TAG); \
 	cat deploy/$(HELM_CHART)/values-template.yaml | envsubst > temp_deploy/$(HELM_CHART)/values.yaml
 
