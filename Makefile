@@ -1,22 +1,34 @@
+AWS_ACCOUNT_ID ?= 771188043543
+AWS_REGION ?= us-east-1
+
+AZURE_RG_NAME ?= dev
+AZURE_ACR_NAME ?= crc570d91c95c6aac0ea80afb1019a0c6f
+
+ARTIFACTORY_DOCKER_REPO ?= neuro-docker-local-public.jfrog.io
+ARTIFACTORY_HELM_REPO ?= https://neuro.jfrog.io/artifactory/helm-local-public
+
+HELM_ENV ?= dev
+
+TAG ?= latest
+
 IMAGE_NAME ?= platformregistryapi
-IMAGE_TAG ?= latest
-IMAGE_NAME_K8S ?= $(IMAGE_NAME)
-ISORT_DIRS := platform_registry_api tests setup.py
-FLAKE8_DIRS := $(ISORT_DIRS)
-BLACK_DIRS := $(ISORT_DIRS)
-MYPY_DIRS := $(ISORT_DIRS)
+IMAGE ?= $(IMAGE_NAME):$(TAG)
+
+CLOUD_IMAGE_REPO_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
+CLOUD_IMAGE_REPO_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+CLOUD_IMAGE_REPO_azure ?= $(AZURE_ACR_NAME).azurecr.io
+CLOUD_IMAGE_REPO_BASE  ?= ${CLOUD_IMAGE_REPO_${CLOUD_PROVIDER}}
+CLOUD_IMAGE_REPO       ?= $(CLOUD_IMAGE_REPO_BASE)/$(IMAGE_NAME)
+CLOUD_IMAGE            ?= $(CLOUD_IMAGE_REPO):$(TAG)
+
+ARTIFACTORY_IMAGE_REPO = $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME)
+ARTIFACTORY_IMAGE = $(ARTIFACTORY_IMAGE_REPO):$(TAG)
+
+HELM_CHART = platformregistryapi
+
+export CLOUD_IMAGE_REPO_BASE
 
 export PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
-
-IMAGE_REPO_gke   ?= $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
-IMAGE_REPO_aws   ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-IMAGE_REPO_azure ?= $(AZURE_ACR_NAME).azurecr.io
-
-IMAGE_REPO  ?= ${IMAGE_REPO_${CLOUD_PROVIDER}}
-
-export IMAGE_REPO
-
-CLOUD_IMAGE  ?=$(IMAGE_REPO)/$(IMAGE_NAME)
 
 setup init:
 	pip install -e .
@@ -25,7 +37,7 @@ setup init:
 
 build:
 	python setup.py sdist
-	docker build -f Dockerfile -t $(IMAGE_NAME):$(IMAGE_TAG) \
+	docker build -f Dockerfile -t $(IMAGE) \
 	--build-arg PIP_EXTRA_INDEX_URL \
 	--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz .
 
@@ -77,7 +89,7 @@ _test_integration:
 	pytest -vv tests/integration
 
 lint: format
-	mypy $(MYPY_DIRS)
+	mypy platform_registry_api tests setup.py
 
 format:
 ifdef CI_LINT_RUN
@@ -85,7 +97,6 @@ ifdef CI_LINT_RUN
 else
 	pre-commit run --all-files
 endif
-
 
 gke_k8s_login:
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
@@ -104,37 +115,35 @@ azure_k8s_login:
 helm_install:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
 	helm init --client-only
-
-gke_docker_push: build
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(IMAGE_K8S):$(IMAGE_TAG)
-	docker tag $(IMAGE_K8S):$(IMAGE_TAG) $(IMAGE_K8S):$(GITHUB_SHA)
-	docker push $(IMAGE_K8S)
-
-ecr_login: build
-	$$(aws ecr get-login --no-include-email --region $(AWS_REGION) )
+	helm plugin install https://github.com/belitre/helm-push-artifactory-plugin
 
 docker_push: build
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(IMAGE_TAG)
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(CLOUD_IMAGE):$(GITHUB_SHA)
-	docker push $(CLOUD_IMAGE):$(IMAGE_TAG)
-	docker push $(CLOUD_IMAGE):$(GITHUB_SHA)
+	docker tag $(IMAGE) $(CLOUD_IMAGE)
+	docker push $(CLOUD_IMAGE)
 
-helm_deploy:
-	helm init --client-only
-	helm -f deploy/platformregistryapi/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml --set "IMAGE=$(CLOUD_IMAGE):$(GITHUB_SHA)" upgrade --install platformregistryapi deploy/platformregistryapi --namespace platform --wait --timeout 600
+_helm_fetch:
+	rm -rf temp_deploy/$(HELM_CHART)
+	mkdir -p temp_deploy/$(HELM_CHART)
+	cp -Rf deploy/$(HELM_CHART) temp_deploy/
+	find temp_deploy/$(HELM_CHART) -type f -name 'values*' -delete
+
+_helm_expand_vars:
+	export IMAGE_REPO=$(ARTIFACTORY_IMAGE); \
+	export IMAGE_TAG=$(TAG); \
+	cat deploy/$(HELM_CHART)/values-template.yaml | envsubst > temp_deploy/$(HELM_CHART)/values.yaml
+
+helm_deploy: _helm_fetch _helm_expand_vars
+	helm upgrade $(HELM_CHART) temp_deploy/$(HELM_CHART) \
+		-f deploy/$(HELM_CHART)/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml
+		--set "image.repository=$(CLOUD_IMAGE_REPO)" \
+		--namespace platform --install --wait --timeout 600
 
 artifactory_docker_push: build
-	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
-	docker login $(ARTIFACTORY_DOCKER_REPO) --username=$(ARTIFACTORY_USERNAME) --password=$(ARTIFACTORY_PASSWORD)
-	docker push $(ARTIFACTORY_DOCKER_REPO)/$(IMAGE_NAME):$(ARTIFACTORY_TAG)
+	docker tag $(IMAGE) $(ARTIFACTORY_IMAGE)
+	docker push $(ARTIFACTORY_IMAGE)
 
-artifactory_helm_push: helm_install
-	mkdir -p temp_deploy/platformregistryapi
-	cp -Rf deploy/platformregistryapi/. temp_deploy/platformregistryapi
-	cp temp_deploy/platformregistryapi/values-template.yaml temp_deploy/platformregistryapi/values.yaml
-	sed -i "s/IMAGE_TAG/$(ARTIFACTORY_TAG)/g" temp_deploy/platformregistryapi/values.yaml
-	find temp_deploy/platformregistryapi -type f -name 'values-*' -delete
-	helm init --client-only
-	helm package --app-version=$(ARTIFACTORY_TAG) --version=$(ARTIFACTORY_TAG) temp_deploy/platformregistryapi/
-	helm plugin install https://github.com/belitre/helm-push-artifactory-plugin
-	helm push-artifactory $(IMAGE_NAME)-$(ARTIFACTORY_TAG).tgz $(ARTIFACTORY_HELM_REPO) --username $(ARTIFACTORY_USERNAME) --password $(ARTIFACTORY_PASSWORD)
+artifactory_helm_push: _helm_fetch _helm_expand_vars
+	helm package --app-version=$(TAG) --version=$(TAG) temp_deploy/$(HELM_CHART)
+	helm push-artifactory $(HELM_CHART)-$(TAG).tgz $(ARTIFACTORY_HELM_REPO) \
+		--username $(ARTIFACTORY_USERNAME) \
+		--password $(ARTIFACTORY_PASSWORD)
