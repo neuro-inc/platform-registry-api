@@ -497,7 +497,8 @@ class V2Handler:
     async def _handle_aws_ecr_tags_list(
         self, registry_repo_url: RepoURL, request: Request, url_factory: URLFactory
     ) -> Response:
-        _, _, user, repository, _, _ = request.path.split("/")
+        _, _, user, *repository, _, _ = request.path.split("/")
+        repository = "/".join(repository)
         args = {
             "repositoryName": f"{self._upstream_registry_config.project}/"
             f"{user}/{repository}",
