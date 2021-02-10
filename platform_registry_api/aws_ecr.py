@@ -82,7 +82,7 @@ class AWSECRUpstream(Upstream):
         response_metadata = upstream_response["ResponseMetadata"]
         assert response_metadata["HTTPStatusCode"] == 200
         content: Dict[str, Any] = upstream_response
-        if len(upstream_response["failures"]) == 0:
+        if len(upstream_response.get("failures", [])) == 0:
             status = 202
         else:
             failure = upstream_response["failures"][0]

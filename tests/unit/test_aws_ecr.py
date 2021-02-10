@@ -259,3 +259,14 @@ class TestAWSECRUpstream:
                 }
             ]
         }
+
+    @pytest.mark.asyncio
+    async def test_get_image_tags_no_failures(self, upstream: AWSECRUpstream) -> None:
+        upstream_response: Dict[str, Any] = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        response_status, response_content = await upstream.convert_upstream_response(
+            upstream_response
+        )
+        assert response_status == 202
+        assert response_content == {}
