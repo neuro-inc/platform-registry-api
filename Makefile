@@ -121,6 +121,9 @@ docker_push: build
 	docker tag $(IMAGE) $(CLOUD_IMAGE)
 	docker push $(CLOUD_IMAGE)
 
+	docker tag $(IMAGE) $(CLOUD_IMAGE_REPO):latest
+	docker push $(CLOUD_IMAGE_REPO):latest
+
 _helm_fetch:
 	rm -rf temp_deploy/$(HELM_CHART)
 	mkdir -p temp_deploy/$(HELM_CHART)
