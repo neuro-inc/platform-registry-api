@@ -17,7 +17,7 @@ install_requires = (
     "trafaret==2.1.0",
     "aiozipkin==1.0.0",
     "yarl==1.6.3",
-    "sentry-sdk==0.20.0",
+    "sentry-sdk==0.20.1",
 )
 
 setup(
