@@ -10,7 +10,7 @@ install_requires = (
     "cchardet==2.1.7",
     "iso8601==0.1.14",
     "neuro_auth_client==21.1.6",
-    "uvloop==0.15.1",
+    "uvloop==0.15.2",
     "aiobotocore==1.2.1",
     "urllib3>=1.20,<1.27",  # botocore requirements
     "platform-logging==0.3",
