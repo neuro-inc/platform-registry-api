@@ -42,10 +42,20 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
-        - name: NP_REGISTRY_ZIPKIN_URL
-          value: {{ .Values.NP_REGISTRY_ZIPKIN_URL }}
-        - name: NP_REGISTRY_ZIPKIN_SAMPLE_RATE
-          value: "{{ .Values.NP_REGISTRY_ZIPKIN_SAMPLE_RATE }}"
+        {{- if .Values.zipkin }}
+        - name: NP_ZIPKIN_URL
+          value: {{ .Values.zipkin.url }}
+        - name: NP_ZIPKIN_SAMPLE_RATE
+          value: {{ .Values.zipkin.sampleRate | default 0 | quote }}
+        {{- end }}
+        {{- if .Values.sentry }}
+        - name: NP_SENTRY_DSN
+          value: {{ .Values.sentry.dsn }}
+        - name: NP_SENTRY_CLUSTER_NAME
+          value: {{ .Values.sentry.clusterName }}
+        - name: NP_SENTRY_SAMPLE_RATE
+          value: {{ .Values.sentry.sampleRate | default 0 | quote }}
+        {{- end }}
         - name: NP_REGISTRY_UPSTREAM_TYPE
           value: {{ .Values.upstreamRegistry.type | quote }}
         - name: NP_REGISTRY_UPSTREAM_URL
@@ -91,14 +101,6 @@ spec:
         {{- if eq .Values.upstreamRegistry.type "aws_ecr" }}
         - name: AWS_DEFAULT_REGION
           value: {{ .Values.AWS_DEFAULT_REGION }}
-        {{- end }}
-        {{- if .Values.NP_SENTRY_URL }}
-        - name: NP_SENTRY_URL
-          value: {{ .Values.NP_SENTRY_URL }}
-        {{- end }}
-        {{- if .Values.NP_SENTRY_CLUSTER_NAME }}
-        - name: NP_SENTRY_CLUSTER_NAME
-          value: {{ .Values.NP_SENTRY_CLUSTER_NAME }}
         {{- end }}
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets: {{ toYaml .Values.imagePullSecrets | nindent 6 }}

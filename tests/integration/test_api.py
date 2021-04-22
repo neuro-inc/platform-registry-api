@@ -10,7 +10,6 @@ from platform_registry_api.config import (
     EnvironConfigFactory,
     ServerConfig,
     UpstreamRegistryConfig,
-    ZipkinConfig,
 )
 from tests import _TestClientFactory
 from tests.integration.conftest import _User
@@ -32,12 +31,10 @@ def config(in_docker: bool, admin_token: str, cluster_name: str) -> Config:
     auth = AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )
-    zipkin_config = ZipkinConfig(URL("http://zipkin:9411"), 0)
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
-        zipkin=zipkin_config,
         cluster_name=cluster_name,
     )
 

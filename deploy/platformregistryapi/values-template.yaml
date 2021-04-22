@@ -1,7 +1,5 @@
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
-NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '0.1'  # 10% of traces are saved
-NP_CLUSTER_NAME: ''
+NP_CLUSTER_NAME: ""
 
 image:
   repository: "$IMAGE_REPO"
@@ -28,3 +26,7 @@ secrets: []
 
 ingress:
   enabled: false
+
+zipkin: {}
+
+sentry: {}

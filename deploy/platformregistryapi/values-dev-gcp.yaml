@@ -1,7 +1,5 @@
 NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_REGISTRY_ZIPKIN_URL: 'http://zipkin:9411'
-NP_REGISTRY_ZIPKIN_SAMPLE_RATE: '1'  # 100% of traces are saved
-NP_CLUSTER_NAME: 'default'
+NP_CLUSTER_NAME: default
 
 platform:
   token:
@@ -38,3 +36,8 @@ ingress:
   extraAnnotations:
     external-dns.platform.neuromation.io: "true"
   hosts: [registry-dev.neu.ro]
+
+sentry:
+  dsn: https://11316dd021994d7085c50e86c2ae404c@o454648.ingest.sentry.io/5597106
+  clusterName: dev
+  sampleRate: 0.1
