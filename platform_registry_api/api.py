@@ -806,11 +806,7 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
     response.headers["X-Service-Version"] = f"platform-registry-api/{package_version}"
 
 
-async def create_app(config: Config) -> aiohttp.web.Application:
-    app = aiohttp.web.Application()
-
-    await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
-
+def make_tracing_trace_configs(config: Config) -> List[aiohttp.TraceConfig]:
     trace_configs = []
 
     if config.zipkin:
@@ -818,6 +814,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     if config.sentry:
         trace_configs.append(make_sentry_trace_config())
+
+    return trace_configs
+
+
+async def create_app(config: Config) -> aiohttp.web.Application:
+    app = aiohttp.web.Application()
+
+    await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -834,7 +838,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             session = await exit_stack.enter_async_context(
                 aiohttp.ClientSession(
-                    trace_configs=[trace_config] + trace_configs,
+                    trace_configs=[trace_config] + make_tracing_trace_configs(config),
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
@@ -856,7 +860,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 AuthClient(
                     url=config.auth.server_endpoint_url,
                     token=config.auth.service_token,
-                    trace_configs=trace_configs,
+                    trace_configs=make_tracing_trace_configs(config),
                 )
             )
             app["v2_app"]["auth_client"] = auth_client
