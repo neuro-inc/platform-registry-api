@@ -888,14 +888,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
-def main() -> None:
-    init_logging()
-
-    loop = asyncio.get_event_loop()
-
-    config = EnvironConfigFactory().create()
-    logger.info("Loaded config: %r", config)
-
+def setup_tracing(config: Config) -> None:
     if config.zipkin:
         setup_zipkin_tracer(
             config.zipkin.app_name,
@@ -913,5 +906,14 @@ def main() -> None:
             sample_rate=config.sentry.sample_rate,
         )
 
+
+def main() -> None:
+    init_logging()
+
+    loop = asyncio.get_event_loop()
+
+    config = EnvironConfigFactory().create()
+    logger.info("Loaded config: %r", config)
+    setup_tracing(config)
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)
