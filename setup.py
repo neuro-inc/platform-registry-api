@@ -12,7 +12,7 @@ install_requires = (
     "neuro_auth_client==21.4.24",
     "uvloop==0.15.2",
     "aiobotocore==1.3.0",
-    "platform-logging==21.4.22",
+    "platform-logging==21.4.25",
     "trafaret==2.1.0",
     "aiozipkin==1.0.0",
     "yarl==1.6.3",
