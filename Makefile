@@ -31,6 +31,7 @@ export CLOUD_IMAGE_REPO_BASE
 export PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
 
 setup init:
+	pip install -U pip
 	pip install -e .
 	pip install -r requirements-test.txt
 	pre-commit install

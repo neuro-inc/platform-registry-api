@@ -4,6 +4,7 @@ from typing import Any, Dict, Tuple
 
 from aiobotocore.client import AioBaseClient
 from aiohttp.hdrs import AUTHORIZATION
+from platform_logging import trace
 
 from .cache import ExpiringCache
 from .typedefs import TimeFactory
@@ -59,18 +60,22 @@ class AWSECRUpstream(Upstream):
             self._cache.put(scope, headers, token.expires_at)
         return dict(headers)
 
+    @trace
     async def create_repo(self, repo: str) -> None:
         try:
             await self._client.create_repository(repositoryName=repo)
         except self._client.exceptions.RepositoryAlreadyExistsException:
             pass
 
+    @trace
     async def get_headers_for_version(self) -> Dict[str, str]:
         return await self._get_headers()
 
+    @trace
     async def get_headers_for_catalog(self) -> Dict[str, str]:
         return await self._get_headers()
 
+    @trace
     async def get_headers_for_repo(
         self, repo: str, mounted_repo: str = ""
     ) -> Dict[str, str]:

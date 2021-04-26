@@ -22,9 +22,7 @@ from typing import (
 import aiobotocore
 import aiohttp.web
 import aiohttp_remotes
-import aiozipkin
 import pkg_resources
-import sentry_sdk
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
@@ -42,9 +40,14 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
-from platform_logging import init_logging
-from sentry_sdk import set_tag
-from sentry_sdk.integrations.aiohttp import AioHttpIntegration
+from platform_logging import (
+    init_logging,
+    make_sentry_trace_config,
+    make_zipkin_trace_config,
+    setup_sentry,
+    setup_zipkin,
+    setup_zipkin_tracer,
+)
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
@@ -796,20 +799,6 @@ async def create_aws_ecr_upstream(
         yield AWSECRUpstream(client=client, time_factory=time_factory)
 
 
-async def create_tracer(config: Config) -> aiozipkin.Tracer:
-    endpoint = aiozipkin.create_endpoint(
-        "platformregistryapi",  # the same name as pod prefix on a cluster
-        ipv4=config.server.host,
-        port=config.server.port,
-    )
-
-    zipkin_address = config.zipkin.url / "api/v2/spans"
-    tracer = await aiozipkin.create(
-        str(zipkin_address), endpoint, sample_rate=config.zipkin.sample_rate
-    )
-    return tracer
-
-
 package_version = pkg_resources.get_distribution("platform-registry-api").version
 
 
@@ -817,11 +806,22 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
     response.headers["X-Service-Version"] = f"platform-registry-api/{package_version}"
 
 
+def make_tracing_trace_configs(config: Config) -> List[aiohttp.TraceConfig]:
+    trace_configs = []
+
+    if config.zipkin:
+        trace_configs.append(make_zipkin_trace_config())
+
+    if config.sentry:
+        trace_configs.append(make_sentry_trace_config())
+
+    return trace_configs
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
-    tracer = await create_tracer(config)
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -834,13 +834,11 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             trace_config = aiohttp.TraceConfig()
             trace_config.on_request_redirect.append(on_request_redirect)
 
-            auth_trace_config = aiozipkin.make_trace_config(tracer)
-
             logger.info("Initializing Registry Client Session")
 
             session = await exit_stack.enter_async_context(
                 aiohttp.ClientSession(
-                    trace_configs=[trace_config, auth_trace_config],
+                    trace_configs=[trace_config] + make_tracing_trace_configs(config),
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
@@ -862,7 +860,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 AuthClient(
                     url=config.auth.server_endpoint_url,
                     token=config.auth.service_token,
-                    trace_config=auth_trace_config,
+                    trace_configs=make_tracing_trace_configs(config),
                 )
             )
             app["v2_app"]["auth_client"] = auth_client
@@ -873,7 +871,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             yield
 
-    aiozipkin.setup(app, tracer)
     app.cleanup_ctx.append(_init_app)
 
     v2_app = aiohttp.web.Application()
@@ -885,7 +882,29 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     app.on_response_prepare.append(add_version_to_header)
 
+    if config.zipkin:
+        setup_zipkin(app)
+
     return app
+
+
+def setup_tracing(config: Config) -> None:
+    if config.zipkin:
+        setup_zipkin_tracer(
+            config.zipkin.app_name,
+            config.server.host,
+            config.server.port,
+            config.zipkin.url,
+            config.zipkin.sample_rate,
+        )
+
+    if config.sentry:
+        setup_sentry(
+            config.sentry.dsn,
+            app_name=config.sentry.app_name,
+            cluster_name=config.sentry.cluster_name,
+            sample_rate=config.sentry.sample_rate,
+        )
 
 
 def main() -> None:
@@ -895,13 +914,6 @@ def main() -> None:
 
     config = EnvironConfigFactory().create()
     logger.info("Loaded config: %r", config)
-
-    sentry_url = config.sentry_url
-    if sentry_url:
-        sentry_sdk.init(dsn=sentry_url, integrations=[AioHttpIntegration()])
-
-    set_tag("cluster", config.sentry_cluster_name)
-    set_tag("app", "platformregistryapi")
-
+    setup_tracing(config)
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)

@@ -9,11 +9,10 @@ install_requires = (
     "aiohttp-remotes==1.0.0",
     "cchardet==2.1.7",
     "iso8601==0.1.14",
-    "neuro_auth_client==21.1.6",
+    "neuro_auth_client==21.4.24",
     "uvloop==0.15.2",
     "aiobotocore==1.3.0",
-    "urllib3>=1.20,<1.27",  # botocore requirements
-    "platform-logging==0.3",
+    "platform-logging==21.4.25",
     "trafaret==2.1.0",
     "aiozipkin==1.0.0",
     "yarl==1.6.3",

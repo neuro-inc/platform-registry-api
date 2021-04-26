@@ -27,7 +27,6 @@ from platform_registry_api.config import (
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
-    ZipkinConfig,
 )
 from tests import _TestClientFactory
 from tests.integration.conftest import _User
@@ -200,12 +199,10 @@ def config(upstream: URL, auth_config: AuthConfig, project: str) -> Config:
         basic_username="testuser",
         basic_password="testpassword",
     )
-    zipkin_config = ZipkinConfig(URL("http://zipkin:9411"), 0)
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth_config,
-        zipkin=zipkin_config,
         cluster_name="test-cluster",
     )
 
