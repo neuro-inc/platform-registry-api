@@ -47,6 +47,7 @@ from platform_logging import (
     setup_sentry,
     setup_zipkin,
     setup_zipkin_tracer,
+    trace,
 )
 from yarl import URL
 
@@ -605,6 +606,7 @@ class V2Handler:
     def _create_image_uri(self, repo: str) -> str:
         return f"image://{self._config.cluster_name}/{repo}"
 
+    @trace
     async def _check_user_permissions(
         self, request: Request, permissions: Sequence[Permission]
     ) -> None:
@@ -628,6 +630,7 @@ class V2Handler:
             sock_read=sock_read_timeout_s,
         )
 
+    @trace
     async def _proxy_request(
         self,
         request: Request,
