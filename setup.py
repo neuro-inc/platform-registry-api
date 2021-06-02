@@ -28,7 +28,7 @@ setup(
     packages=find_packages(),
     setup_requires=setup_requires,
     install_requires=install_requires,
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     entry_points={
         "console_scripts": "platform-registry-api=platform_registry_api.api:main"
     },
