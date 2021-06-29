@@ -651,7 +651,8 @@ class V2Handler:
             request.method == "DELETE"
             and self._config.upstream_registry.type == UpstreamType.AWS_ECR
         ):
-            _, _, user, repository, _, digest = request.path.split("/")
+            _, _, user, *repository_components, _, digest = request.path.split("/")
+            repository = "/".join(repository_components)
             client_response = (
                 await self._upstream._client.batch_delete_image(  # type: ignore
                     repositoryName=f"{self._upstream_registry_config.project}/"
