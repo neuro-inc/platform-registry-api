@@ -33,7 +33,7 @@ export PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
 setup init:
 	pip install -U pip
 	pip install -e .
-	pip install -r requirements-test.txt
+	pip install -r requirements.txt
 	pre-commit install
 
 build:
