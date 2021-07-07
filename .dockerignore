@@ -4,6 +4,6 @@
 
 !Makefile
 !tests
-!requirements-test.txt
+!requirements.txt
 
 **/*.pyc

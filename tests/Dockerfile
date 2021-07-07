@@ -1,7 +1,7 @@
 FROM platformregistryapi:latest
 
-COPY requirements-test.txt ./
-RUN pip install -r requirements-test.txt
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
 
 COPY Makefile ./
 
