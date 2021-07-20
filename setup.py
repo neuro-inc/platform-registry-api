@@ -10,7 +10,7 @@ install_requires = (
     "cchardet==2.1.7",
     "iso8601==0.1.16",
     "neuro_auth_client==21.5.17",
-    "uvloop==0.15.2",
+    "uvloop==0.15.3",
     "aiobotocore==1.3.3",
     "platform-logging==21.5.27",
     "trafaret==2.1.0",
