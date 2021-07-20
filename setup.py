@@ -11,7 +11,7 @@ install_requires = (
     "iso8601==0.1.14",
     "neuro_auth_client==21.5.17",
     "uvloop==0.15.2",
-    "aiobotocore==1.3.0",
+    "aiobotocore==1.3.3",
     "platform-logging==21.5.27",
     "trafaret==2.1.0",
     "aiozipkin==1.1.0",
