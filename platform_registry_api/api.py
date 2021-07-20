@@ -653,19 +653,30 @@ class V2Handler:
         ):
             _, _, user, *repository_components, _, digest = request.path.split("/")
             repository = "/".join(repository_components)
-            client_response = (
-                await self._upstream._client.batch_delete_image(  # type: ignore
-                    repositoryName=f"{self._upstream_registry_config.project}/"
-                    f"{user}/{repository}",
-                    imageIds=[
-                        {
-                            "imageDigest": digest,
-                        }
-                    ],
-                )
+            aws_upstream: AWSECRUpstream = self._upstream  # type: ignore
+            repository_name = (
+                f"{self._upstream_registry_config.project}/" f"{user}/{repository}"
+            )
+            client_response = await aws_upstream._client.batch_delete_image(
+                repositoryName=repository_name,
+                imageIds=[
+                    {
+                        "imageDigest": digest,
+                    }
+                ],
             )
 
             logger.debug("upstream response: %s", client_response)
+
+            client_response = await aws_upstream._client.list_images(
+                repositoryName=repository_name, maxResults=1
+            )
+            has_images = len((await client_response.json())["imageIds"]) > 0
+
+            if not has_images:
+                client_response = await aws_upstream._client.delete_repository(
+                    repositoryName=repository_name
+                )
 
             response_headers = self._prepare_response_headers(
                 client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
