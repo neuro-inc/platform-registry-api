@@ -13,6 +13,7 @@ updates:
     interval: daily
     time: "03:00"
   open-pull-requests-limit: 10
+  insecure-external-code-execution: allow
   registries:
   - python-index-devpi-dev-neu-ro-testuser-dev
 - package-ecosystem: github-actions
