@@ -671,7 +671,7 @@ class V2Handler:
             client_response = await aws_upstream._client.list_images(
                 repositoryName=repository_name, maxResults=1
             )
-            has_images = len((await client_response.json())["imageIds"]) > 0
+            has_images = len(client_response["imageIds"]) > 0
 
             if not has_images:
                 client_response = await aws_upstream._client.delete_repository(
