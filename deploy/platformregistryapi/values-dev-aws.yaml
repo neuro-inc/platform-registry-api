@@ -3,7 +3,7 @@ NP_CLUSTER_NAME: default
 AWS_DEFAULT_REGION: us-east-1
 
 annotations:
-  iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-d04bce531282b98cb801932de6c118c7
+  iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-366c09e4841fcc83df56b8f070c34716
 
 platform:
   token:
