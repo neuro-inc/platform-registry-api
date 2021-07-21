@@ -84,13 +84,14 @@ class AWSECRUpstream(Upstream):
     async def convert_upstream_response(
         self, upstream_response: Dict[str, Any]
     ) -> Tuple[int, Dict[str, Any]]:
-        response_metadata = upstream_response["ResponseMetadata"]
+        response_metadata = upstream_response.pop("ResponseMetadata")
+        failures = upstream_response.pop("failures", [])
         assert response_metadata["HTTPStatusCode"] == 200
         content: Dict[str, Any] = upstream_response
-        if len(upstream_response.get("failures", [])) == 0:
+        if len(failures) == 0:
             status = 202
         else:
-            failure = upstream_response["failures"][0]
+            failure = failures[0]
             if failure["failureCode"] == "ImageNotFound":
                 status = 404
                 content = {
@@ -125,6 +126,8 @@ class AWSECRUpstream(Upstream):
                     ]
                 }
 
-        content.pop("failures", None)
-        content.pop("ResponseMetadata", None)
+        content.pop("createdAt", None)
+        content.pop("repositoryArn", None)
+        content.pop("registryId", None)
+        content.pop("repositoryUri", None)
         return (status, content)
