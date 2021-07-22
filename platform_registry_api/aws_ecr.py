@@ -126,5 +126,4 @@ class AWSECRUpstream(Upstream):
                         }
                     ]
                 }
-
         return (status, content)
