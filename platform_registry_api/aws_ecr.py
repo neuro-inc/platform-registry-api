@@ -90,6 +90,7 @@ class AWSECRUpstream(Upstream):
         content: Dict[str, Any] = upstream_response
         if len(failures) == 0:
             status = 202
+            content = {}
         else:
             failure = failures[0]
             if failure["failureCode"] == "ImageNotFound":
