@@ -87,7 +87,7 @@ class AWSECRUpstream(Upstream):
         response_metadata = upstream_response.pop("ResponseMetadata")
         failures = upstream_response.pop("failures", [])
         assert response_metadata["HTTPStatusCode"] == 200
-        content: Dict[str, Any]
+        content: Dict[str, Any] = upstream_response
         if len(failures) == 0:
             status = 202
             content = {}
@@ -126,4 +126,9 @@ class AWSECRUpstream(Upstream):
                         }
                     ]
                 }
+
+        content.pop("createdAt", None)
+        content.pop("repositoryArn", None)
+        content.pop("registryId", None)
+        content.pop("repositoryUri", None)
         return (status, content)
