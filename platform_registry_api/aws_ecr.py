@@ -132,9 +132,8 @@ class AWSECRUpstream(Upstream):
                     ]
                 }
 
-        content.pop("createdAt", None)
-        content.pop("repositoryArn", None)
-        content.pop("registryId", None)
-        content.pop("repositoryUri", None)
+        content.pop("failures", None)
+        content.pop("ResponseMetadata", None)
+        content.pop("repository", None)
         logger.info("content after pop: %s", content)
         return (status, content)
