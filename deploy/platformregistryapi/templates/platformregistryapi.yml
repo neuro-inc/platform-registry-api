@@ -36,8 +36,6 @@ spec:
           containerPort: 8080
           protocol: TCP
         env:
-        - name: NP_LOG_LEVEL
-          value: DEBUG
         - name: NP_REGISTRY_AUTH_URL
           value: {{ .Values.NP_REGISTRY_AUTH_URL }}
         - name: NP_REGISTRY_AUTH_TOKEN
