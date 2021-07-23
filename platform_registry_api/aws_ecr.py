@@ -132,6 +132,8 @@ class AWSECRUpstream(Upstream):
                     ]
                 }
 
+        content.pop("failures", None)
+        content.pop("ResponseMetadata", None)
         content.pop("repository", None)
         logger.info("content after pop: %s", content)
         return (status, content)
