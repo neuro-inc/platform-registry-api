@@ -666,16 +666,20 @@ class V2Handler:
                 ],
             )
 
-            logger.debug("upstream response: %s", client_response)
+            logger.debug("upstream response to batchDeleteImage: %s", client_response)
 
             client_response = await aws_upstream._client.list_images(
                 repositoryName=repository_name, maxResults=1
             )
+            logger.debug("upstream response to listImages: %s", client_response)
             has_images = len(client_response["imageIds"]) > 0
 
             if not has_images:
                 client_response = await aws_upstream._client.delete_repository(
                     repositoryName=repository_name
+                )
+                logger.debug(
+                    "upstream response to deleteRepository: %s", client_response
                 )
 
             response_headers = self._prepare_response_headers(
