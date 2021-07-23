@@ -529,6 +529,8 @@ class V2Handler:
                 client_response
             )
 
+            logger.info("client data: %s", data)
+
             data = {
                 "name": registry_repo_url.repo,
                 "tags": [image["imageTag"] for image in data.get("imageIds", [])],
