@@ -92,10 +92,9 @@ class AWSECRUpstream(Upstream):
         failures = upstream_response.pop("failures", [])
         assert response_metadata["HTTPStatusCode"] == 200
         content: Dict[str, Any] = upstream_response
-        logger.info("content: %s", content)
+        logger.debug("content: %s", content)
         if len(failures) == 0:
             status = 202
-            logger.info("no failures")
         else:
             failure = failures[0]
             if failure["failureCode"] == "ImageNotFound":
@@ -135,5 +134,5 @@ class AWSECRUpstream(Upstream):
         content.pop("failures", None)
         content.pop("ResponseMetadata", None)
         content.pop("repository", None)
-        logger.info("content after pop: %s", content)
+        logger.debug("content after pop: %s", content)
         return (status, content)
