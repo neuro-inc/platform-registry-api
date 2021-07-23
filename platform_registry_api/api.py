@@ -531,7 +531,7 @@ class V2Handler:
 
             data = {
                 "name": registry_repo_url.repo,
-                "tags": [image["imageTag"] for image in data["imageIds"]],
+                "tags": [image["imageTag"] for image in data.get("imageIds", [])],
             }
 
             if "nextToken" in client_response.keys():
