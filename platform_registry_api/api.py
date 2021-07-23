@@ -529,7 +529,7 @@ class V2Handler:
                 client_response
             )
 
-            logger.info("client data: %s", data)
+            logger.info("status: %d, client data: %s", status, data)
 
             data = {
                 "name": registry_repo_url.repo,
