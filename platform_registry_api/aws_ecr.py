@@ -1,3 +1,4 @@
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
@@ -9,6 +10,9 @@ from platform_logging import trace
 from .cache import ExpiringCache
 from .typedefs import TimeFactory
 from .upstream import Upstream
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -88,8 +92,10 @@ class AWSECRUpstream(Upstream):
         failures = upstream_response.pop("failures", [])
         assert response_metadata["HTTPStatusCode"] == 200
         content: Dict[str, Any] = upstream_response
+        logger.info("content: %s", content)
         if len(failures) == 0:
             status = 202
+            logger.info("no failures")
         else:
             failure = failures[0]
             if failure["failureCode"] == "ImageNotFound":
@@ -130,4 +136,5 @@ class AWSECRUpstream(Upstream):
         content.pop("repositoryArn", None)
         content.pop("registryId", None)
         content.pop("repositoryUri", None)
+        logger.info("content after pop: %s", content)
         return (status, content)
