@@ -10,6 +10,10 @@ install_requires = (
     "cchardet==2.1.7",
     "iso8601==0.1.16",
     "neuro_auth_client==21.7.27",
+    # uvloop 0.15.x has a bug and doesn't work with AWS registry + Kaniko
+    # cache: https://github.com/neuro-inc/platform-registry-api/issues/343
+    # uvloop 0.15.3 definitely has the bug, but upcoming versions may
+    # have it fixed. See the issue above for testing instructions.
     "uvloop==0.14.0",
     "aiobotocore==1.3.3",
     "platform-logging==21.7.27",
