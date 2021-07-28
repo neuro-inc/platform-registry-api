@@ -5,18 +5,18 @@ setup_requires = ("setuptools_scm",)
 
 install_requires = (
     "aiodns==3.0.0",
-    "aiohttp==3.7.3",
+    "aiohttp==3.7.4.post0",
     "aiohttp-remotes==1.0.0",
     "cchardet==2.1.7",
     "iso8601==0.1.16",
-    "neuro_auth_client==21.6.15",
+    "neuro_auth_client==21.7.27",
     "uvloop==0.14.0",
     "aiobotocore==1.3.3",
     "platform-logging==21.7.27",
     "trafaret==2.1.0",
     "aiozipkin==1.1.0",
     "yarl==1.6.3",
-    "sentry-sdk==1.3.0",
+    "sentry-sdk==1.3.1",
 )
 
 setup(
