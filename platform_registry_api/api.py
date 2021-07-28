@@ -24,7 +24,7 @@ import aiohttp.web
 import aiohttp_remotes
 import pkg_resources
 import trafaret as t
-from aiohttp import ClientResponseError, ClientSession
+from aiohttp import ClientPayloadError, ClientResponseError, ClientSession
 from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
 from aiohttp.web import (
     Application,
@@ -729,8 +729,12 @@ class V2Handler:
                     "registry response: %s; headers: %s", response, response.headers
                 )
 
-                async for chunk in client_response.content.iter_any():
-                    await response.write(chunk)
+                try:
+                    async for chunk in client_response.content.iter_any():
+                        await response.write(chunk)
+                except ClientPayloadError:
+                    # Most likely this error can be ignored
+                    logger.debug("Ignoring ClientPayloadError")
 
                 await response.write_eof()
                 return response
