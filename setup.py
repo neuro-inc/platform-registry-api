@@ -16,7 +16,7 @@ install_requires = (
     # have it fixed. See the issue above for testing instructions.
     "uvloop==0.14.0",
     "aiobotocore==1.3.3",
-    "platform-logging==21.7.27",
+    "platform-logging==21.7.28",
     "trafaret==2.1.0",
     "aiozipkin==1.1.0",
     "yarl==1.6.3",
