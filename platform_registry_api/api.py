@@ -925,6 +925,7 @@ def setup_tracing(config: Config) -> None:
             app_name=config.sentry.app_name,
             cluster_name=config.sentry.cluster_name,
             sample_rate=config.sentry.sample_rate,
+            exclude=[aiobotocore.RepositoryNotFoundException],
         )
 
 
