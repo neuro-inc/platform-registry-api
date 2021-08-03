@@ -5,7 +5,7 @@ setup_requires = ("setuptools_scm",)
 
 install_requires = (
     "aiodns==3.0.0",
-    "aiohttp==3.7.3",
+    "aiohttp==3.7.4.post0",
     "aiohttp-remotes==1.0.0",
     "cchardet==2.1.7",
     "iso8601==0.1.16",
