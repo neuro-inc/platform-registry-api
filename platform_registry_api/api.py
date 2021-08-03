@@ -40,7 +40,7 @@ from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
-from platform_logging import (
+from neuro_logging import (
     init_logging,
     make_sentry_trace_config,
     make_zipkin_trace_config,
