@@ -5,7 +5,7 @@ from typing import Any, Dict, Tuple
 
 from aiobotocore.client import AioBaseClient
 from aiohttp.hdrs import AUTHORIZATION
-from platform_logging import trace
+from neuro_logging import trace
 
 from .cache import ExpiringCache
 from .typedefs import TimeFactory
