@@ -17,6 +17,7 @@ from typing import (
     Pattern,
     Sequence,
     Tuple,
+    Type,
 )
 
 import aiobotocore
@@ -865,6 +866,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
             app["v2_app"]["registry_client"] = session
 
+            is_aws = False
             if config.upstream_registry.is_basic:
                 upstream_cm = create_basic_upstream(config=config.upstream_registry)
             elif config.upstream_registry.is_oauth:
@@ -873,9 +875,16 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             else:
                 upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
+                is_aws = True
             app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
                 upstream_cm
             )
+
+            if is_aws:
+                client = app["v2_app"]["upstream"]._client
+                exclude = [client.exceptions.RepositoryNotFoundException]
+            else:
+                exclude = []
 
             auth_client = await exit_stack.enter_async_context(
                 AuthClient(
@@ -889,6 +898,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
             )
+            setup_tracing(config, exclude)
 
             yield
 
@@ -909,7 +919,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
-def setup_tracing(config: Config) -> None:
+def setup_tracing(config: Config, exclude: List[Type[BaseException]]) -> None:
     if config.zipkin:
         setup_zipkin_tracer(
             config.zipkin.app_name,
@@ -925,7 +935,7 @@ def setup_tracing(config: Config) -> None:
             app_name=config.sentry.app_name,
             cluster_name=config.sentry.cluster_name,
             sample_rate=config.sentry.sample_rate,
-            exclude=[aiobotocore.RepositoryNotFoundException],
+            exclude=exclude,
         )
 
 
@@ -936,6 +946,5 @@ def main() -> None:
 
     config = EnvironConfigFactory().create()
     logger.info("Loaded config: %r", config)
-    setup_tracing(config)
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)
