@@ -46,9 +46,6 @@ pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
 	    -f tests/docker/e2e.compose.yml pull
 
-build_test: build
-	docker build -t platformregistryapi-test -f tests/Dockerfile .
-
 build_up: build
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
             -f tests/docker/e2e.compose.yml up
@@ -65,28 +62,10 @@ test_e2e_built: pull
 
 test_e2e: build test_e2e_built
 
-
-test_unit: build_test test_unit_built
-
-test_unit_built:
-	docker run --rm platformregistryapi-test make _test_unit
-
-_test_unit:
+test_unit:
 	pytest -vv tests/unit
 
-test_integration: build_test test_integration_built
-
-test_integration_built: pull
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
-	exit_code=$$?; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml kill; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml rm -f; \
-	exit $$exit_code
-
-_test_integration:
+test_integration:
 	pytest -vv tests/integration
 
 lint: format
