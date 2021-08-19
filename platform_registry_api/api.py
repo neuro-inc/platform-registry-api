@@ -332,7 +332,6 @@ class V2Handler:
             images_list, paging_url = await self._get_next_catalog_items(
                 paging_url, headers, timeout
             )
-            logger.warning(paging_url)
             if not images_list:
                 break
             for index, image in self.filter_images_1_indexed(
