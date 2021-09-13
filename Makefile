@@ -28,8 +28,6 @@ HELM_CHART = platformregistryapi
 
 export CLOUD_IMAGE_REPO_BASE
 
-export PIP_EXTRA_INDEX_URL ?= $(shell python pip_extra_index_url.py)
-
 setup init:
 	pip install -U pip
 	pip install -e .
@@ -39,7 +37,6 @@ setup init:
 build:
 	python setup.py sdist
 	docker build -f Dockerfile -t $(IMAGE) \
-	--build-arg PIP_EXTRA_INDEX_URL \
 	--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz .
 
 pull:

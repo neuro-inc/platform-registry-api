@@ -8,10 +8,6 @@ on:
     branches: [master]
   pull_request_target:
     branches: [master]
-
-env:
-  PIP_EXTRA_INDEX_URL: ${{ format('https://{0}:{1}@{2}/{0}/{3}', secrets.DEVPI_USER, secrets.DEVPI_PASS, secrets.DEVPI_HOST, secrets.DEVPI_INDEX) }}
-
 jobs:
   test:
     name: Run tests
