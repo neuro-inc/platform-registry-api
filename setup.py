@@ -25,7 +25,7 @@ install_requires = (
 
 setup(
     name="platform-registry-api",
-    url="https://github.com/neuromation/platform-registry-api",
+    url="https://github.com/neuro-inc/platform-registry-api",
     use_scm_version={
         "git_describe_command": "git describe --dirty --tags --long --match v*.*.*",
     },
