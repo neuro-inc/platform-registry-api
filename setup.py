@@ -14,7 +14,7 @@ install_requires = (
     # cache: https://github.com/neuro-inc/platform-registry-api/issues/343
     # uvloop 0.15.3 definitely has the bug, but upcoming versions may
     # have it fixed. See the issue above for testing instructions.
-    "uvloop==0.14.0",
+    "uvloop==0.16.0",
     "aiobotocore==1.4.1",
     "neuro-logging==21.8.4.1",
     "trafaret==2.1.0",
