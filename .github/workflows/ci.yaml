@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [master]
-    tags: ['v*.*.*']
+    tags: [v*.*.*]
   pull_request:
     branches: [master]
   pull_request_target:
@@ -34,12 +34,13 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: "3.8.10"
+        python-version: 3.8.10
     - name: Cache packages
       uses: actions/cache@v2.1.6
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.8-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py') }}
+        key: ${{ runner.os }}-py-3.8-${{ hashFiles('requirements/*.txt') }}-${{ hashFiles('setup.py')
+          }}
     - name: Install dependencies
       run: make setup
     - name: Configure AWS credentials
@@ -94,7 +95,7 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: "3.8.10"
+        python-version: 3.8.10
     - name: Login to Artifactory docker registry
       uses: docker/login-action@v1
       with:
@@ -127,7 +128,7 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: "3.8.10"
+        python-version: 3.8.10
     - name: Login to Artifactory docker registry
       uses: docker/login-action@v1
       with:
@@ -162,7 +163,7 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: "3.8.10"
+        python-version: 3.8.10
     - name: Configure AWS credentials
       if: env.CLOUD_PROVIDER == 'aws'
       uses: aws-actions/configure-aws-credentials@v1
@@ -195,3 +196,4 @@ jobs:
       run: make helm_install
     - name: Deploy to kubernetes
       run: make helm_deploy
+    concurrency: deploy_dev
