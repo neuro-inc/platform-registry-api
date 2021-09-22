@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [master]
-    tags: [v*.*.*]
+    tags: [v*.*, v*.*.*]
   pull_request:
     branches: [master]
   pull_request_target:
@@ -77,6 +77,15 @@ jobs:
       run: make test_integration
     - name: Run E2E tests
       run: make test_e2e
+    - name: Build Docker image
+      run: make build
+      env:
+        TAG: latest
+    - name: Upload image artifact
+      uses: neuro-inc/upload-image-action@v21.9.2
+      with:
+        image: platformregistryapi
+        token: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Deploy to Artifactory
