@@ -15,7 +15,7 @@ install_requires = (
     # uvloop 0.15.3 definitely has the bug, but upcoming versions may
     # have it fixed. See the issue above for testing instructions.
     "uvloop==0.14.0",
-    "aiobotocore==1.4.1",
+    "aiobotocore==1.4.2",
     "neuro-logging==21.9",
     "trafaret==2.1.0",
     "aiozipkin==1.1.0",
