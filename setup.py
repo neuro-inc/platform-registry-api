@@ -19,7 +19,7 @@ install_requires = (
     "neuro-logging==21.9",
     "trafaret==2.1.0",
     "aiozipkin==1.1.0",
-    "yarl==1.6.3",
+    "yarl==1.7.0",
     "sentry-sdk==1.4.3",
 )
 
