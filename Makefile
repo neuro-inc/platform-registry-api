@@ -90,8 +90,7 @@ azure_k8s_login:
 
 helm_install:
 	curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get | bash -s -- -v $(HELM_VERSION)
-	helm init --client-only
-	helm plugin install https://github.com/belitre/helm-push-artifactory-plugin
+	helm plugin install https://github.com/belitre/helm-push-artifactory-plugin --version 1.0.2
 
 docker_push: build
 	docker tag $(IMAGE) $(CLOUD_IMAGE)
@@ -115,7 +114,7 @@ helm_deploy: _helm_fetch _helm_expand_vars
 	helm upgrade $(HELM_CHART) temp_deploy/$(HELM_CHART) \
 		-f deploy/$(HELM_CHART)/values-$(HELM_ENV)-$(CLOUD_PROVIDER).yaml \
 		--set "image.repository=$(CLOUD_IMAGE_REPO)" \
-		--namespace platform --install --wait --timeout 600
+		--namespace platform --install --wait --timeout 600s
 
 artifactory_docker_push: build
 	docker tag $(IMAGE) $(ARTIFACTORY_IMAGE)
