@@ -1,3 +1,4 @@
+apiVersion: v2
 name: platformregistryapi
 description: Deploy platformregistryapi
 version: 0.0.1
