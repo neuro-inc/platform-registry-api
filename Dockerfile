@@ -12,7 +12,18 @@ COPY dist /tmp/dist
 RUN ls /tmp/dist
 RUN pip install --user --find-links /tmp/dist platform-registry-api
 
-FROM python:${PYTHON_VERSION}-${PYTHON_BASE} as service
+
+FROM python:${PYTHON_VERSION} AS test
+
+WORKDIR /app
+
+COPY --from=installer /root/.local/ /root/.local/
+
+COPY Makefile ./
+COPY tests tests
+
+
+FROM python:${PYTHON_VERSION}-${PYTHON_BASE} AS service
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-registry-api"
 
