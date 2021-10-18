@@ -88,7 +88,7 @@ _test_integration:
 	pytest -vv tests/integration
 
 lint: format
-	mypy platform_registry_api tests setup.py
+	mypy platform_registry_api tests
 
 format:
 ifdef CI_LINT_RUN
