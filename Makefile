@@ -46,7 +46,7 @@ pull:
 		-f tests/docker/e2e.compose.yml pull
 
 build_test: build
-	docker build -t platformregistryapi-test -f tests/Dockerfile .
+	docker build -t platformregistryapi-test --target test .
 
 build_up: build
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
