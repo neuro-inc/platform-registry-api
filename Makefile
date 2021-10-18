@@ -30,64 +30,11 @@ export CLOUD_IMAGE_REPO_BASE
 
 setup init:
 	pip install -U pip
-	pip install -e .
-	pip install -r requirements.txt
+	pip install -e .[dev]
 	pre-commit install
 
-build:
-	python setup.py sdist
-	docker build -f Dockerfile -t $(IMAGE) \
-	--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz .
-
-pull:
-	-docker-compose --project-directory=`pwd` -p platformregistryapi \
-	    -f tests/docker/e2e.compose.yml pull
-
-build_test: build
-	docker build -t platformregistryapi-test -f tests/Dockerfile .
-
-build_up: build
-	docker-compose --project-directory=`pwd` -p platformregistryapi \
-            -f tests/docker/e2e.compose.yml up
-
-test_e2e_built: pull
-	docker-compose --project-directory=`pwd` -p platformregistryapi \
-	    -f tests/docker/e2e.compose.yml up -d registry; \
-	tests/e2e/tests.sh; exit_code=$$?; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml kill; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml rm -f; \
-	exit $$exit_code
-
-test_e2e: build test_e2e_built
-
-
-test_unit: build_test test_unit_built
-
-test_unit_built:
-	docker run --rm platformregistryapi-test make _test_unit
-
-_test_unit:
-	pytest -vv tests/unit
-
-test_integration: build_test test_integration_built
-
-test_integration_built: pull
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml run test make _test_integration; \
-	exit_code=$$?; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml kill; \
-	docker-compose --project-directory=`pwd` \
-	    -f tests/docker/e2e.compose.yml rm -f; \
-	exit $$exit_code
-
-_test_integration:
-	pytest -vv tests/integration
-
 lint: format
-	mypy platform_registry_api tests setup.py
+	mypy platform_registry_api tests
 
 format:
 ifdef CI_LINT_RUN
@@ -95,6 +42,37 @@ ifdef CI_LINT_RUN
 else
 	pre-commit run --all-files
 endif
+
+build:
+	rm -rf build dist
+	pip install -U build
+	python -m build
+	docker build \
+		--build-arg PYTHON_BASE=slim-buster \
+		-t $(IMAGE) .
+
+build_up: build
+	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up
+
+test_unit:
+	pytest -vv tests/unit
+
+test_integration: build
+	docker-compose -f tests/docker/docker-compose.yaml pull -q; \
+	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
+	pytest -vv tests/integration; \
+	exit_code=$$?; \
+	docker-compose -f tests/docker/docker-compose.yaml kill; \
+	docker-compose -f tests/docker/docker-compose.yaml rm -f; \
+	exit $$exit_code
+
+test_e2e: build
+	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d registry; \
+	tests/e2e/tests.sh; \
+	exit_code=$$?; \
+	docker-compose -f tests/docker/docker-compose.yaml kill; \
+	docker-compose -f tests/docker/docker-compose.yaml rm -f; \
+	exit $$exit_code
 
 gke_k8s_login:
 	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json

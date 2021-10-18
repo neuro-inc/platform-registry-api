@@ -7,7 +7,6 @@ from platform_registry_api.api import create_app
 from platform_registry_api.config import (
     AuthConfig,
     Config,
-    EnvironConfigFactory,
     ServerConfig,
     UpstreamRegistryConfig,
 )
@@ -16,10 +15,7 @@ from tests.integration.conftest import _User
 
 
 @pytest.fixture
-def config(in_docker: bool, admin_token: str, cluster_name: str) -> Config:
-    if in_docker:
-        return EnvironConfigFactory().create()
-
+def config(admin_token: str, cluster_name: str) -> Config:
     upstream_registry = UpstreamRegistryConfig(
         endpoint_url=URL("http://localhost:5002"),
         project="testproject",

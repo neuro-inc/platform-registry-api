@@ -1,9 +1,2 @@
 *
 !dist
-!platform_registry_api.egg-info
-
-!Makefile
-!tests
-!requirements.txt
-
-**/*.pyc

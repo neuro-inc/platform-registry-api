@@ -1,24 +1,23 @@
-FROM python:3.8.10-buster as installer
+ARG PYTHON_VERSION=3.8.12
+ARG PYTHON_BASE=buster
 
-# Separate step for requirements to speed up docker builds
-COPY platform_registry_api.egg-info/requires.txt requires.txt
-RUN python -c 'from pkg_resources import Distribution, PathMetadata;\
-dist = Distribution(metadata=PathMetadata(".", "."));\
-print("\n".join(str(r) for r in dist.requires()));\
-' > requirements.txt
-RUN pip install -U pip && pip install --user -r requirements.txt
+FROM python:${PYTHON_VERSION} AS installer
 
-ARG DIST_FILENAME
+ENV PATH=/root/.local/bin:$PATH
 
-# Install service itself
-COPY dist/${DIST_FILENAME} ${DIST_FILENAME}
-RUN pip install --user $DIST_FILENAME
+# Copy to tmp folder to don't pollute home dir
+RUN mkdir -p /tmp/dist
+COPY dist /tmp/dist
 
-FROM python:3.8.10-buster AS service
+RUN ls /tmp/dist
+RUN pip install --user --find-links /tmp/dist platform-registry-api
+
+
+FROM python:${PYTHON_VERSION}-${PYTHON_BASE} AS service
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-registry-api"
 
-WORKDIR /neuromation
+WORKDIR /app
 
 COPY --from=installer /root/.local/ /root/.local/
 
