@@ -4,5 +4,7 @@
 
 !Makefile
 !tests
+!pyproject.toml
+!setup.cfg
 
 **/*.pyc

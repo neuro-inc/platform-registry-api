@@ -19,8 +19,12 @@ WORKDIR /app
 
 COPY --from=installer /root/.local/ /root/.local/
 
+COPY pyproject.toml ./
+COPY setup.cfg ./
 COPY Makefile ./
 COPY tests tests
+
+RUN pip install -e .[dev]
 
 
 FROM python:${PYTHON_VERSION}-${PYTHON_BASE} AS service
