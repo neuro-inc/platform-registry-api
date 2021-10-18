@@ -57,7 +57,7 @@ build_up: build
 test_unit:
 	pytest -vv tests/unit
 
-test_integration:
+test_integration: build
 	docker-compose -f tests/docker/docker-compose.yaml pull -q; \
 	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
 	pytest -vv tests/integration; \
