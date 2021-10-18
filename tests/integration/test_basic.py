@@ -23,7 +23,6 @@ from platform_registry_api.api import create_app
 from platform_registry_api.config import (
     AuthConfig,
     Config,
-    EnvironConfigFactory,
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
@@ -182,9 +181,7 @@ async def upstream(handler: _TestUpstreamHandler) -> AsyncIterator[URL]:
 
 
 @pytest.fixture
-def auth_config(in_docker: bool, admin_token: str) -> AuthConfig:
-    if in_docker:
-        return EnvironConfigFactory().create().auth
+def auth_config(admin_token: str) -> AuthConfig:
     return AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )

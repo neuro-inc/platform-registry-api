@@ -1,4 +1,3 @@
-import os
 import uuid
 from asyncio.base_events import BaseEventLoop
 from dataclasses import dataclass
@@ -67,11 +66,6 @@ async def regular_user_factory(
         return _User(name=user.name, token=token_factory(user.name))
 
     return _factory
-
-
-@pytest.fixture(scope="session")
-def in_docker() -> bool:
-    return os.path.isfile("/.dockerenv")
 
 
 @pytest.fixture

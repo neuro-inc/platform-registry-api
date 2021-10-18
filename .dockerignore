@@ -1,10 +1,2 @@
 *
 !dist
-!platform_registry_api.egg-info
-
-!Makefile
-!tests
-!pyproject.toml
-!setup.cfg
-
-**/*.pyc
