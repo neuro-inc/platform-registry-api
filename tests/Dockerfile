@@ -1,7 +1,8 @@
 FROM platformregistryapi:latest
 
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+COPY pyproject.toml ./
+COPY setup.cfg ./
+RUN pip install -e .[dev]
 
 COPY Makefile ./
 
