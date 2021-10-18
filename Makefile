@@ -30,25 +30,27 @@ export CLOUD_IMAGE_REPO_BASE
 
 setup init:
 	pip install -U pip
-	pip install -e .
-	pip install -r requirements.txt
+	pip install -e .[dev]
 	pre-commit install
 
 build:
-	python setup.py sdist
-	docker build -f Dockerfile -t $(IMAGE) \
-	--build-arg DIST_FILENAME=`python setup.py --fullname`.tar.gz .
+	rm -rf build dist
+	pip install -U build
+	python -m build
+	docker build \
+		--build-arg PYTHON_BASE=slim-buster \
+		-t $(IMAGE) .
 
 pull:
 	-docker-compose --project-directory=`pwd` -p platformregistryapi \
-	    -f tests/docker/e2e.compose.yml pull
+		-f tests/docker/e2e.compose.yml pull
 
 build_test: build
 	docker build -t platformregistryapi-test -f tests/Dockerfile .
 
 build_up: build
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
-            -f tests/docker/e2e.compose.yml up
+		-f tests/docker/e2e.compose.yml up
 
 test_e2e_built: pull
 	docker-compose --project-directory=`pwd` -p platformregistryapi \
@@ -61,7 +63,6 @@ test_e2e_built: pull
 	exit $$exit_code
 
 test_e2e: build test_e2e_built
-
 
 test_unit: build_test test_unit_built
 
