@@ -155,6 +155,7 @@ jobs:
 
   deploy_dev:
     name: Deploy on dev
+    environment: dev
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: test
