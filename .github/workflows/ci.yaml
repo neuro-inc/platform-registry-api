@@ -10,6 +10,7 @@ on:
     branches: [master]
   schedule:
   - cron: 0 4 * * *
+
 jobs:
   test:
     name: Run tests
@@ -80,7 +81,7 @@ jobs:
     - name: Run E2E tests
       run: make test_e2e
     - name: Build Docker image
-      run: make build
+      run: make docker_build
       env:
         TAG: latest
     - name: Upload image artifact
@@ -88,71 +89,6 @@ jobs:
       with:
         image: platformregistryapi
         token: ${{ secrets.GITHUB_TOKEN }}
-
-  release:
-    name: Deploy to Artifactory
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: test
-    env:
-      ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
-      ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
-      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
-      ARTIFACTORY_HELM_REPO: ${{ secrets.ARTIFACTORY_HELM_REPO }}
-      HELM_VERSION: ${{ secrets.HELM3_VERSION }}
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8.10
-    - name: Login to Artifactory docker registry
-      uses: docker/login-action@v1
-      with:
-        registry: ${{ secrets.ARTIFACTORY_DOCKER_REPO }}
-        username: ${{ secrets.ARTIFACTORY_USERNAME }}
-        password: ${{ secrets.ARTIFACTORY_PASSWORD }}
-    - name: Set tag
-      run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-    - name: Push image to Artifactory
-      run: make artifactory_docker_push
-    - name: Install helm
-      run: make helm_install
-    - name: Push chart to Artifactory
-      run: make artifactory_helm_push
-
-  release_public:
-    name: Deploy to Public Artifactory
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: test
-    env:
-      ARTIFACTORY_DOCKER_REPO: ${{ secrets.ARTIFACTORY_ANONYMOUS_DOCKER_REPO }}
-      ARTIFACTORY_USERNAME: ${{ secrets.ARTIFACTORY_USERNAME }}
-      ARTIFACTORY_PASSWORD: ${{ secrets.ARTIFACTORY_PASSWORD }}
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.8.10
-    - name: Login to Artifactory docker registry
-      uses: docker/login-action@v1
-      with:
-        registry: ${{ secrets.ARTIFACTORY_ANONYMOUS_DOCKER_REPO }}
-        username: ${{ secrets.ARTIFACTORY_USERNAME }}
-        password: ${{ secrets.ARTIFACTORY_PASSWORD }}
-    - name: Set tag
-      run: echo "TAG=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
-    - name: Push image to Artifactory
-      run: make artifactory_docker_push
-
   deploy_dev:
     name: Deploy on dev
     environment: dev
@@ -167,7 +103,6 @@ jobs:
       AZURE_RG_NAME: ${{ secrets.AZURE_DEV_RG_NAME }}
       CLUSTER_NAME: ${{ secrets.DEV_CLUSTER_NAME }}
       HELM_ENV: dev
-      HELM_VERSION: ${{ secrets.HELM3_VERSION }}
       CLOUD_PROVIDER: ${{ secrets.CLOUD_PROVIDER_DEV }}
     steps:
     - name: Checkout commit
@@ -206,8 +141,5 @@ jobs:
       run: make docker_push
     - name: Update kube config
       run: make ${{ env.CLOUD_PROVIDER }}_k8s_login
-    - name: Install helm
-      run: make helm_install
     - name: Deploy to kubernetes
       run: make helm_deploy
-    concurrency: deploy_dev

@@ -1,6 +1,3 @@
-NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_CLUSTER_NAME: ""
-
 image:
   repository: "$IMAGE_REPO"
   tag: "$IMAGE_TAG"
@@ -10,6 +7,8 @@ imagePullSecrets: []
 replicas: 2
 
 platform:
+  clusterName: ""
+  authUrl: https://staging.neu.ro
   token: {}
 
 upstreamRegistry: {}

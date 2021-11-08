@@ -1,7 +1,9 @@
-NP_REGISTRY_AUTH_URL: http://platformauthapi:8080
-NP_CLUSTER_NAME: default
+annotations:
+  iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-366c09e4841fcc83df56b8f070c34716
 
 platform:
+  clusterName: default
+  authUrl: http://platformauthapi:8080
   token:
     valueFrom:
       secretKeyRef:
@@ -9,26 +11,13 @@ platform:
         key: registry_token
 
 upstreamRegistry:
-  type: oauth
-  url: https://gcr.io
-
-  tokenUrl: https://gcr.io/v2/token
-  tokenService: gcr.io
-  tokenUsername:
-    valueFrom:
-      secretKeyRef:
-        name: gcr-secret
-        key: username
-  tokenPassword:
-    valueFrom:
-      secretKeyRef:
-        name: gcr-secret
-        key: password
-
+  type: aws_ecr
+  url: https://771188043543.dkr.ecr.us-east-1.amazonaws.com
+  region: us-east-1
   catalogScope: ""
   repositoryScopeActions: ""
-  maxCatalogEntries: 10000
-  project: light-reality-205619/neuro/default
+  maxCatalogEntries: 1000
+  project: dev
 
 ingress:
   enabled: true
