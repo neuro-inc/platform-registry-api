@@ -20,7 +20,7 @@ from typing import (
     Type,
 )
 
-import aiobotocore
+import aiobotocore.session
 import aiohttp.web
 import aiohttp_remotes
 import pkg_resources
@@ -812,7 +812,7 @@ async def create_aws_ecr_upstream(
     time_factory: TimeFactory = time.time,
     **kwargs: Any,
 ) -> AsyncIterator[Upstream]:
-    session = aiobotocore.get_session()
+    session = aiobotocore.session.get_session()
     async with session.create_client("ecr", **kwargs) as client:
         yield AWSECRUpstream(client=client, time_factory=time_factory)
 
