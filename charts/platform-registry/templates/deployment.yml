@@ -71,7 +71,7 @@ spec:
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
           value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME
-          value: {{ .Values.NP_CLUSTER_NAME }}
+          value: {{ .Values.platform.clusterName }}
         {{- if eq .Values.upstreamRegistry.type "basic" }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
 {{- if .Values.upstreamRegistry.basicUsername }}
