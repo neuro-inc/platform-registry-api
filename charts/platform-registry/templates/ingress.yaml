@@ -4,7 +4,7 @@ kind: Ingress
 metadata:
   name: {{ include "platformRegistry.fullname" . }}
   labels: {{ include "platformRegistry.labels.standard" . | nindent 4 }}
-    service: registry
+    service: platform-registry
   annotations:
     kubernetes.io/ingress.class: traefik
     traefik.frontend.rule.type: PathPrefix

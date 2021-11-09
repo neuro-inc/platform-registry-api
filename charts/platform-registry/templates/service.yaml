@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: {{ include "platformRegistry.fullname" . }}
   labels: {{ include "platformRegistry.labels.standard" . | nindent 4 }}
-    service: registry
+    service: platform-registry
   annotations:
     traefik.ingress.kubernetes.io/affinity: "true"
     traefik.ingress.kubernetes.io/session-cookie-name: NEURO_REGISTRYAPI_SESSION

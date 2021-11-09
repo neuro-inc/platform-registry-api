@@ -3,14 +3,14 @@ kind: Deployment
 metadata:
   name: {{ include "platformRegistry.fullname" . }}
   labels: {{ include "platformRegistry.labels.standard" . | nindent 4 }}
-    service: registry
+    service: platform-registry
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
       app: {{ include "platformRegistry.name" . }}
       release: {{ .Release.Name }}
-      service: registry
+      service: platform-registry
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -21,7 +21,7 @@ spec:
       labels:
         app: {{ include "platformRegistry.name" . }}
         release: {{ .Release.Name }}
-        service: registry
+        service: platform-registry
       annotations:
 {{- with .Values.annotations }}
 {{ toYaml . | indent 8 }}
@@ -31,7 +31,7 @@ spec:
 {{- end }}
     spec:
       containers:
-      - name: registry
+      - name: platform-registry
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: Always
         {{- if .Values.resources }}

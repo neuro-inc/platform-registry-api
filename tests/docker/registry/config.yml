@@ -1,7 +1,7 @@
 version: 0.1
 log:
   fields:
-    service: registry
+    service: platform-registry
 storage:
   cache:
     blobdescriptor: inmemory
