@@ -1,16 +1,11 @@
 AWS_ACCOUNT_ID ?= 771188043543
 AWS_REGION ?= us-east-1
 
-AZURE_RG_NAME ?= dev
-AZURE_ACR_NAME ?= crc570d91c95c6aac0ea80afb1019a0c6f
-
 GITHUB_OWNER ?= neuro-inc
 
 IMAGE_TAG ?= latest
 
-IMAGE_REPO_gke    = $(GKE_DOCKER_REGISTRY)/$(GKE_PROJECT_ID)
 IMAGE_REPO_aws    = $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
-IMAGE_REPO_azure  = $(AZURE_ACR_NAME).azurecr.io
 IMAGE_REPO_github = ghcr.io/$(GITHUB_OWNER)
 
 IMAGE_REGISTRY ?= aws
@@ -78,20 +73,6 @@ docker_push: docker_build
 
 build_up: docker_build
 	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up
-
-gke_k8s_login:
-	@echo $(GKE_ACCT_AUTH) | base64 --decode > $(HOME)/gcloud-service-key.json
-	gcloud auth activate-service-account --key-file $(HOME)/gcloud-service-key.json
-	gcloud config set project $(GKE_PROJECT_ID)
-	gcloud --quiet config set container/cluster $(GKE_CLUSTER_NAME)
-	gcloud config set $(SET_CLUSTER_ZONE_REGION)
-	gcloud auth configure-docker
-
-aws_k8s_login:
-	aws eks --region $(AWS_REGION) update-kubeconfig --name $(CLUSTER_NAME)
-
-azure_k8s_login:
-	az aks get-credentials --resource-group $(AZURE_RG_NAME) --name $(CLUSTER_NAME)
 
 helm_create_chart:
 	export IMAGE_REPO=$(IMAGE_REPO); \
