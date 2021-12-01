@@ -62,7 +62,7 @@ jobs:
     - name: Build Docker image
       run: make docker_build
       env:
-        TAG: latest
+        IMAGE_TAG: latest
     - name: Upload image artifact
       uses: neuro-inc/upload-image-action@v21.9.2
       with:
