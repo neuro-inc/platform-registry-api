@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from yarl import URL
 
@@ -84,7 +84,7 @@ class Config:
 
 
 class EnvironConfigFactory:
-    def __init__(self, environ: Optional[Dict[str, str]] = None) -> None:
+    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
         self._environ = environ or os.environ
 
     def create_server(self) -> ServerConfig:
@@ -104,7 +104,7 @@ class EnvironConfigFactory:
         upstream_type = UpstreamType(
             self._environ.get("NP_REGISTRY_UPSTREAM_TYPE", UpstreamType.OAUTH.value)
         )
-        upstream: Dict[str, Any] = dict(
+        upstream: dict[str, Any] = dict(
             endpoint_url=endpoint_url,
             project=project,
             max_catalog_entries=max_catalog_entries,

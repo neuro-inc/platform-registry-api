@@ -2,23 +2,12 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, replace
+from re import Pattern
 from types import SimpleNamespace
-from typing import (
-    Any,
-    AsyncIterator,
-    ClassVar,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Pattern,
-    Sequence,
-    Tuple,
-    Type,
-)
+from typing import Any, ClassVar, Optional
 
 import aiobotocore.session
 import aiohttp.web
@@ -77,7 +66,7 @@ class CatalogPage:
         return replace(self, number=number)
 
     @classmethod
-    def create(cls, payload: Dict[str, Any]) -> "CatalogPage":
+    def create(cls, payload: dict[str, Any]) -> "CatalogPage":
         return cls(number=int(payload["n"]), last_token=payload.get("last", ""))
 
     @classmethod
@@ -113,7 +102,7 @@ class RepoURL:
         return cls(repo=repo, mounted_repo=mounted_repo, url=url)
 
     @classmethod
-    def _parse(cls, url: URL) -> Tuple[str, str, URL]:
+    def _parse(cls, url: URL) -> tuple[str, str, URL]:
         match = cls._path_re.fullmatch(url.path)
         if not match:
             raise ValueError(f"unexpected path in a registry URL: {url}")
@@ -151,7 +140,7 @@ class RepoURL:
         url = origin_url.join(url)
         return self.__class__(repo=self.repo, mounted_repo=self.mounted_repo, url=url)
 
-    def with_query(self, query: Dict[str, str]) -> "RepoURL":
+    def with_query(self, query: dict[str, str]) -> "RepoURL":
         query = {**self.url.query, **query}
         url = self.url.with_query(query)
         return self.__class__(repo=self.repo, mounted_repo=self.mounted_repo, url=url)
@@ -183,10 +172,10 @@ class URLFactory:
     def create_registry_version_check_url(self) -> URL:
         return self._upstream_endpoint_url.with_path("/v2/")
 
-    def create_upstream_catalog_url(self, query: Dict[str, str]) -> URL:
+    def create_upstream_catalog_url(self, query: dict[str, str]) -> URL:
         return self._upstream_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
-    def create_registry_catalog_url(self, query: Dict[str, str]) -> URL:
+    def create_registry_catalog_url(self, query: dict[str, str]) -> URL:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
@@ -271,13 +260,13 @@ class V2Handler:
         )
 
     @classmethod
-    def parse_catalog_repositories(cls, payload: Dict[str, Any]) -> List[str]:
+    def parse_catalog_repositories(cls, payload: dict[str, Any]) -> list[str]:
         return payload.get("repositories") or []
 
     @classmethod
     def filter_images_1_indexed(
         cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
-    ) -> Iterator[Tuple[int, str]]:
+    ) -> Iterator[tuple[int, str]]:
         project_prefix = project_name + "/"
         len_project_prefix = len(project_prefix)
         for index, image in enumerate(images_names, 1):
@@ -289,7 +278,7 @@ class V2Handler:
                 msg = f'expected project "{project_name}" in image "{image}"'
                 logger.info(f"Bad image: {msg} (skipping)")
 
-    def _prepare_catalog_request_params(self, page: CatalogPage) -> Dict[str, str]:
+    def _prepare_catalog_request_params(self, page: CatalogPage) -> dict[str, str]:
         params = {"n": str(page.number)}
         if page.last_token:
             params["last"] = page.last_token
@@ -317,7 +306,7 @@ class V2Handler:
         headers = self._prepare_request_headers(request.headers, auth_headers)
         timeout = self._create_registry_client_timeout(request)
 
-        filtered: List[str] = []
+        filtered: list[str] = []
         index: int = 0
         more_images = False
         last_token_is_correct = False
@@ -349,7 +338,7 @@ class V2Handler:
                             last_token = ""
                     break
 
-        response_headers: Dict[str, str] = {}
+        response_headers: dict[str, str] = {}
 
         if more_images:
             if not last_token_is_correct:
@@ -388,7 +377,7 @@ class V2Handler:
 
     async def _get_next_catalog_items(
         self, url: URL, headers: CIMultiDict[str], timeout: aiohttp.ClientTimeout
-    ) -> Tuple[List[str], Optional[URL]]:
+    ) -> tuple[list[str], Optional[URL]]:
         async with self._registry_client.request(
             method="GET", url=url, headers=headers, timeout=timeout
         ) as client_response:
@@ -638,7 +627,7 @@ class V2Handler:
         request: Request,
         url_factory: URLFactory,
         url: URL,
-        auth_headers: Dict[str, str],
+        auth_headers: dict[str, str],
     ) -> StreamResponse:
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
 
@@ -746,7 +735,7 @@ class V2Handler:
                 data["name"] = repo
 
     def _prepare_request_headers(
-        self, headers: CIMultiDictProxy[str], auth_headers: Dict[str, str]
+        self, headers: CIMultiDictProxy[str], auth_headers: dict[str, str]
     ) -> CIMultiDict[str]:
         request_headers: CIMultiDict[str] = headers.copy()
 
@@ -824,7 +813,7 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
     response.headers["X-Service-Version"] = f"platform-registry-api/{package_version}"
 
 
-def make_tracing_trace_configs(config: Config) -> List[aiohttp.TraceConfig]:
+def make_tracing_trace_configs(config: Config) -> list[aiohttp.TraceConfig]:
     trace_configs = []
 
     if config.zipkin:
@@ -915,7 +904,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     return app
 
 
-def setup_tracing(config: Config, exclude: List[Type[BaseException]]) -> None:
+def setup_tracing(config: Config, exclude: list[type[BaseException]]) -> None:
     if config.zipkin:
         setup_zipkin_tracer(
             config.zipkin.app_name,

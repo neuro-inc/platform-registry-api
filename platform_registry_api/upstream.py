@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Dict
 
 
 class Upstream(ABC):
@@ -7,15 +6,15 @@ class Upstream(ABC):
         pass
 
     @abstractmethod
-    async def get_headers_for_version(self) -> Dict[str, str]:
+    async def get_headers_for_version(self) -> dict[str, str]:
         pass
 
     @abstractmethod
-    async def get_headers_for_catalog(self) -> Dict[str, str]:
+    async def get_headers_for_catalog(self) -> dict[str, str]:
         pass
 
     @abstractmethod
     async def get_headers_for_repo(
         self, repo: str, mounted_repo: str = ""
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         pass

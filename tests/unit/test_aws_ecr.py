@@ -1,5 +1,6 @@
+from collections.abc import AsyncIterator, Awaitable
 from datetime import datetime
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict
+from typing import Any, Callable
 
 import botocore
 import pytest
@@ -41,7 +42,7 @@ class TestAWSECRAuthToken:
             },
         ),
     )
-    def test_create_from_payload_invalid_payload(self, payload: Dict[str, Any]) -> None:
+    def test_create_from_payload_invalid_payload(self, payload: dict[str, Any]) -> None:
         with pytest.raises(ValueError, match="invalid payload"):
             AWSECRAuthToken.create_from_payload(payload)
 
@@ -175,7 +176,7 @@ class TestAWSECRUpstream:
     async def test_get_image_delete_response_success(
         self, upstream: AWSECRUpstream
     ) -> None:
-        upstream_response: Dict[str, Any] = {
+        upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
             "failures": [],
         }
@@ -189,7 +190,7 @@ class TestAWSECRUpstream:
     async def test_get_image_delete_response_image_not_found(
         self, upstream: AWSECRUpstream
     ) -> None:
-        upstream_response: Dict[str, Any] = {
+        upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
             "failures": [
                 {"failureCode": "ImageNotFound", "failureReason": "Can't find image"}
@@ -213,7 +214,7 @@ class TestAWSECRUpstream:
     async def test_get_image_delete_response_repository_not_found(
         self, upstream: AWSECRUpstream
     ) -> None:
-        upstream_response: Dict[str, Any] = {
+        upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
             "failures": [
                 {
@@ -240,7 +241,7 @@ class TestAWSECRUpstream:
     async def test_get_image_delete_response_unknown_error(
         self, upstream: AWSECRUpstream
     ) -> None:
-        upstream_response: Dict[str, Any] = {
+        upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
             "failures": [
                 {"failureCode": "Some other error", "failureReason": "Unknown error"}
@@ -262,7 +263,7 @@ class TestAWSECRUpstream:
 
     @pytest.mark.asyncio
     async def test_get_image_tags_no_failures(self, upstream: AWSECRUpstream) -> None:
-        upstream_response: Dict[str, Any] = {
+        upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         response_status, response_content = await upstream.convert_upstream_response(

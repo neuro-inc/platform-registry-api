@@ -1,7 +1,7 @@
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple
+from typing import Any
 
 from aiobotocore.client import AioBaseClient
 from aiohttp.hdrs import AUTHORIZATION
@@ -23,7 +23,7 @@ class AWSECRAuthToken:
     @classmethod
     def create_from_payload(
         cls,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         *,
         expiration_ratio: float = 0.75,
         time_factory: TimeFactory = time.time,
@@ -47,7 +47,7 @@ class AWSECRUpstream(Upstream):
     ) -> None:
         self._client = client
         self._time_factory = time_factory
-        self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
+        self._cache = ExpiringCache[dict[str, str]](time_factory=time_factory)
 
     async def _get_token(self) -> AWSECRAuthToken:
         payload = await self._client.get_authorization_token()
@@ -55,7 +55,7 @@ class AWSECRUpstream(Upstream):
             payload, time_factory=self._time_factory
         )
 
-    async def _get_headers(self) -> Dict[str, str]:
+    async def _get_headers(self) -> dict[str, str]:
         scope = "*"
         headers = self._cache.get(scope)
         if headers is None:
@@ -72,26 +72,26 @@ class AWSECRUpstream(Upstream):
             pass
 
     @trace
-    async def get_headers_for_version(self) -> Dict[str, str]:
+    async def get_headers_for_version(self) -> dict[str, str]:
         return await self._get_headers()
 
     @trace
-    async def get_headers_for_catalog(self) -> Dict[str, str]:
+    async def get_headers_for_catalog(self) -> dict[str, str]:
         return await self._get_headers()
 
     @trace
     async def get_headers_for_repo(
         self, repo: str, mounted_repo: str = ""
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         return await self._get_headers()
 
     async def convert_upstream_response(
-        self, upstream_response: Dict[str, Any]
-    ) -> Tuple[int, Dict[str, Any]]:
+        self, upstream_response: dict[str, Any]
+    ) -> tuple[int, dict[str, Any]]:
         response_metadata = upstream_response.pop("ResponseMetadata")
         failures = upstream_response.pop("failures", [])
         assert response_metadata["HTTPStatusCode"] == 200
-        content: Dict[str, Any] = upstream_response
+        content: dict[str, Any] = upstream_response
         logger.debug("content: %s", content)
         if len(failures) == 0:
             status = 202
