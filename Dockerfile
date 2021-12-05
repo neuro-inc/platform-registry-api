@@ -1,4 +1,4 @@
-FROM python:3.9.9-slim-bullseye AS installer
+FROM python:3.9.9-bullseye AS installer
 
 ENV PATH=/root/.local/bin:$PATH
 
