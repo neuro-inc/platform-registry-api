@@ -1,7 +1,4 @@
-ARG PYTHON_VERSION=3.9.9
-ARG PYTHON_BASE=buster
-
-FROM python:${PYTHON_VERSION} AS installer
+FROM python:3.9.9-bullseye AS installer
 
 ENV PATH=/root/.local/bin:$PATH
 
@@ -13,7 +10,7 @@ RUN ls /tmp/dist
 RUN pip install --user --find-links /tmp/dist platform-registry-api
 
 
-FROM python:${PYTHON_VERSION}-${PYTHON_BASE} AS service
+FROM python:3.9.9-slim-bullseye AS service
 
 LABEL org.opencontainers.image.source = "https://github.com/neuro-inc/platform-registry-api"
 
