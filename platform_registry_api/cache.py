@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Generic, Optional, Tuple, TypeVar
+from typing import Generic, Optional, TypeVar
 
 from .typedefs import TimeFactory
 
@@ -10,7 +10,7 @@ T = TypeVar("T")
 class ExpiringCache(Generic[T]):
     def __init__(self, *, time_factory: TimeFactory = time.time) -> None:
         self._time_factory = time_factory
-        self._cache: Dict[Optional[str], Tuple[T, float]] = {}
+        self._cache: dict[Optional[str], tuple[T, float]] = {}
 
     def get(self, key: Optional[str]) -> Optional[T]:
         record = self._cache.get(key)

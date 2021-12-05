@@ -1,7 +1,8 @@
 import uuid
 from asyncio.base_events import BaseEventLoop
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import AsyncIterator, Awaitable, Callable, Optional
+from typing import Optional
 
 import pytest
 from aiohttp import BasicAuth

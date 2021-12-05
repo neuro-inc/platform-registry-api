@@ -1,8 +1,8 @@
 import itertools
 import json
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import replace
-from typing import AsyncIterator, Awaitable, Callable, Dict, List
 
 import aiohttp.web
 import pytest
@@ -63,8 +63,8 @@ def project() -> str:
 class _TestUpstreamHandler:
     def __init__(self, project: str) -> None:
         self._project = project
-        self.images: List[str] = []
-        self.tags: List[str] = []
+        self.images: list[str] = []
+        self.tags: list[str] = []
         self.base_url = URL()
 
     async def handle_catalog(self, request: Request) -> Response:
@@ -96,7 +96,7 @@ class _TestUpstreamHandler:
                     )
                 )
         images = self.images[start_index : start_index + number]
-        response_headers: Dict[str, str] = {}
+        response_headers: dict[str, str] = {}
         images = [f"{self._project}/{image}" for image in images]
         if self.images[start_index + number :]:
             next_url = (self.base_url / "v2/_catalog").with_query(
@@ -150,7 +150,7 @@ class _TestUpstreamHandler:
                     )
                 )
         tags = self.tags[start_index : start_index + number]
-        response_headers: Dict[str, str] = {}
+        response_headers: dict[str, str] = {}
         if self.tags[start_index + number :]:
             next_url = (self.base_url / "v2" / repo / "tags/list").with_query(
                 {"n": str(number), "last": tags[-1]}
@@ -357,7 +357,7 @@ class TestBasicUpstream:
             + [f"zzzz{i}" for i in range(1, 10)]
         )
 
-        result: List[str] = []
+        result: list[str] = []
         url = client.server.make_url("/") / "v2/_catalog"
         while url:
             async with client.session.get(
@@ -459,7 +459,7 @@ class TestBasicUpstream:
         handler.images = [repo]
         handler.tags = [f"tag{i}" for i in range(1, 10)]
 
-        result: List[str] = []
+        result: list[str] = []
         url = client.server.make_url("/") / f"v2/{repo}/tags/list"
         while url:
             async with client.session.get(

@@ -1,6 +1,7 @@
 import datetime
 import time
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any, Optional
 
 import aiohttp
 import pytest
@@ -235,7 +236,7 @@ class TestV2Handler:
         ]
 
     def test_filter_images_no_elements(self) -> None:
-        images_names: List[str] = []
+        images_names: list[str] = []
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
             {
@@ -392,7 +393,7 @@ class MockAuthServer:
         service = request.query.get("service")
         scopes = "-".join(request.query.getall("scope", ())) or None
         self.counter += 1
-        payload: Dict[str, Any] = {"token": f"token-{service}-{scopes}-{self.counter}"}
+        payload: dict[str, Any] = {"token": f"token-{service}-{scopes}-{self.counter}"}
         if self.expires_in is not None:
             payload["expires_in"] = self.expires_in
         if self.issued_at is not None:

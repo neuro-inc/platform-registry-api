@@ -1,6 +1,7 @@
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Sequence
+from typing import Any
 
 import iso8601
 from aiohttp import BasicAuth, ClientSession
@@ -22,7 +23,7 @@ class OAuthToken:
     @classmethod
     def create_from_payload(
         cls,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         *,
         default_expires_in: int = 60,
         expiration_ratio: float = 0.75,
@@ -39,7 +40,7 @@ class OAuthToken:
         )
 
     @classmethod
-    def _parse_access_token(cls, payload: Dict[str, Any]) -> str:
+    def _parse_access_token(cls, payload: dict[str, Any]) -> str:
         access_token = payload.get("token") or payload.get("access_token")
         if not access_token:
             raise ValueError("no access token")
@@ -48,7 +49,7 @@ class OAuthToken:
     @classmethod
     def _parse_expires_at(
         cls,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         *,
         default_expires_in: int,
         expiration_ratio: float,
@@ -108,9 +109,9 @@ class OAuthUpstream(Upstream):
         self._repository_scope_template = (
             "repository:{repo}:" + repository_scope_actions
         )
-        self._cache = ExpiringCache[Dict[str, str]](time_factory=time_factory)
+        self._cache = ExpiringCache[dict[str, str]](time_factory=time_factory)
 
-    async def _get_headers(self, scopes: Sequence[str] = ()) -> Dict[str, str]:
+    async def _get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
         key = " ".join(scopes)
         headers = self._cache.get(key)
         if headers is None:
@@ -119,15 +120,15 @@ class OAuthUpstream(Upstream):
             self._cache.put(key, headers, token.expires_at)
         return dict(headers)
 
-    async def get_headers_for_version(self) -> Dict[str, str]:
+    async def get_headers_for_version(self) -> dict[str, str]:
         return await self._get_headers()
 
-    async def get_headers_for_catalog(self) -> Dict[str, str]:
+    async def get_headers_for_catalog(self) -> dict[str, str]:
         return await self._get_headers([self._registry_catalog_scope])
 
     async def get_headers_for_repo(
         self, repo: str, mounted_repo: str = ""
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         scopes = []
         scopes.append(self._repository_scope_template.format(repo=repo))
         if mounted_repo:
