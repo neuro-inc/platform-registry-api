@@ -1,3 +1,4 @@
+# uvloop requires full image for compilation from sources
 FROM python:3.9.9-bullseye AS installer
 
 ENV PATH=/root/.local/bin:$PATH
