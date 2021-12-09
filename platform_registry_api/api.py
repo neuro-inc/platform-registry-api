@@ -689,6 +689,10 @@ class V2Handler:
             logger.debug(
                 "registry response: %s; headers: %s", response, response.headers
             )
+            if status >= 500:
+                logger.error(
+                    "Upstream failed with %d, headers=%r", status, response.headers
+                )
             return response
         else:
             async with self._registry_client.request(
@@ -714,6 +718,11 @@ class V2Handler:
                 logger.debug(
                     "registry response: %s; headers: %s", response, response.headers
                 )
+
+                if response.status >= 500:
+                    logger.error(
+                        "Upstream failed with %d, headers=%r", status, response.headers
+                    )
 
                 async for chunk in client_response.content.iter_any():
                     await response.write(chunk)
