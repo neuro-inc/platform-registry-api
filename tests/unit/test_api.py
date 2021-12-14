@@ -183,11 +183,12 @@ class TestV2Handler:
         ]
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {"alice": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
             (1, "alice/img1"),
@@ -202,11 +203,12 @@ class TestV2Handler:
         ]
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {"alice": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
             (1, "alice/img1"),
@@ -222,11 +224,12 @@ class TestV2Handler:
         ]
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "manage",
                 "children": {"alice": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == [
             (1, "alice/img1"),
@@ -239,11 +242,12 @@ class TestV2Handler:
         images_names: list[str] = []
         project = "testproject"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {"alice": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert (
             list(V2Handler.filter_images_1_indexed(images_names, tree, project)) == []
@@ -269,22 +273,24 @@ class TestHelpers_CheckImageCatalogPermission:
         # alice checks her own image "alice/img"
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {"alice": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is True
 
     def test_another_user_default_permissions__forbidden(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {"bob": {"action": "manage", "children": {}}},
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is False
 
@@ -292,6 +298,7 @@ class TestHelpers_CheckImageCatalogPermission:
         image = "alice/img"
         # tree requested by bob:
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {
@@ -302,13 +309,14 @@ class TestHelpers_CheckImageCatalogPermission:
                     },
                 },
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is True
 
     def test_shared_image_manage_permissions(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {
@@ -319,20 +327,21 @@ class TestHelpers_CheckImageCatalogPermission:
                     },
                 },
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is True
 
     def test_shared_image_deny_permissions(self) -> None:
         image = "alice/img"
         tree = ClientSubTreeViewRoot._from_json(
-            {"action": "deny", "children": {}, "path": "/"}
+            "job", {"action": "deny", "children": {}, "path": "/"}
         )
         assert check_image_catalog_permission(image, tree) is False
 
     def test_shared_image_slashes_in_image_name(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {
@@ -355,13 +364,14 @@ class TestHelpers_CheckImageCatalogPermission:
                     },
                 },
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is True
 
     def test_shared_image_parent_read_permissions(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
+            "job",
             {
                 "action": "list",
                 "children": {
@@ -372,14 +382,14 @@ class TestHelpers_CheckImageCatalogPermission:
                     },
                 },
                 "path": "/",
-            }
+            },
         )
         assert check_image_catalog_permission(image, tree) is True
 
     def test_shared_image_root_read_permissions(self) -> None:
         image = "alice/foo/bar/img"
         tree = ClientSubTreeViewRoot._from_json(
-            {"action": "read", "children": {}, "path": "/"}
+            "job", {"action": "read", "children": {}, "path": "/"}
         )
         assert check_image_catalog_permission(image, tree) is True
 
