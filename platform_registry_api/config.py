@@ -15,7 +15,7 @@ class ServerConfig:
 
 @dataclass(frozen=True)
 class AuthConfig:
-    server_endpoint_url: URL
+    server_endpoint_url: Optional[URL]
     service_token: str = field(repr=False)
 
 
@@ -87,6 +87,13 @@ class EnvironConfigFactory:
     def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
         self._environ = environ or os.environ
 
+    def _get_url(self, name: str) -> Optional[URL]:
+        value = self._environ[name]
+        if value == "-":
+            return None
+        else:
+            return URL(value)
+
     def create_server(self) -> ServerConfig:
         port = int(self._environ.get("NP_REGISTRY_API_PORT", ServerConfig.port))
         return ServerConfig(port=port)
@@ -143,7 +150,7 @@ class EnvironConfigFactory:
         return UpstreamRegistryConfig(**upstream)
 
     def create_auth(self) -> AuthConfig:
-        url = URL(self._environ["NP_REGISTRY_AUTH_URL"])
+        url = self._get_url("NP_REGISTRY_AUTH_URL")
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)
 

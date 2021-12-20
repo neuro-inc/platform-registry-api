@@ -21,7 +21,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_SERVICE": "test_host",
             "NP_REGISTRY_UPSTREAM_TOKEN_USERNAME": "test_username",
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
-            "NP_REGISTRY_AUTH_URL": "https://test_auth",
+            "NP_REGISTRY_AUTH_URL": "-",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_CLUSTER_NAME": "test-cluster",
         }
@@ -41,7 +41,7 @@ class TestEnvironConfigFactory:
                 max_catalog_entries=100,
             ),
             auth=AuthConfig(
-                server_endpoint_url=URL("https://test_auth"),
+                server_endpoint_url=None,
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
