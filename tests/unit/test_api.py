@@ -21,7 +21,6 @@ from platform_registry_api.api import (
 from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.helpers import check_image_catalog_permission
 
-
 _TestServerFactory = Callable[
     [aiohttp.web.Application], Awaitable[aiohttp.test_utils.TestServer]
 ]

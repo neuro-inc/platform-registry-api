@@ -11,7 +11,6 @@ from .cache import ExpiringCache
 from .typedefs import TimeFactory
 from .upstream import Upstream
 
-
 logger = logging.getLogger(__name__)
 
 

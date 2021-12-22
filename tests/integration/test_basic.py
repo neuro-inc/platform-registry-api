@@ -27,9 +27,9 @@ from platform_registry_api.config import (
     UpstreamRegistryConfig,
     UpstreamType,
 )
+
 from tests import _TestClientFactory
 from tests.integration.conftest import _User
-
 
 pytestmark = pytest.mark.asyncio
 

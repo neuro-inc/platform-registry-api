@@ -13,7 +13,6 @@ from platform_registry_api.aws_ecr import AWSECRAuthToken, AWSECRUpstream
 from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.upstream import Upstream
 
-
 _TestServerFactory = Callable[[Application], Awaitable[_TestServer]]
 
 
