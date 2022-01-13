@@ -480,19 +480,6 @@ class V2Handler:
             else:
                 response_headers.pop(LINK, None)
 
-            if client_response.status == HTTPNotFound.status_code:
-                data = {
-                    "errors": [
-                        {
-                            "code": "NAME_UNKNOWN",
-                            "message": f"Repository {registry_repo_url.repo} not found",
-                            "detail": "",
-                        }
-                    ]
-                }
-                return aiohttp.web.json_response(
-                    data, headers=response_headers, status=client_response.status
-                )
             try:
                 # See the comment in handle_catalog() about content_type=None.
                 data = await client_response.json(content_type=None)
