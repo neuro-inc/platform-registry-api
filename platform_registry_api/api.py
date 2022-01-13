@@ -12,6 +12,7 @@ from typing import Any, ClassVar, Optional
 import aiobotocore.session
 import aiohttp.web
 import aiohttp_remotes
+import botocore.exceptions
 import pkg_resources
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
@@ -541,6 +542,18 @@ class V2Handler:
                     }
                 ]
             }
+        except botocore.exceptions.ClientError as e:
+            status = 400
+            data = {
+                "errors": [
+                    {
+                        "code": "UNSUPPORTED",
+                        "message": f"AWS list_images failed",
+                        "detail": str(e),
+                    }
+                ]
+            }
+
         response = aiohttp.web.json_response(
             data, status=status, headers=response_headers
         )
@@ -720,7 +733,9 @@ class V2Handler:
 
                 if response.status >= 500:
                     logger.error(
-                        "Upstream failed with %d, headers=%r", status, response.headers
+                        "Upstream failed with %d, headers=%r",
+                        response.status,
+                        response.headers,
                     )
 
                 async for chunk in client_response.content.iter_any():
