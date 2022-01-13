@@ -5,6 +5,7 @@ import time
 from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, replace
+from json import JSONDecodeError
 from re import Pattern
 from types import SimpleNamespace
 from typing import Any, ClassVar, Optional
@@ -479,12 +480,33 @@ class V2Handler:
             else:
                 response_headers.pop(LINK, None)
 
-            # See the comment in handle_catalog() about content_type=None.
-            data = await client_response.json(content_type=None)
-            self._fixup_repo_name(data, registry_repo_url.repo)
-            response = aiohttp.web.json_response(
-                data, headers=response_headers, status=client_response.status
-            )
+            if client_response.status == HTTPNotFound.status_code:
+                data = {
+                    "errors": [
+                        {
+                            "code": "NAME_UNKNOWN",
+                            "message": f"Repository {registry_repo_url.repo} not found",
+                            "detail": "",
+                        }
+                    ]
+                }
+                return aiohttp.web.json_response(
+                    data, headers=response_headers, status=client_response.status
+                )
+            try:
+                # See the comment in handle_catalog() about content_type=None.
+                data = await client_response.json(content_type=None)
+            except JSONDecodeError:
+                return Response(
+                    body=await client_response.text(),
+                    headers=response_headers,
+                    status=client_response.status,
+                )
+            else:
+                self._fixup_repo_name(data, registry_repo_url.repo)
+                response = aiohttp.web.json_response(
+                    data, headers=response_headers, status=client_response.status
+                )
         return response
 
     async def _handle_aws_ecr_tags_list(
@@ -956,3 +978,7 @@ def main() -> None:
     logger.info("Loaded config: %r", config)
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)
+
+
+if __name__ == "__main__":
+    main()
