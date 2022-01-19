@@ -145,22 +145,18 @@ class TestAWSECRUpstream:
         ) as up:
             yield up
 
-    @pytest.mark.asyncio
     async def test_create_repo(self, upstream: Upstream) -> None:
         # simply should not fail
         await upstream.create_repo("test_repo")
         await upstream.create_repo("test_repo")
 
-    @pytest.mark.asyncio
     async def test_create_repo_already_exists(self, upstream: Upstream) -> None:
         await upstream.create_repo("test_repo_already_exists")
 
-    @pytest.mark.asyncio
     async def test_create_repo_unexpected(self, upstream: Upstream) -> None:
         with pytest.raises(botocore.exceptions.ClientError):
             await upstream.create_repo("test_invalid_repo")
 
-    @pytest.mark.asyncio
     async def test_get_headers(self, upstream: Upstream) -> None:
         headers = await upstream.get_headers_for_version()
         assert headers == {"Authorization": "Basic test_token"}
@@ -171,7 +167,6 @@ class TestAWSECRUpstream:
         headers = await upstream.get_headers_for_repo("test_repo")
         assert headers == {"Authorization": "Basic test_token"}
 
-    @pytest.mark.asyncio
     async def test_get_image_delete_response_success(
         self, upstream: AWSECRUpstream
     ) -> None:
@@ -185,7 +180,6 @@ class TestAWSECRUpstream:
         assert response_status == 202
         assert response_content == {}
 
-    @pytest.mark.asyncio
     async def test_get_image_delete_response_image_not_found(
         self, upstream: AWSECRUpstream
     ) -> None:
@@ -209,7 +203,6 @@ class TestAWSECRUpstream:
             ]
         }
 
-    @pytest.mark.asyncio
     async def test_get_image_delete_response_repository_not_found(
         self, upstream: AWSECRUpstream
     ) -> None:
@@ -236,7 +229,6 @@ class TestAWSECRUpstream:
             ]
         }
 
-    @pytest.mark.asyncio
     async def test_get_image_delete_response_unknown_error(
         self, upstream: AWSECRUpstream
     ) -> None:
@@ -260,7 +252,6 @@ class TestAWSECRUpstream:
             ]
         }
 
-    @pytest.mark.asyncio
     async def test_get_image_tags_no_failures(self, upstream: AWSECRUpstream) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},

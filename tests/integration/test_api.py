@@ -37,7 +37,6 @@ def config(admin_token: str, cluster_name: str) -> Config:
 
 
 class TestV2Api:
-    @pytest.mark.asyncio
     async def test_unauthorized(
         self, aiohttp_client: _TestClientFactory, config: Config
     ) -> None:
@@ -47,7 +46,6 @@ class TestV2Api:
             assert resp.status == 401
             assert resp.headers["WWW-Authenticate"] == ('Basic realm="Docker Registry"')
 
-    @pytest.mark.asyncio
     async def test_invalid_credentials(
         self, aiohttp_client: _TestClientFactory, config: Config
     ) -> None:
@@ -57,7 +55,6 @@ class TestV2Api:
         async with client.get("/v2/", headers=headers) as resp:
             assert resp.status == 400
 
-    @pytest.mark.asyncio
     async def test_version_check(
         self,
         aiohttp_client: _TestClientFactory,
@@ -85,7 +82,6 @@ class TestV2Api:
             assert resp.status == 200
             assert "platform-registry-api" in resp.headers["X-Service-Version"]
 
-    @pytest.mark.asyncio
     async def test_catalog(
         self,
         aiohttp_client: _TestClientFactory,
@@ -103,7 +99,6 @@ class TestV2Api:
             assert "repositories" in data
             assert isinstance(data["repositories"], list)
 
-    @pytest.mark.asyncio
     async def test_catalog__no_auth(
         self, aiohttp_client: _TestClientFactory, config: Config
     ) -> None:
@@ -113,7 +108,6 @@ class TestV2Api:
         async with client.get(url) as resp:
             assert resp.status == 401, await resp.text()
 
-    @pytest.mark.asyncio
     async def test_repo_unauthorized(
         self, aiohttp_client: _TestClientFactory, config: Config
     ) -> None:
@@ -123,7 +117,6 @@ class TestV2Api:
             assert resp.status == 401
             assert resp.headers["WWW-Authenticate"] == ('Basic realm="Docker Registry"')
 
-    @pytest.mark.asyncio
     async def test_unknown_repo(
         self,
         aiohttp_client: _TestClientFactory,
@@ -148,7 +141,6 @@ class TestV2Api:
                 ]
             }
 
-    @pytest.mark.asyncio
     async def test_cross_repo_blob_mount(
         self,
         aiohttp_client: _TestClientFactory,
@@ -163,7 +155,6 @@ class TestV2Api:
         async with client.post(url, auth=auth) as resp:
             assert resp.status == 202, await resp.text()
 
-    @pytest.mark.asyncio
     async def test_cross_repo_blob_mount_forbidden(
         self,
         aiohttp_client: _TestClientFactory,
@@ -178,7 +169,6 @@ class TestV2Api:
         async with client.post(url, auth=auth) as resp:
             assert resp.status == 403
 
-    @pytest.mark.asyncio
     async def test_x_forwarded_proto(
         self,
         aiohttp_client: _TestClientFactory,
