@@ -31,8 +31,6 @@ from platform_registry_api.config import (
 from tests import _TestClientFactory
 from tests.integration.conftest import _User
 
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.fixture
 async def raw_client() -> AsyncIterator[aiohttp.ClientSession]:
