@@ -1,6 +1,5 @@
 from unittest import mock
 
-import pytest
 from aiohttp import BasicAuth
 from aiohttp.hdrs import AUTHORIZATION
 
