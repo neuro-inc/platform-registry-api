@@ -488,7 +488,6 @@ class TestUpstreamTokenManager:
                 session, registry_config, timefunc=mock_time.time
             )
 
-    @pytest.mark.asyncio
     async def test_get_token_without_scope(
         self,
         mock_auth_server: MockAuthServer,
@@ -504,7 +503,6 @@ class TestUpstreamTokenManager:
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
-    @pytest.mark.asyncio
     async def test_get_token_without_scope_with_expires_in(
         self,
         mock_auth_server: MockAuthServer,
@@ -522,7 +520,6 @@ class TestUpstreamTokenManager:
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
-    @pytest.mark.asyncio
     async def test_get_token_without_scope_with_issued_at(
         self,
         mock_auth_server: MockAuthServer,
@@ -544,7 +541,6 @@ class TestUpstreamTokenManager:
         token = await utm.get_token_without_scope()
         assert token == "token-upstream-None-2"
 
-    @pytest.mark.asyncio
     async def test_get_token_for_catalog(
         self,
         mock_auth_server: MockAuthServer,
@@ -560,7 +556,6 @@ class TestUpstreamTokenManager:
         token = await utm.get_token_for_catalog()
         assert token == "token-upstream-registry:catalog:*-2"
 
-    @pytest.mark.asyncio
     async def test_get_token_for_repo(
         self,
         mock_auth_server: MockAuthServer,
