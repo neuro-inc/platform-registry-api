@@ -32,7 +32,6 @@ from tests import _TestClientFactory
 from tests.integration.conftest import _User
 
 
-
 @pytest.fixture
 async def raw_client() -> AsyncIterator[aiohttp.ClientSession]:
     async with aiohttp.ClientSession() as session:
