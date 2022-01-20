@@ -1,5 +1,4 @@
 import uuid
-from asyncio.base_events import BaseEventLoop
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Optional
@@ -10,15 +9,6 @@ from jose import jwt
 from neuro_auth_client import AuthClient, User
 
 from platform_registry_api.config import Config
-
-
-@pytest.fixture
-def event_loop(loop: BaseEventLoop) -> BaseEventLoop:
-    """
-    This fixture mitigates the compatibility issues between
-    pytest-asyncio and pytest-aiohttp.
-    """
-    return loop
 
 
 @pytest.fixture
