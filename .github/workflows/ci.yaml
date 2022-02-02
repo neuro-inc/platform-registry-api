@@ -35,6 +35,8 @@ jobs:
         fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v2
+      with:
+        python-version: 3.9.9
     - name: Cache packages
       uses: actions/cache@v2.1.7
       with:
