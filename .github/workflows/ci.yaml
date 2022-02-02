@@ -194,23 +194,11 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    outputs:
-      version: ${{ steps.release.outputs.version }}
     permissions: write-all
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Release
-      id: release
-      uses: neuro-inc/release-service@v0.0.8
-      with:
-        ref: ${{ github.ref }}
-        image: platformregistryapi
-        helm-charts: platform-registry
-        token: ${{ github.token }}
-        actor: ${{ github.actor }}
+    uses: neuro-inc/release-service/workflow.yaml@v0.0.10
+    with:
+      image: platformregistryapi
+      helm-charts: platform-registry
 
   deploy_dev:
     name: Deploy on dev
