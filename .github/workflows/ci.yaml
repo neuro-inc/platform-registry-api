@@ -22,7 +22,6 @@ jobs:
     - name: Dummy
       run: |
         echo "Ok"
-        fetch-depth: 0
 
   lint:
     name: Lint
