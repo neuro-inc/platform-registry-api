@@ -196,10 +196,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     outputs:
       version: ${{ steps.release.outputs.version }}
-    permissions:
-      actions: write
-      contents: read
-      packages: write
+    permissions: write-all
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
