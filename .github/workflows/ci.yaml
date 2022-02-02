@@ -73,8 +73,9 @@ jobs:
         fetch-depth: 0
     - name: Release
       id: release
-      uses: neuro-inc/release-service@v0.0.4
+      uses: neuro-inc/release-service@v0.0.5
       with:
+        ref: ${{ github.ref }}
         image: platformregistryapi
         helm-charts: platform-registry
         token: ${{ secrets.GITHUB_TOKEN }}
