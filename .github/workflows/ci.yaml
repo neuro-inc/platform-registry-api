@@ -194,7 +194,7 @@ jobs:
     needs: check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     permissions: write-all
-    uses: neuro-inc/release-service/workflow.yaml@v0.0.10
+    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@v0.0.13
     with:
       image: platformregistryapi
       helm-charts: platform-registry
