@@ -209,7 +209,7 @@ jobs:
         ref: ${{ github.ref }}
         image: platformregistryapi
         helm-charts: platform-registry
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ github.token }}
         actor: ${{ github.actor }}
 
   deploy_dev:
