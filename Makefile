@@ -7,7 +7,7 @@ lint: format
 	mypy platform_registry_api tests
 
 format:
-ifdef CI_LINT_RUN
+ifdef CI
 	pre-commit run --all-files --show-diff-on-failure
 else
 	pre-commit run --all-files

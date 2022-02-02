@@ -18,9 +18,6 @@ jobs:
     if: |
       (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
-    env:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-      AWS_REGION: us-east-1
     steps:
     - name: Checkout commit
       uses: actions/checkout@v2
@@ -35,7 +32,7 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-py-3.9-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
           }}
     - name: Install dependencies
       run: make setup
@@ -49,8 +46,6 @@ jobs:
       run: |
         echo "::add-matcher::.github/actionlint-matcher.json"
         make lint
-      env:
-        CI_LINT_RUN: 1
     - name: Run unit tests
       run: make test_unit
     - name: Run integration tests
@@ -59,8 +54,6 @@ jobs:
       run: make test_e2e
     - name: Build Docker image
       run: make docker_build
-      env:
-        IMAGE_TAG: latest
     - name: Upload image artifact
       uses: neuro-inc/upload-image-action@v21.9.2
       with:
