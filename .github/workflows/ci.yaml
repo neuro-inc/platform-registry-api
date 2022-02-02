@@ -193,7 +193,7 @@ jobs:
     name: Create release
     needs: check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@v0.0.13
+    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@v0.0.14
     with:
       image: platformregistryapi
       helm-charts: platform-registry
