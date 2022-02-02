@@ -73,7 +73,7 @@ jobs:
         fetch-depth: 0
     - name: Release
       id: release
-      uses: neuro-inc/release-service@v0.0.6
+      uses: neuro-inc/release-service@v0.0.7
       with:
         ref: ${{ github.ref }}
         image: platformregistryapi
