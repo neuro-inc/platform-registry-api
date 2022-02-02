@@ -67,6 +67,8 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
     permissions:
+      actions: write
+      contents: read
       packages: write
     steps:
     - name: Checkout commit
