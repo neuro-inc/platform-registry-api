@@ -73,7 +73,7 @@ jobs:
         fetch-depth: 0
     - name: Release
       id: release
-      uses: neuro-inc/release-service@v0.0.1
+      uses: neuro-inc/release-service@v0.0.2
       with:
         image: platformregistryapi
         helm-charts: platform-registry
