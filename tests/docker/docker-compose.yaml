@@ -18,7 +18,7 @@ services:
     - auth
 
   auth_server:
-    image: "${IMAGE_REPO_BASE}/platformauthapi:latest"
+    image: "ghcr.io/neuro-inc/platformauthapi:latest"
     ports:
     - "5003:5003"
     environment:
