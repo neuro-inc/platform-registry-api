@@ -10,3 +10,4 @@ dist/
 .eggs
 
 temp_deploy/
+.docker_build

@@ -33,11 +33,14 @@ test_e2e: docker_build
 	docker-compose -f tests/docker/docker-compose.yaml rm -f; \
 	exit $$exit_code
 
-docker_build:
+docker_build: .docker_build
+
+.docker_build: $(find platform_registry_api -name "*.py") setup.cfg pyproject.toml Dockerfile
 	rm -rf build dist
 	pip install -U build
 	python -m build
 	docker build -t platformregistryapi:latest .
+	touch .docker_build
 
 build_up: docker_build
 	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up
