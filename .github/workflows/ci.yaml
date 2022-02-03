@@ -311,7 +311,7 @@ jobs:
       shell: bash
     - name: Create chart
       run: |
-        for HELM_CHART in (platform-registry); do
+        for HELM_CHART in $CHARTS; do
           VALUES=$$(cat charts/${HELM_CHART}/values.yaml | envsubst)
           echo "$$VALUES" > charts/${HELM_CHART}/values.yaml
           CHART=$$(cat charts/${HELM_CHART}/Chart.yaml | envsubst)
@@ -323,6 +323,7 @@ jobs:
         IMAGE_TAG: ${{ steps.meta.outputs.version }}
         CHART_VERSION: ${{ steps.meta.outputs.version }}
         APP_VERSION: ${{ steps.meta.outputs.version }}
+        CHARTS: platform-registry
       shell: bash
     - name: Release chart
       env:
@@ -330,10 +331,12 @@ jobs:
         CR_TOKEN: ${{ github.token }}
       run: |
         echo $CR_TOKEN | helm registry login ghcr.io -u x-access-token --password-stdin
-        for HELM_CHART in (platform-registry); do
+        for HELM_CHART in $CHARTS; do
           helm package charts/${HELM_CHART} -u
           helm push ${HELM_CHART}-${{ steps.meta.outputs.version }}.tgz oci://ghcr.io/neuro-inc/helm-charts
         done
+      env:
+        CHARTS: platform-registry
       shell: bash
     - name: GitHub Release
       uses: ncipollo/release-action@v1.9.0
