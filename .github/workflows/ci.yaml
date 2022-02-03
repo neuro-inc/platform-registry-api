@@ -312,10 +312,10 @@ jobs:
     - name: Create chart
       run: |
         for HELM_CHART in $CHARTS; do
-          VALUES=$$(cat charts/${HELM_CHART}/values.yaml | envsubst)
-          echo "$$VALUES" > charts/${HELM_CHART}/values.yaml
-          CHART=$$(cat charts/${HELM_CHART}/Chart.yaml | envsubst)
-          echo "$$CHART" > charts/${HELM_CHART}/Chart.yaml
+          VALUES=$(cat charts/${HELM_CHART}/values.yaml | envsubst)
+          echo "$VALUES" > charts/${HELM_CHART}/values.yaml
+          CHART=$(cat charts/${HELM_CHART}/Chart.yaml | envsubst)
+          echo "$CHART" > charts/${HELM_CHART}/Chart.yaml
         done
       env:
         # envs are used by envsubst above
