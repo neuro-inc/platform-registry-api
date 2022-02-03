@@ -11,7 +11,20 @@ on:
   schedule:
   - cron: 0 4 * * *
 
-permissions: write-all
+permissions:
+  actions: write
+  checks: write
+  contents: write
+  deployments: write
+  id-token: write
+  issues: write
+  discussions: write
+  packages: write
+  pages: write
+  pull-requests: write
+  repository-projects: write
+  security-events: write
+  statuses: write
 
 jobs:
   pre:
@@ -195,8 +208,21 @@ jobs:
     name: Create release
     needs: check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    permissions: write-all
-    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@v0.0.17
+    permissions:
+      actions: write
+      checks: write
+      contents: write
+      deployments: write
+      id-token: write
+      issues: write
+      discussions: write
+      packages: write
+      pages: write
+      pull-requests: write
+      repository-projects: write
+      security-events: write
+      statuses: write
+    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@master
     with:
       image: platformregistryapi
       helm-charts: platform-registry
