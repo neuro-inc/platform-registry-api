@@ -393,7 +393,7 @@ jobs:
     - name: Deploy to kubernetes
       run: |
         helm upgrade platform-registry \
-          oc3i://ghcr.io/neuro-inc/helm-charts/platform-registry \
+          oci://ghcr.io/neuro-inc/helm-charts/platform-registry \
           --version ${{ needs.release.outputs.version }} \
           -f charts/platform-registry/values-dev.yaml \
           --namespace platform --install --wait --timeout 600s
