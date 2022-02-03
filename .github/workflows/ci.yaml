@@ -326,9 +326,6 @@ jobs:
         CHARTS: platform-registry
       shell: bash
     - name: Release chart
-      env:
-        HELM_EXPERIMENTAL_OCI: '1'
-        CR_TOKEN: ${{ github.token }}
       run: |
         echo $CR_TOKEN | helm registry login ghcr.io -u x-access-token --password-stdin
         for HELM_CHART in $CHARTS; do
@@ -336,6 +333,8 @@ jobs:
           helm push ${HELM_CHART}-${{ steps.meta.outputs.version }}.tgz oci://ghcr.io/neuro-inc/helm-charts
         done
       env:
+        HELM_EXPERIMENTAL_OCI: '1'
+        CR_TOKEN: ${{ github.token }}
         CHARTS: platform-registry
       shell: bash
     - name: GitHub Release
