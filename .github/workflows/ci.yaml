@@ -397,3 +397,5 @@ jobs:
           --version ${{ needs.release.outputs.version }} \
           -f charts/platform-registry/values-dev.yaml \
           --namespace platform --install --wait --timeout 600s
+      env:
+        HELM_EXPERIMENTAL_OCI: '1'
