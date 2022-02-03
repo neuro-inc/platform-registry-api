@@ -205,9 +205,10 @@ jobs:
         jobs: ${{ toJSON(needs) }}
 
   release:
-    name: Create release
+    name: Release image and heml chart
     needs: check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
     permissions:
       actions: write
       checks: write
@@ -222,10 +223,148 @@ jobs:
       repository-projects: write
       security-events: write
       statuses: write
-    uses: neuro-inc/release-service/.github/workflows/workflow.yaml@master
-    with:
-      image: platformregistryapi
-      helm-charts: platform-registry
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      skip: ${{ steps.meta.outputs.skip }}
+      tag: ${{ steps.meta.outputs.tag }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+    - name: Checkout commit
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Detect metadata
+      id: meta
+      run: |
+        import re
+        import sys
+
+        def dump(val):
+          if val:
+            return "true"
+          else:
+            return ""
+
+        ref = "${{ github.ref }}"
+        PRE = "refs/tags/"
+        if not ref.startswith(PRE):
+          print(f"::error:: Ref {ref} doesn't contain a tag")
+          sys.exit(1)
+        else:
+          tag = ref[len(PRE):]
+
+        match = re.match(r"^v\d+\.\d+(\.\d+)?(?P<pre>(a|b|rc)\d*)?$", tag)
+        if not match:
+          print(
+            f"::error:: Invalid tag {tag}; ",
+            "The tag should have vYY.MM[.NN][{a|b|rc}N] format ",
+            "where YY is the current year, MM is the current month, "
+            "NN is incremental number, "
+            "every next month resets the number to 0, "
+            "a -- alpha, b -- beta, rc -- release candidate, N -- number.",
+          )
+          sys.exit(1)
+        else:
+          print(f"::set-output name=tag::{tag}")
+          version = tag[1:]
+          print(f"::set-output name=version::{version}")
+          print(f"::set-output name=prerelease::{dump(match.group('pre'))}")
+      shell: python
+    - name: Install Helm
+      uses: azure/setup-helm@v2.0
+      with:
+        version: v3.7.0
+    - name: Purge old artifacts
+      uses: kolpav/purge-artifacts-action@v1
+      with:
+        token: ${{ github.token }}
+        expire-in: 30mins
+    - name: Download image artifact
+      uses: actions/download-artifact@v2.1.0
+      with:
+        name: image
+    - name: Login to ghcr.io
+      uses: docker/login-action@v1.12.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    - name: Load image into docker
+      run: |
+        docker load --input platformregistryapi.tar
+      shell: bash
+    - name: Tag remote latest image
+      run: |
+        docker tag platformregistryapi:latest ghcr.io/neuro-inc/platformregistryapi:latest
+      shell: bash
+    - name: Tag remote versioned image
+      run: |
+        docker tag platformregistryapi:latest ghcr.io/neuro-inc/platformregistryapi:${{ steps.meta.outputs.version }}
+      shell: bash
+    - name: Push latest image to ghcr.io
+      run: |
+        docker push ghcr.io/neuro-inc/platformregistryapi:latest
+      shell: bash
+    - name: Push versioned image to ghcr.io
+      run: |
+        docker push ghcr.io/neuro-inc/platformregistryapi:${{ steps.meta.outputs.version }}
+      shell: bash
+    - name: Create chart
+      run: |
+        for HELM_CHART in (platform-registry); do
+          VALUES=$$(cat charts/${HELM_CHART}/values.yaml | envsubst)
+          echo "$$VALUES" > charts/${HELM_CHART}/values.yaml
+          CHART=$$(cat charts/${HELM_CHART}/Chart.yaml | envsubst)
+          echo "$$CHART" > charts/${HELM_CHART}/Chart.yaml
+        done
+      env:
+        # envs are used by envsubst above
+        IMAGE_REPO: ghcr.io/neuro-inc/platformregistryapi
+        IMAGE_TAG: ${{ steps.meta.outputs.version }}
+        CHART_VERSION: ${{ steps.meta.outputs.version }}
+        APP_VERSION: ${{ steps.meta.outputs.version }}
+      shell: bash
+    - name: Release chart
+      env:
+        HELM_EXPERIMENTAL_OCI: '1'
+        CR_TOKEN: ${{ github.token }}
+      run: |
+        echo $CR_TOKEN | helm registry login ghcr.io -u x-access-token --password-stdin
+        for HELM_CHART in (platform-registry); do
+          helm package charts/${HELM_CHART} -u
+          helm push ${HELM_CHART}-${{ steps.meta.outputs.version }}.tgz oci://ghcr.io/neuro-inc/helm-charts
+        done
+      shell: bash
+    - name: GitHub Release
+      uses: ncipollo/release-action@v1.9.0
+      with:
+        name: ${{ steps.meta.outputs.version }}
+        prerelease: ${{ steps.meta.outputs.prerelease }}
+        generateReleaseNotes: 'true'
+        tag: ${{ steps.meta.outputs.tag }}
+        token: ${{ github.token }}
+  # release:
+  #   name: Create release
+  #   needs: check
+  #   if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+  #   permissions:
+  #     actions: write
+  #     checks: write
+  #     contents: write
+  #     deployments: write
+  #     id-token: write
+  #     issues: write
+  #     discussions: write
+  #     packages: write
+  #     pages: write
+  #     pull-requests: write
+  #     repository-projects: write
+  #     security-events: write
+  #     statuses: write
+  #   uses: neuro-inc/release-service/.github/workflows/workflow.yaml@master
+  #   with:
+  #     image: platformregistryapi
+  #     helm-charts: platform-registry
 
   deploy_dev:
     name: Deploy on dev
