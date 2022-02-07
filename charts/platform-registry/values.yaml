@@ -11,7 +11,14 @@ platform:
   authUrl: https://staging.neu.ro
   token: {}
 
-upstreamRegistry: {}
+upstreamRegistry:
+  type: aws_ecr
+  url: https://771188043543.dkr.ecr.us-east-1.amazonaws.com
+  region: us-east-1
+  catalogScope: ""
+  repositoryScopeActions: ""
+  maxCatalogEntries: 1000
+  project: dev
 
 resources:
   requests:
