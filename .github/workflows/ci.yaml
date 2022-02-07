@@ -222,7 +222,7 @@ jobs:
       repository-projects: write
       security-events: write
       statuses: write
-    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.18
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.19
     with:
       image: platformregistryapi
       helm_charts: platform-registry
