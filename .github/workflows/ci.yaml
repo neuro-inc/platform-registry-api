@@ -6,26 +6,26 @@ on:
     tags: ['v*']
   pull_request:
     branches: [master]
-  pull_request_target:
-    branches: [master]
+  # pull_request_target:
+  #   branches: [master]
   schedule:
   - cron: 0 4 * * *
 
 jobs:
-  pre:
-    name: Precondition
-    runs-on: ubuntu-latest
-    if: |
-      (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
-      (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
-    steps:
-    - name: Dummy
-      run: |
-        echo "Ok"
+  # pre:
+  #   name: Precondition
+  #   runs-on: ubuntu-latest
+  #   if: |
+  #     (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
+  #     (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')
+  #   steps:
+  #   - name: Dummy
+  #     run: |
+  #       echo "Ok"
 
   test:
-    name: Run tests
-    needs: pre
+    name: All checks are passed
+    # needs: pre
     uses: ./.github/workflows/test.yaml
 
   release:
