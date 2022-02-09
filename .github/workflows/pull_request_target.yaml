@@ -6,7 +6,7 @@ on:
 
 jobs:
   test:
-    name: All checks are passed
+    name: CI
     if: |
       (github.event_name != 'pull_request_target' && github.actor != 'dependabot[bot]') ||
       (github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]')

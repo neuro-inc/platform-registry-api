@@ -150,7 +150,7 @@ jobs:
         token: ${{ github.token }}
 
   check:
-    name: All checks are passed
+    name: Check
     needs:
     - lint
     - unit
