@@ -4,9 +4,9 @@ metadata:
   name: {{ include "platformRegistry.fullname" . }}
   labels: {{ include "platformRegistry.labels.standard" . | nindent 4 }}
     service: platform-registry
-  annotations:
-    traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_REGISTRYAPI_SESSION
+{{- with .Values.service.annotations }}
+  annotations: {{ toYaml . | nindent 4 }}
+{{- end }}
 spec:
   type: ClusterIP
   ports:
