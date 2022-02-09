@@ -20,7 +20,9 @@ jobs:
     uses: ./.github/workflows/test.yaml
 
   approve:
+    name: Approve bot PR
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
     needs: [test]
     steps:
     - name: Checkout
