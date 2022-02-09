@@ -194,39 +194,18 @@ jobs:
     name: Create release
     needs: check
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.21
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.24
     with:
       image: platformregistryapi
       helm_charts: platform-registry
 
   deploy_dev:
     name: Deploy on dev
-    environment: dev
-    runs-on: ubuntu-latest
     needs: release
-    steps:
-    - name: Checkout commit
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Install Helm
-      uses: azure/setup-helm@v2.0
-      with:
-        version: v3.7.0
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-    - name: Update kube config
-      run: aws eks --region us-east-1 update-kubeconfig --name aws-dev
-    - name: Deploy to kubernetes
-      run: |
-        helm upgrade platform-registry \
-          oci://ghcr.io/neuro-inc/helm-charts/platform-registry \
-          --version ${{ needs.release.outputs.version }} \
-          -f charts/platform-registry/values-dev.yaml \
-          --namespace platform --install --wait --timeout 600s
-      env:
-        HELM_EXPERIMENTAL_OCI: '1'
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v0.0.24
+    with:
+      helm_charts: platform-registry
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
