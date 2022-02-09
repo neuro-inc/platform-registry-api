@@ -25,6 +25,7 @@ jobs:
 
   test:
     name: Run tests
+    needs: pre
     uses: ./.github/workflows/test.yaml
 
   release:
