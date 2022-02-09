@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  pull_request_target:
+    branches: [master]
+  schedule:
+  - cron: 0 4 * * *
+
+jobs:
+  test:
+    if: |
+      (github.event_name != 'pull_request_target' && !endsWith(github.actor, '[bot]') ||
+      (github.event_name == 'pull_request_target' && endsWith(github.actor, '[bot]')
+    name: All checks are passed
+    uses: ./.github/workflows/test.yaml
+
+  approve:
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2.3.4
+    - id: generate_token
+      uses: tibdex/github-app-token@v1
+      with:
+        app_id: ${{ secrets.BOT_APP_ID }}
+        private_key: ${{ secrets.BOT_PRIVATE_KEY }}
+    - name: metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@v1.1.1
+      with:
+        github-token: ${{ steps.generate_token.outputs.token }}
+    - name: Enable auto-merge for bot PRs
+      run: gh pr merge --auto --squash --delete-branch "$PR_URL"
+      env:
+        PR_URL: ${{ github.event.pull_request.html_url }}
+        GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+
+  release:
+    name: Create release
+    needs: test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.24
+    with:
+      image: platformregistryapi
+      helm_charts: platform-registry
+
+  deploy_dev:
+    name: Deploy on dev
+    needs: release
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v0.0.24
+    with:
+      helm_charts: platform-registry
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
