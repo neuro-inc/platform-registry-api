@@ -188,6 +188,7 @@ jobs:
       uses: re-actors/alls-green@release/v1
       with:
         jobs: ${{ toJSON(needs) }}
+        allowed-skips: lint,unit,integratiom,e2e,image-upload
 
   release:
     name: Create release
