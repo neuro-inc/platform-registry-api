@@ -14,8 +14,8 @@ on:
 jobs:
   test:
     if: |
-      (github.event_name != 'pull_request_target' && !endsWith(github.actor, '[bot]') ||
-      (github.event_name == 'pull_request_target' && endsWith(github.actor, '[bot]')
+      (github.event_name != 'pull_request_target' && !endsWith(github.actor, '[bot]')) ||
+      (github.event_name == 'pull_request_target' && endsWith(github.actor, '[bot]'))
     name: All checks are passed
     uses: ./.github/workflows/test.yaml
 
