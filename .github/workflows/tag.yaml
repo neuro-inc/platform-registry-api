@@ -1,0 +1,29 @@
+name: Tag
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  test:
+    name: All checks are passed
+    uses: ./.github/workflows/test.yaml
+
+  release:
+    name: Create release
+    needs: test
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v0.0.24
+    with:
+      image: platformregistryapi
+      helm_charts: platform-registry
+
+  deploy_dev:
+    name: Deploy on dev
+    needs: release
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v0.0.24
+    with:
+      helm_charts: platform-registry
+      version: ${{ needs.release.outputs.version }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

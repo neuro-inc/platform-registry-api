@@ -1,0 +1,10 @@
+name: Cron
+
+on:
+  schedule:
+  - cron: 0 4 * * *
+
+jobs:
+  test:
+    name: All checks are passed
+    uses: ./.github/workflows/test.yaml
