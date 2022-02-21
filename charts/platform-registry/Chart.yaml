@@ -3,3 +3,7 @@ name: platform-registry
 description: A Helm chart for platform-registry service
 version: $CHART_VERSION
 appVersion: $APP_VERSION
+dependencies:
+  - name: k8s-resources
+    version: "1.0.1"
+    repository: https://neuro-inc.github.io/helm-charts
