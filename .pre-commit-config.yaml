@@ -15,7 +15,7 @@ repos:
     args:
     - --futures=true
 - repo: https://github.com/Zac-HD/shed
-  rev: 0.9.0
+  rev: 0.9.1
   hooks:
   - id: shed
     args:
@@ -51,7 +51,7 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.11.0
+  rev: 0.13.0
   hooks:
   - id: check-github-actions
 ci:
