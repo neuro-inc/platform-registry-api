@@ -14,20 +14,16 @@ upstreamRegistry: {}
 
 ingress:
   enabled: true
+  ingressClassName: traefik
   hosts: [registry-dev.neu.ro]
   annotations:
-    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.pathmatcher: PathPrefix
     external-dns.platform.neuromation.io: "true"
-    # TODO: remove traefik v1 annotations
-    traefik.frontend.rule.type: PathPrefix
 
 service:
   annotations:
     traefik.ingress.kubernetes.io/service.sticky.cookie: "true"
     traefik.ingress.kubernetes.io/service.sticky.cookie.name: NEURO_REGISTRYAPI_SESSION
-    # TODO: remove traefik v1 annotations
-    traefik.ingress.kubernetes.io/affinity: "true"
-    traefik.ingress.kubernetes.io/session-cookie-name: NEURO_REGISTRYAPI_SESSION
 
 sentry:
   dsn: https://432bc48cd2444be7afec5efeb1fc03a6@o489136.ingest.sentry.io/5530426
