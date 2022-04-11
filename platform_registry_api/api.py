@@ -747,8 +747,9 @@ class V2Handler:
                         response.headers,
                     )
 
-                async for chunk in client_response.content.iter_any():
-                    await response.write(chunk or b"")
+                async for chunk, _ in client_response.content.iter_chunks():
+                    if chunk:
+                        await response.write(chunk)
 
                 await response.write_eof()
                 return response
