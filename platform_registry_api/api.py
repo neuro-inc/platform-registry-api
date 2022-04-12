@@ -659,60 +659,33 @@ class V2Handler:
         else:
             data = request.content.iter_any()
 
+        path_components = request.path.split("/")
+
         if (
             request.method == "DELETE"
             and self._config.upstream_registry.type == UpstreamType.AWS_ECR
+            and path_components[-2] == "manifests"
         ):
-            _, _, user, *repository_components, _, digest = request.path.split("/")
+            _, _, *repository_components, _, reference = path_components
             repository = "/".join(repository_components)
-            aws_upstream: AWSECRUpstream = self._upstream  # type: ignore
-            repository_name = (
-                f"{self._upstream_registry_config.project}/" f"{user}/{repository}"
+            repository_name = f"{self._upstream_registry_config.project}/{repository}"
+
+            upstream_response = await self._delete_aws_ecr_image(
+                repository_name, reference
             )
-            client_response = await aws_upstream._client.batch_delete_image(
-                repositoryName=repository_name,
-                imageIds=[
-                    {
-                        "imageDigest": digest,
-                    }
-                ],
-            )
+            await self._delete_aws_ecr_repository(repository_name)
 
-            logger.debug("upstream response to batchDeleteImage: %s", client_response)
-
-            try:
-                client_response = await aws_upstream._client.delete_repository(
-                    repositoryName=repository_name,
-                    force=False,  # Will fail if there are some images
-                )
-                logger.debug(
-                    "upstream response to deleteRepository: %s", client_response
-                )
-            except aws_upstream._client.exceptions.RepositoryNotEmptyException:
-                pass
-
-            response_headers = self._prepare_response_headers(
-                client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
-            )
-            for header in ("content-length", "content-type", "x-amzn-requestid"):
-                response_headers.pop(header, None)
-
-            (
-                status,
-                content,
-            ) = await self._upstream.convert_upstream_response(  # type: ignore
-                client_response
-            )
-
-            response = aiohttp.web.json_response(
-                content, headers=response_headers, status=status
+            response = await self._convert_upstream_response(
+                upstream_response, url_factory
             )
             logger.debug(
                 "registry response: %s; headers: %s", response, response.headers
             )
-            if status >= 500:
+            if response.status >= 500:
                 logger.error(
-                    "Upstream failed with %d, headers=%r", status, response.headers
+                    "Upstream failed with %d, headers=%r",
+                    response.status,
+                    response.headers,
                 )
             return response
         else:
@@ -730,7 +703,7 @@ class V2Handler:
                 response_headers = self._prepare_response_headers(
                     client_response.headers, url_factory
                 )
-                response = aiohttp.web.StreamResponse(  # type: ignore
+                response = aiohttp.web.StreamResponse(
                     status=client_response.status, headers=response_headers
                 )
 
@@ -752,6 +725,48 @@ class V2Handler:
 
                 await response.write_eof()
                 return response
+
+    async def _delete_aws_ecr_image(self, repository_name: str, reference: str) -> Any:
+        upstream: AWSECRUpstream = self._upstream  # type: ignore
+        if reference.startswith("sha256:"):
+            image_ids = [{"imageDigest": reference}]
+        else:
+            image_ids = [{"imageTag": reference}]
+        response = await upstream._client.batch_delete_image(
+            repositoryName=repository_name,
+            imageIds=image_ids,
+        )
+        logger.debug("upstream response to batchDeleteImage: %s", response)
+        return response
+
+    async def _delete_aws_ecr_repository(self, repository_name: str) -> None:
+        upstream: AWSECRUpstream = self._upstream  # type: ignore
+        try:
+            response = await upstream._client.delete_repository(
+                repositoryName=repository_name,
+                force=False,  # Will fail if there are some images
+            )
+            logger.debug("upstream response to deleteRepository: %s", response)
+        except upstream._client.exceptions.RepositoryNotEmptyException:
+            pass
+
+    async def _convert_upstream_response(
+        self, response: Any, url_factory: URLFactory
+    ) -> aiohttp.web.StreamResponse:
+        response_headers = self._prepare_response_headers(
+            response["ResponseMetadata"]["HTTPHeaders"], url_factory
+        )
+        for header in ("content-length", "content-type", "x-amzn-requestid"):
+            response_headers.pop(header, None)
+        (
+            status,
+            content,
+        ) = await self._upstream.convert_upstream_response(  # type: ignore
+            response
+        )
+        return aiohttp.web.json_response(
+            content, headers=response_headers, status=status
+        )
 
     def _fixup_repo_name(self, data: Any, repo: str) -> None:
         if isinstance(data, dict):
