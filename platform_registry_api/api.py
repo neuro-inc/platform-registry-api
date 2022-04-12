@@ -747,8 +747,11 @@ class V2Handler:
                         response.headers,
                     )
 
-                async for chunk in client_response.content.iter_any():
-                    await response.write(chunk)
+                async for chunk, end_http in client_response.content.iter_chunks():
+                    if chunk:
+                        await response.write(chunk)
+                    else:
+                        break
 
                 await response.write_eof()
                 return response
@@ -879,6 +882,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 aiohttp.ClientSession(
                     trace_configs=[trace_config] + make_tracing_trace_configs(config),
                     connector=aiohttp.TCPConnector(force_close=True),
+                    read_bufsize=2**22,  # 4mb buffer
                 )
             )
             app["v2_app"]["registry_client"] = session
