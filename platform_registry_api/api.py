@@ -159,6 +159,10 @@ class URLFactory:
         self._upstream_project = upstream_project
 
     @property
+    def upstream_host(self) -> Optional[str]:
+        return self._upstream_endpoint_url.host
+
+    @property
     def upstream_project(self) -> str:
         return self._upstream_project
 
@@ -689,6 +693,11 @@ class V2Handler:
                 )
             return response
         else:
+            aws_blob_request = (
+                request.method == "GET"
+                and self._config.upstream_registry.type == UpstreamType.AWS_ECR
+                and path_components[-1] == "blobs"
+            )
             async with self._registry_client.request(
                 method=request.method,
                 url=url,
@@ -696,6 +705,7 @@ class V2Handler:
                 skip_auto_headers=("Content-Type",),
                 data=data,
                 timeout=timeout,
+                allow_redirects=aws_blob_request,
             ) as client_response:
 
                 logger.debug("upstream response: %s", client_response)
@@ -810,6 +820,9 @@ class V2Handler:
         return response_headers
 
     def _convert_location_header(self, url_str: str, url_factory: URLFactory) -> str:
+        url_raw = URL(url_str)
+        if url_raw.host != url_factory.upstream_host:
+            return url_str  # Redirect to outer service, maybe AWS S3 redirect
         upstream_repo_url = RepoURL.from_url(URL(url_str))
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
         logger.info(
