@@ -821,7 +821,7 @@ class V2Handler:
 
     def _convert_location_header(self, url_str: str, url_factory: URLFactory) -> str:
         url_raw = URL(url_str)
-        if url_raw.host != url_factory.upstream_host:
+        if url_raw.host is not None and url_raw.host != url_factory.upstream_host:
             return url_str  # Redirect to outer service, maybe AWS S3 redirect
         upstream_repo_url = RepoURL.from_url(URL(url_str))
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
