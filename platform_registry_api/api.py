@@ -918,7 +918,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 aiohttp.ClientSession(
                     trace_configs=[trace_config] + make_tracing_trace_configs(config),
                     connector=aiohttp.TCPConnector(force_close=True),
-                    read_bufsize=2**22,  # 4mb buffer
                 )
             )
             app["v2_app"]["registry_client"] = session
