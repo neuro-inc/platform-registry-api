@@ -130,8 +130,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
-          }}
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io

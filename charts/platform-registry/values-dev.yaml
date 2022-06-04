@@ -1,6 +1,3 @@
-annotations:
-  iam.amazonaws.com/role: arn:aws:iam::771188043543:role/ecr-366c09e4841fcc83df56b8f070c34716
-
 platform:
   clusterName: default
   authUrl: http://platform-auth:8080
