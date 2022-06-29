@@ -233,20 +233,19 @@ class V2Handler:
     def register(self, app: aiohttp.web.Application, cors: CorsConfig) -> None:
         app.add_routes(
             (
-                cors.add(aiohttp.web.get("/", self.handle_version_check)),
-                cors.add(aiohttp.web.get("/_catalog", self.handle_catalog)),
-                cors.add(
-                    aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list)
-                ),
-                cors.add(
-                    aiohttp.web.route(
-                        "*",
-                        r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
-                        self.handle,
-                    )
+                aiohttp.web.get("/", self.handle_version_check),
+                aiohttp.web.get("/_catalog", self.handle_catalog),
+                aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
+                aiohttp.web.route(
+                    "*",
+                    r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
+                    self.handle,
                 ),
             )
         )
+        for route in app.router.routes():
+            logger.debug(f"Setting up CORS for {route}")
+            cors.add(route)
 
     def _create_url_factory(self, request: Request) -> URLFactory:
         return URLFactory.from_config(
