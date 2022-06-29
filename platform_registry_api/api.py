@@ -18,7 +18,17 @@ import botocore.exceptions
 import pkg_resources
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
-from aiohttp.hdrs import CONTENT_LENGTH, CONTENT_TYPE, LINK
+from aiohttp.hdrs import (
+    CONTENT_LENGTH,
+    CONTENT_TYPE,
+    LINK,
+    METH_DELETE,
+    METH_GET,
+    METH_HEAD,
+    METH_PATCH,
+    METH_POST,
+    METH_PUT,
+)
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
@@ -236,11 +246,21 @@ class V2Handler:
                 aiohttp.web.get("/", self.handle_version_check),
                 aiohttp.web.get("/_catalog", self.handle_catalog),
                 aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
-                aiohttp.web.route(
-                    "*",
-                    r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
-                    self.handle,
-                ),
+            )
+        )
+        app.add_routes(
+            aiohttp.web.route(
+                method,
+                r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
+                self.handle,
+            )
+            for method in (
+                METH_HEAD,
+                METH_GET,
+                METH_POST,
+                METH_DELETE,
+                METH_PATCH,
+                METH_PUT,
             )
         )
         for route in app.router.routes():
