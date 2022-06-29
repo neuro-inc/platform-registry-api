@@ -75,6 +75,7 @@ spec:
         {{- if .Values.cors.origins }}
         - name: NP_CORS_ORIGINS
           value: {{ .Values.cors.origins | join ","  | quote }}
+        {{- end }}
         {{- if eq .Values.upstreamRegistry.type "basic" }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
 {{- if .Values.upstreamRegistry.basicUsername }}
