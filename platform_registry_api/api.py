@@ -540,9 +540,9 @@ class V2Handler:
     ) -> Response:
         _, _, user, *repository_components, _, _ = request.path.split("/")
         repository = "/".join(repository_components)
+        aws_repository = f"{self._upstream_registry_config.project}/{user}/{repository}"
         args = {
-            "repositoryName": f"{self._upstream_registry_config.project}/"
-            f"{user}/{repository}",
+            "repositoryName": aws_repository,
             "filter": {"tagStatus": "TAGGED"},
         }
         if "next" in registry_repo_url.url.query:
@@ -552,6 +552,13 @@ class V2Handler:
         try:
             client_response = await client.list_images(**args)
             logger.debug("upstream response: %s", client_response)
+
+            if (
+                len(client_response.get("imageIds", [])) == 0
+                and "next" not in registry_repo_url.url.query
+            ):
+                # This is repo without tags, lets clean up it
+                await self._delete_aws_ecr_repository(aws_repository)
 
             response_headers = self._prepare_response_headers(
                 client_response["ResponseMetadata"]["HTTPHeaders"], url_factory
