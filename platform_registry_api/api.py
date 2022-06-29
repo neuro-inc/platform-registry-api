@@ -12,6 +12,7 @@ from typing import Any, ClassVar, Optional
 
 import aiobotocore.session
 import aiohttp.web
+import aiohttp_cors
 import aiohttp_remotes
 import botocore.exceptions
 import pkg_resources
@@ -27,6 +28,7 @@ from aiohttp.web import (
     Response,
     StreamResponse,
 )
+from aiohttp_cors import CorsConfig
 from aiohttp_security import check_authorized, check_permission
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
@@ -47,7 +49,13 @@ from platform_registry_api.helpers import check_image_catalog_permission
 
 from .aws_ecr import AWSECRUpstream
 from .basic import BasicUpstream
-from .config import Config, EnvironConfigFactory, UpstreamRegistryConfig, UpstreamType
+from .config import (
+    Config,
+    CORSConfig,
+    EnvironConfigFactory,
+    UpstreamRegistryConfig,
+    UpstreamType,
+)
 from .oauth import OAuthClient, OAuthUpstream
 from .typedefs import TimeFactory
 from .upstream import Upstream
@@ -222,16 +230,20 @@ class V2Handler:
     def _upstream(self) -> Upstream:
         return self._app["upstream"]
 
-    def register(self, app: aiohttp.web.Application) -> None:
+    def register(self, app: aiohttp.web.Application, cors: CorsConfig) -> None:
         app.add_routes(
             (
-                aiohttp.web.get("/", self.handle_version_check),
-                aiohttp.web.get("/_catalog", self.handle_catalog),
-                aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
-                aiohttp.web.route(
-                    "*",
-                    r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
-                    self.handle,
+                cors.add(aiohttp.web.get("/", self.handle_version_check)),
+                cors.add(aiohttp.web.get("/_catalog", self.handle_catalog)),
+                cors.add(
+                    aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list)
+                ),
+                cors.add(
+                    aiohttp.web.route(
+                        "*",
+                        r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
+                        self.handle,
+                    )
                 ),
             )
         )
@@ -896,10 +908,28 @@ def make_tracing_trace_configs(config: Config) -> list[aiohttp.TraceConfig]:
     return trace_configs
 
 
+def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> CorsConfig:
+    if not config.allowed_origins:
+        return aiohttp_cors.setup(app)
+
+    logger.info(f"Setting up CORS with allowed origins: {config.allowed_origins}")
+    default_options = aiohttp_cors.ResourceOptions(
+        allow_credentials=True,
+        expose_headers="*",
+        allow_headers="*",
+    )
+    cors = aiohttp_cors.setup(
+        app, defaults={origin: default_options for origin in config.allowed_origins}
+    )
+    return cors
+
+
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
+
+    cors = _setup_cors(app, config.cors)
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -962,7 +992,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
-    v2_handler.register(v2_app)
+    v2_handler.register(v2_app, cors)
 
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)

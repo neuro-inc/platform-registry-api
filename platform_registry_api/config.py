@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from yarl import URL
 
@@ -15,7 +18,7 @@ class ServerConfig:
 
 @dataclass(frozen=True)
 class AuthConfig:
-    server_endpoint_url: Optional[URL]
+    server_endpoint_url: URL | None
     service_token: str = field(repr=False)
 
 
@@ -43,8 +46,8 @@ class UpstreamRegistryConfig:
     token_registry_catalog_scope: str = "registry:catalog:*"
     token_repository_scope_actions: str = "*"
 
-    sock_connect_timeout_s: Optional[float] = 30.0
-    sock_read_timeout_s: Optional[float] = 30.0
+    sock_connect_timeout_s: float | None = 30.0
+    sock_read_timeout_s: float | None = 30.0
 
     # https://github.com/docker/distribution/blob/dcfe05ce6cff995f419f8df37b59987257ffb8c1/registry/handlers/catalog.go#L16
     max_catalog_entries: int = 100
@@ -74,20 +77,26 @@ class SentryConfig:
 
 
 @dataclass(frozen=True)
+class CORSConfig:
+    allowed_origins: Sequence[str] = ()
+
+
+@dataclass(frozen=True)
 class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
+    cors: CORSConfig
     cluster_name: str
-    zipkin: Optional[ZipkinConfig] = None
-    sentry: Optional[SentryConfig] = None
+    zipkin: ZipkinConfig | None = None
+    sentry: SentryConfig | None = None
 
 
 class EnvironConfigFactory:
-    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+    def __init__(self, environ: dict[str, str] | None = None) -> None:
         self._environ = environ or os.environ
 
-    def _get_url(self, name: str) -> Optional[URL]:
+    def _get_url(self, name: str) -> URL | None:
         value = self._environ[name]
         if value == "-":
             return None
@@ -154,7 +163,14 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)
 
-    def create_zipkin(self) -> Optional[ZipkinConfig]:
+    def create_cors(self) -> CORSConfig:
+        origins: Sequence[str] = CORSConfig.allowed_origins
+        origins_str = self._environ.get("NP_CORS_ORIGINS", "").strip()
+        if origins_str:
+            origins = origins_str.split(",")
+        return CORSConfig(allowed_origins=origins)
+
+    def create_zipkin(self) -> ZipkinConfig | None:
         if "NP_ZIPKIN_URL" not in self._environ:
             return None
 
@@ -165,7 +181,7 @@ class EnvironConfigFactory:
         )
         return ZipkinConfig(url=url, app_name=app_name, sample_rate=sample_rate)
 
-    def create_sentry(self) -> Optional[SentryConfig]:
+    def create_sentry(self) -> SentryConfig | None:
         if "NP_SENTRY_DSN" not in self._environ:
             return None
 
@@ -182,6 +198,7 @@ class EnvironConfigFactory:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
+        cors_config = self.create_cors()
         zipkin_config = self.create_zipkin()
         sentry_config = self.create_sentry()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
@@ -190,6 +207,7 @@ class EnvironConfigFactory:
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
+            cors=cors_config,
             cluster_name=cluster_name,
             zipkin=zipkin_config,
             sentry=sentry_config,
