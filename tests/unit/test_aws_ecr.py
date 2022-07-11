@@ -1,6 +1,6 @@
-from collections.abc import AsyncIterator, Awaitable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 import botocore
 import pytest
