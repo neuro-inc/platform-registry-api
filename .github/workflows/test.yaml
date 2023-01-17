@@ -15,13 +15,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9.9
+        python-version: 3.9
     - name: Cache packages
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
-          }}
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
     - name: Install dependencies
       run: make setup
     - name: Lint
@@ -41,13 +40,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9.9
+        python-version: 3.9
     - name: Cache packages
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
-          }}
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
     - name: Install dependencies
       run: make setup
     - name: Run unit tests
@@ -65,13 +63,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9.9
+        python-version: 3.9
     - name: Cache packages
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
-          }}
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io
@@ -95,13 +92,12 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9.9
+        python-version: 3.9
     - name: Cache packages
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg')
-          }}
+        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io
@@ -125,7 +121,7 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9.9
+        python-version: 3.9
     - name: Cache packages
       uses: actions/cache@v3
       with:

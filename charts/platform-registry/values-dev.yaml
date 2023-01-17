@@ -7,7 +7,20 @@ platform:
         name: platformservices-secret
         key: registry_token
 
-upstreamRegistry: {}
+upstreamRegistry:
+  type: oauth
+  url: https://gcr.io
+  tokenUrl: https://gcr.io/v2/token
+  tokenService: gcr.io
+  tokenUsername:
+    value: _json_key
+  tokenPassword:
+    valueFrom:
+      secretKeyRef:
+        name: gcp-key
+        key: key_json
+  project: development-374312
+  maxCatalogEntries: 10000
 
 ingress:
   enabled: true
