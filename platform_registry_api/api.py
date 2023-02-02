@@ -499,7 +499,6 @@ class V2Handler:
             data=request.content.iter_any(),
             timeout=timeout,
         ) as client_response:
-
             logger.debug("upstream response: %s", client_response)
 
             response_headers = self._prepare_response_headers(
@@ -749,7 +748,6 @@ class V2Handler:
                 timeout=timeout,
                 allow_redirects=aws_blob_request,
             ) as client_response:
-
                 logger.debug("upstream response: %s", client_response)
 
                 response_headers = self._prepare_response_headers(
