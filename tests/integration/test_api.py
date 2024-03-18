@@ -11,7 +11,6 @@ from platform_registry_api.config import (
     ServerConfig,
     UpstreamRegistryConfig,
 )
-
 from tests import _TestClientFactory
 from tests.integration.conftest import _User
 

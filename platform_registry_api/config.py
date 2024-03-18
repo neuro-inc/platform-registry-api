@@ -120,26 +120,28 @@ class EnvironConfigFactory:
         upstream_type = UpstreamType(
             self._environ.get("NP_REGISTRY_UPSTREAM_TYPE", UpstreamType.OAUTH.value)
         )
-        upstream: dict[str, Any] = dict(
-            endpoint_url=endpoint_url,
-            project=project,
-            max_catalog_entries=max_catalog_entries,
-            type=upstream_type,
-        )
+        upstream: dict[str, Any] = {
+            "endpoint_url": endpoint_url,
+            "project": project,
+            "max_catalog_entries": max_catalog_entries,
+            "type": upstream_type,
+        }
         if upstream_type == UpstreamType.OAUTH:
             upstream.update(
-                dict(
-                    token_endpoint_url=URL(
+                {
+                    "token_endpoint_url": URL(
                         self._environ["NP_REGISTRY_UPSTREAM_TOKEN_URL"]
                     ),
-                    token_service=self._environ["NP_REGISTRY_UPSTREAM_TOKEN_SERVICE"],
-                    token_endpoint_username=self._environ[
+                    "token_service": self._environ[
+                        "NP_REGISTRY_UPSTREAM_TOKEN_SERVICE"
+                    ],
+                    "token_endpoint_username": self._environ[
                         "NP_REGISTRY_UPSTREAM_TOKEN_USERNAME"
                     ],
-                    token_endpoint_password=self._environ[
+                    "token_endpoint_password": self._environ[
                         "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD"
                     ],
-                )
+                }
             )
             if "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE" in self._environ:
                 upstream["token_registry_catalog_scope"] = self._environ[
