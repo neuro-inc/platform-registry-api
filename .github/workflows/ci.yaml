@@ -2,12 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, eng-292-apolo-dev]
     tags: ['v*']
   pull_request:
-    branches: [master]
+    branches: [master, eng-292-apolo-dev]
   pull_request_target:
-    branches: [master]
+    branches: [master, eng-292-apolo-dev]
   schedule:
   - cron: 0 4 * * *
 
@@ -56,7 +56,7 @@ jobs:
   deploy_dev:
     name: Deploy on dev
     needs: release
-    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v24.5.0
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v0.0.33
     with:
       helm_charts: platform-registry
       version: ${{ needs.release.outputs.version }}
