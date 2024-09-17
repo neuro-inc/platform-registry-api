@@ -17,20 +17,20 @@ test_unit:
 	pytest -vv tests/unit
 
 test_integration: docker_build
-	docker-compose -f tests/docker/docker-compose.yaml pull -q; \
-	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
+	docker compose -f tests/docker/docker-compose.yaml pull -q; \
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
 	pytest -vv tests/integration; \
 	exit_code=$$?; \
-	docker-compose -f tests/docker/docker-compose.yaml kill; \
-	docker-compose -f tests/docker/docker-compose.yaml rm -f; \
+	docker compose -f tests/docker/docker-compose.yaml kill; \
+	docker compose -f tests/docker/docker-compose.yaml rm -f; \
 	exit $$exit_code
 
 test_e2e: docker_build
-	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d registry; \
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d registry; \
 	tests/e2e/tests.sh; \
 	exit_code=$$?; \
-	docker-compose -f tests/docker/docker-compose.yaml kill; \
-	docker-compose -f tests/docker/docker-compose.yaml rm -f; \
+	docker compose -f tests/docker/docker-compose.yaml kill; \
+	docker compose -f tests/docker/docker-compose.yaml rm -f; \
 	exit $$exit_code
 
 docker_build: .docker_build
@@ -43,4 +43,4 @@ docker_build: .docker_build
 	touch .docker_build
 
 build_up: docker_build
-	docker-compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up

@@ -6,24 +6,19 @@ on:
     tags: ['v*']
   pull_request:
     branches: [master]
-  pull_request_target:
-    branches: [master]
   schedule:
   - cron: 0 4 * * *
 
 jobs:
   test:
-    if: |
-      (github.event_name != 'pull_request_target' && !endsWith(github.actor, '[bot]')) ||
-      (github.event_name == 'pull_request_target' && endsWith(github.actor, '[bot]'))
     name: All checks are passed
     uses: ./.github/workflows/test.yaml
 
   approve:
     name: Approve bot PR
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request_target'
-    needs: [test]
+    if: endsWith(github.actor, '[bot]')
+    needs: test
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -35,7 +30,7 @@ jobs:
     - name: metadata
       id: metadata
       if: github.actor == 'dependabot[bot]'
-      uses: dependabot/fetch-metadata@v2.2.0
+      uses: dependabot/fetch-metadata@v2
       with:
         github-token: ${{ steps.generate_token.outputs.token }}
     - name: Enable auto-merge for bot PRs
