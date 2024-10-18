@@ -43,7 +43,7 @@ jobs:
     name: Create release
     needs: test
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v24.9.0
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v24.10.0
     with:
       image: platformregistryapi
       helm_charts: platform-registry
@@ -51,7 +51,7 @@ jobs:
   deploy_dev:
     name: Deploy on dev
     needs: release
-    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v24.9.0
+    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v24.10.0
     with:
       helm_charts: platform-registry
       version: ${{ needs.release.outputs.version }}
