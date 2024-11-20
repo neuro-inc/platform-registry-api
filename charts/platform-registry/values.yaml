@@ -39,8 +39,8 @@ ingress:
 service:
   annotations: {}
 
-zipkin: {}
-
-sentry: {}
+sentry:
+  appName: platform-registry
+  sampleRate: 0.002
 
 priorityClassName: ""
