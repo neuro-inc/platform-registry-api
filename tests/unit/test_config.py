@@ -3,7 +3,6 @@ from yarl import URL
 from platform_registry_api.config import (
     AuthConfig,
     Config,
-    CORSConfig,
     EnvironConfigFactory,
     SentryConfig,
     ServerConfig,
@@ -45,7 +44,6 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=None,
                 service_token="test_auth_token",
             ),
-            cors=CORSConfig(),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
@@ -89,7 +87,6 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            cors=CORSConfig(),
             cluster_name="test-cluster",
             zipkin=ZipkinConfig(URL("http://zipkin.io:9411/")),
             sentry=SentryConfig(dsn=URL("https://sentry"), cluster_name="test"),
@@ -119,7 +116,6 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            cors=CORSConfig(),
             cluster_name="test-cluster",
         )
         assert not config.upstream_registry.is_oauth
@@ -147,7 +143,6 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            cors=CORSConfig(),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_basic
@@ -180,7 +175,6 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            cors=CORSConfig(),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_basic
@@ -213,13 +207,6 @@ class TestEnvironConfigFactory:
         result = EnvironConfigFactory({}).create_sentry()
 
         assert result is None
-
-    def test_create_cors_custom(self) -> None:
-        env = {"NP_CORS_ORIGINS": "https://domain1.com,http://do.main"}
-
-        result = EnvironConfigFactory(env).create_cors()
-
-        assert result == CORSConfig(["https://domain1.com", "http://do.main"])
 
     def test_create_sentry_default(self) -> None:
         env = {

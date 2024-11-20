@@ -36,10 +36,6 @@ ingress:
   hosts: []
   annotations: {}
 
-cors:
-  origins:
-  - 'https://app.neu.ro'
-
 service:
   annotations: {}
 
