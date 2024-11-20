@@ -23,7 +23,6 @@ from platform_registry_api.api import create_app
 from platform_registry_api.config import (
     AuthConfig,
     Config,
-    CORSConfig,
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
@@ -198,7 +197,6 @@ def config(upstream: URL, auth_config: AuthConfig, project: str) -> Config:
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth_config,
-        cors=CORSConfig(),
         cluster_name="test-cluster",
     )
 
