@@ -12,7 +12,6 @@ from typing import Any, ClassVar, Optional
 
 import aiobotocore.session
 import aiohttp.web
-import aiohttp_cors
 import aiohttp_remotes
 import botocore.exceptions
 import pkg_resources
@@ -32,13 +31,13 @@ from aiohttp.hdrs import (
 from aiohttp.web import (
     Application,
     HTTPBadRequest,
+    HTTPForbidden,
     HTTPNotFound,
     HTTPUnauthorized,
     Request,
     Response,
     StreamResponse,
 )
-from aiohttp_cors import CorsConfig
 from aiohttp_security import check_authorized, check_permission
 from multidict import CIMultiDict, CIMultiDictProxy
 from neuro_auth_client import AuthClient, Permission, User
@@ -46,11 +45,7 @@ from neuro_auth_client.client import ClientSubTreeViewRoot
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
     init_logging,
-    make_sentry_trace_config,
-    make_zipkin_trace_config,
     setup_sentry,
-    setup_zipkin,
-    setup_zipkin_tracer,
     trace,
 )
 from yarl import URL
@@ -61,7 +56,6 @@ from .aws_ecr import AWSECRUpstream
 from .basic import BasicUpstream
 from .config import (
     Config,
-    CORSConfig,
     EnvironConfigFactory,
     UpstreamRegistryConfig,
     UpstreamType,
@@ -240,7 +234,7 @@ class V2Handler:
     def _upstream(self) -> Upstream:
         return self._app["upstream"]
 
-    def register(self, app: aiohttp.web.Application, cors: CorsConfig) -> None:
+    def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
             (
                 aiohttp.web.get("/", self.handle_version_check),
@@ -263,9 +257,6 @@ class V2Handler:
                 METH_PUT,
             )
         )
-        for route in app.router.routes():
-            logger.debug(f"Setting up CORS for {route}")
-            cors.add(route)
 
     def _create_url_factory(self, request: Request) -> URLFactory:
         return URLFactory.from_config(
@@ -920,40 +911,10 @@ async def add_version_to_header(request: Request, response: StreamResponse) -> N
     response.headers["X-Service-Version"] = f"platform-registry-api/{package_version}"
 
 
-def make_tracing_trace_configs(config: Config) -> list[aiohttp.TraceConfig]:
-    trace_configs = []
-
-    if config.zipkin:
-        trace_configs.append(make_zipkin_trace_config())
-
-    if config.sentry:
-        trace_configs.append(make_sentry_trace_config())
-
-    return trace_configs
-
-
-def _setup_cors(app: aiohttp.web.Application, config: CORSConfig) -> CorsConfig:
-    if not config.allowed_origins:
-        return aiohttp_cors.setup(app)
-
-    logger.info(f"Setting up CORS with allowed origins: {config.allowed_origins}")
-    default_options = aiohttp_cors.ResourceOptions(
-        allow_credentials=True,
-        expose_headers="*",
-        allow_headers="*",
-    )
-    cors = aiohttp_cors.setup(
-        app, defaults={origin: default_options for origin in config.allowed_origins}
-    )
-    return cors
-
-
 async def create_app(config: Config) -> aiohttp.web.Application:
     app = aiohttp.web.Application()
 
     await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
-
-    cors = _setup_cors(app, config.cors)
 
     async def _init_app(app: aiohttp.web.Application) -> AsyncIterator[None]:
         async with AsyncExitStack() as exit_stack:
@@ -970,7 +931,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             session = await exit_stack.enter_async_context(
                 aiohttp.ClientSession(
-                    trace_configs=[trace_config] + make_tracing_trace_configs(config),
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
@@ -991,16 +951,12 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
 
             if is_aws:
-                client = app["v2_app"]["upstream"]._client
-                exclude = [client.exceptions.RepositoryNotFoundException]
-            else:
-                exclude = []
+                app["v2_app"]["upstream"]._client
 
             auth_client = await exit_stack.enter_async_context(
                 AuthClient(
                     url=config.auth.server_endpoint_url,
                     token=config.auth.service_token,
-                    trace_configs=make_tracing_trace_configs(config),
                 )
             )
             app["v2_app"]["auth_client"] = auth_client
@@ -1008,7 +964,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
             )
-            setup_tracing(config, exclude)
 
             yield
 
@@ -1016,37 +971,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
-    v2_handler.register(v2_app, cors)
+    v2_handler.register(v2_app)
 
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
 
     app.on_response_prepare.append(add_version_to_header)
 
-    if config.zipkin:
-        setup_zipkin(app)
-
     return app
-
-
-def setup_tracing(config: Config, exclude: list[type[BaseException]]) -> None:
-    if config.zipkin:
-        setup_zipkin_tracer(
-            config.zipkin.app_name,
-            config.server.host,
-            config.server.port,
-            config.zipkin.url,
-            config.zipkin.sample_rate,
-        )
-
-    if config.sentry:
-        setup_sentry(
-            config.sentry.dsn,
-            app_name=config.sentry.app_name,
-            cluster_name=config.sentry.cluster_name,
-            sample_rate=config.sentry.sample_rate,
-            exclude=exclude,
-        )
 
 
 def main() -> None:
@@ -1056,6 +988,7 @@ def main() -> None:
 
     config = EnvironConfigFactory().create()
     logger.info("Loaded config: %r", config)
+    setup_sentry(ignore_errors=[HTTPUnauthorized, HTTPForbidden])
     app = loop.run_until_complete(create_app(config))
     aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)
 
