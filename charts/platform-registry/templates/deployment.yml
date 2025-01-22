@@ -48,17 +48,13 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
-        {{- if .Values.zipkin }}
-        - name: NP_ZIPKIN_URL
-          value: {{ .Values.zipkin.url }}
-        - name: NP_ZIPKIN_SAMPLE_RATE
-          value: {{ .Values.zipkin.sampleRate | default 0 | quote }}
-        {{- end }}
         {{- if .Values.sentry }}
-        - name: NP_SENTRY_DSN
+        - name: SENTRY_DSN
           value: {{ .Values.sentry.dsn }}
-        - name: NP_SENTRY_CLUSTER_NAME
+        - name: SENTRY_CLUSTER_NAME
           value: {{ .Values.sentry.clusterName }}
+        - name: SENTRY_APP_NAME
+          value: {{ .Values.sentry.appName }}
         - name: NP_SENTRY_SAMPLE_RATE
           value: {{ .Values.sentry.sampleRate | default 0 | quote }}
         {{- end }}
@@ -72,10 +68,6 @@ spec:
           value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME
           value: {{ .Values.platform.clusterName }}
-        {{- if .Values.cors.origins }}
-        - name: NP_CORS_ORIGINS
-          value: {{ .Values.cors.origins | join ","  | quote }}
-        {{- end }}
         {{- if eq .Values.upstreamRegistry.type "basic" }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
 {{- if .Values.upstreamRegistry.basicUsername }}

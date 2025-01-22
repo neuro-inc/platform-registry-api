@@ -36,15 +36,11 @@ ingress:
   hosts: []
   annotations: {}
 
-cors:
-  origins:
-  - 'https://app.neu.ro'
-
 service:
   annotations: {}
 
-zipkin: {}
-
-sentry: {}
+sentry:
+  appName: platform-registry
+  sampleRate: 0.002
 
 priorityClassName: ""

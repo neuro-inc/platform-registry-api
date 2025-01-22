@@ -19,39 +19,42 @@ jobs:
     runs-on: ubuntu-latest
     if: endsWith(github.actor, '[bot]')
     needs: test
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-    - id: generate_token
-      uses: tibdex/github-app-token@v2
-      with:
-        app_id: ${{ secrets.BOT_APP_ID }}
-        private_key: ${{ secrets.BOT_PRIVATE_KEY }}
     - name: metadata
       id: metadata
       if: github.actor == 'dependabot[bot]'
       uses: dependabot/fetch-metadata@v2
       with:
-        github-token: ${{ steps.generate_token.outputs.token }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Enable auto-merge for bot PRs
       run: gh pr merge --auto --squash --delete-branch "$PR_URL"
       env:
         PR_URL: ${{ github.event.pull_request.html_url }}
-        GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Create release
     needs: test
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v24.9.0
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
+    uses: neuro-inc/reuse/.github/workflows/release-service.yaml@v24.10.0
     with:
       image: platformregistryapi
       helm_charts: platform-registry
 
   deploy_dev:
-    name: Deploy on dev
+    name: Deploy
     needs: release
-    uses: neuro-inc/reuse/.github/workflows/deploy-dev.yaml@v24.9.0
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    uses: neuro-inc/reuse/.github/workflows/deploy-service.yaml@v24.10.0
+    secrets:
+      tf_api_token: ${{ secrets.TF_API_TOKEN }}
     with:
-      helm_charts: platform-registry
-      version: ${{ needs.release.outputs.version }}
+      environment: dev
+      dev_workspace: ${{ vars.DEV_TFC_WORKSPACE_JSON }}
+      variables: |
+        platform_registry_version=${{ needs.release.outputs.version }}

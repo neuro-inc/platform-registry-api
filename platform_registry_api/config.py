@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -62,34 +61,11 @@ class UpstreamRegistryConfig:
 
 
 @dataclass(frozen=True)
-class ZipkinConfig:
-    url: URL
-    app_name: str = "platform-registry"
-    sample_rate: float = 0
-
-
-@dataclass(frozen=True)
-class SentryConfig:
-    dsn: URL
-    cluster_name: str
-    app_name: str = "platform-registry"
-    sample_rate: float = 0
-
-
-@dataclass(frozen=True)
-class CORSConfig:
-    allowed_origins: Sequence[str] = ()
-
-
-@dataclass(frozen=True)
 class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
-    cors: CORSConfig
     cluster_name: str
-    zipkin: ZipkinConfig | None = None
-    sentry: SentryConfig | None = None
 
 
 class EnvironConfigFactory:
@@ -165,52 +141,15 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)
 
-    def create_cors(self) -> CORSConfig:
-        origins: Sequence[str] = CORSConfig.allowed_origins
-        origins_str = self._environ.get("NP_CORS_ORIGINS", "").strip()
-        if origins_str:
-            origins = origins_str.split(",")
-        return CORSConfig(allowed_origins=origins)
-
-    def create_zipkin(self) -> ZipkinConfig | None:
-        if "NP_ZIPKIN_URL" not in self._environ:
-            return None
-
-        url = URL(self._environ["NP_ZIPKIN_URL"])
-        app_name = self._environ.get("NP_ZIPKIN_APP_NAME", ZipkinConfig.app_name)
-        sample_rate = float(
-            self._environ.get("NP_ZIPKIN_SAMPLE_RATE", ZipkinConfig.sample_rate)
-        )
-        return ZipkinConfig(url=url, app_name=app_name, sample_rate=sample_rate)
-
-    def create_sentry(self) -> SentryConfig | None:
-        if "NP_SENTRY_DSN" not in self._environ:
-            return None
-
-        return SentryConfig(
-            dsn=URL(self._environ["NP_SENTRY_DSN"]),
-            cluster_name=self._environ["NP_SENTRY_CLUSTER_NAME"],
-            app_name=self._environ.get("NP_SENTRY_APP_NAME", SentryConfig.app_name),
-            sample_rate=float(
-                self._environ.get("NP_SENTRY_SAMPLE_RATE", SentryConfig.sample_rate)
-            ),
-        )
-
     def create(self) -> Config:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
-        cors_config = self.create_cors()
-        zipkin_config = self.create_zipkin()
-        sentry_config = self.create_sentry()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
         assert cluster_name
         return Config(
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
-            cors=cors_config,
             cluster_name=cluster_name,
-            zipkin=zipkin_config,
-            sentry=sentry_config,
         )
