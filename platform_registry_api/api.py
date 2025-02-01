@@ -194,6 +194,7 @@ class URLFactory:
             registry_endpoint_url=registry_endpoint_url,
             upstream_endpoint_url=config.upstream_registry.endpoint_url,
             upstream_project=config.upstream_registry.project,
+            upstream_repo=config.upstream_registry.repo,
         )
 
     def create_registry_version_check_url(self) -> URL:
