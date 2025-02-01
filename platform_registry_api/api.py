@@ -127,13 +127,17 @@ class RepoURL:
             mounted_repo = path_suffix.query["from"]
         return match.group("repo"), mounted_repo, path_suffix
 
-    def with_project(self, project: str) -> "RepoURL":
+    def with_project(
+        self, project: str, upstream_repo: Optional[str] = None
+    ) -> "RepoURL":
         _, _, url_suffix = self._parse(self.url)
         new_mounted_repo = ""
         if self.mounted_repo:
             new_mounted_repo = f"{project}/{self.mounted_repo}"
             url_suffix = url_suffix.update_query([("from", new_mounted_repo)])
-        new_repo = f"{project}/{self.repo}"
+        new_repo = (
+            f"{project}/{upstream_repo + '/' if upstream_repo else ''}{self.repo}"
+        )
         rel_url = URL(f"/v2/{new_repo}/").join(url_suffix)
         url = self.url.join(rel_url)
         # TODO: dataclasses.replace turns out out be buggy :D
@@ -165,10 +169,14 @@ class URLFactory:
         registry_endpoint_url: URL,
         upstream_endpoint_url: URL,
         upstream_project: str,
+        upstream_repo: Optional[
+            str
+        ] = None,  # for registries that have repo like google artifact registry (GAR)
     ) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
         self._upstream_project = upstream_project
+        self._upstream_repo = upstream_repo
 
     @property
     def registry_host(self) -> Optional[str]:
@@ -200,9 +208,9 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        return registry_url.with_project(self._upstream_project).with_origin(
-            self._upstream_endpoint_url
-        )
+        return registry_url.with_project(
+            self._upstream_project, self._upstream_repo
+        ).with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
