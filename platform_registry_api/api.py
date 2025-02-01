@@ -169,9 +169,7 @@ class URLFactory:
         registry_endpoint_url: URL,
         upstream_endpoint_url: URL,
         upstream_project: str,
-        upstream_repo: Optional[
-            str
-        ] = None,  # for registries that have repo like google artifact registry (GAR)
+        upstream_repo: Optional[str] = None,  # for registries that have repo like GAR
     ) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
