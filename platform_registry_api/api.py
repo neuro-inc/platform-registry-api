@@ -188,6 +188,10 @@ class URLFactory:
     def upstream_project(self) -> str:
         return self._upstream_project
 
+    @property
+    def upstream_repo(self) -> str:
+        return self._upstream_repo
+
     @classmethod
     def from_config(cls, registry_endpoint_url: URL, config: Config) -> "URLFactory":
         return cls(
@@ -303,9 +307,14 @@ class V2Handler:
 
     @classmethod
     def filter_images_1_indexed(
-        cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
+        cls,
+        images_names: Iterable[str],
+        tree: ClientSubTreeViewRoot,
+        project_name: str,
+        upstream_repo: Optional[str] = None,
     ) -> Iterator[tuple[int, str]]:
-        project_prefix = project_name + "/"
+        upstream_repo_prefix = f"{upstream_repo}/" if upstream_repo else ""
+        project_prefix = f"{project_name}/{upstream_repo_prefix}"
         len_project_prefix = len(project_prefix)
         for index, image in enumerate(images_names, 1):
             if image.startswith(project_prefix):
@@ -362,7 +371,7 @@ class V2Handler:
             if not images_list:
                 break
             for index, image in self.filter_images_1_indexed(
-                images_list, tree, project_name
+                images_list, tree, project_name, url_factory.upstream_repo
             ):
                 filtered.append(image)
                 if len(filtered) == page.number:
