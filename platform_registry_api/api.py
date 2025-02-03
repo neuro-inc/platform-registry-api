@@ -189,7 +189,7 @@ class URLFactory:
         return self._upstream_project
 
     @property
-    def upstream_repo(self) -> str:
+    def upstream_repo(self) -> Optional[str]:
         return self._upstream_repo
 
     @classmethod
