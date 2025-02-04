@@ -5,6 +5,7 @@ import time
 from collections.abc import AsyncIterator, Iterable, Iterator, Sequence
 from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, replace
+from importlib.metadata import version
 from json import JSONDecodeError
 from re import Pattern
 from types import SimpleNamespace
@@ -14,7 +15,6 @@ import aiobotocore.session
 import aiohttp.web
 import aiohttp_remotes
 import botocore.exceptions
-import pkg_resources
 import trafaret as t
 from aiohttp import ClientResponseError, ClientSession
 from aiohttp.hdrs import (
@@ -904,7 +904,7 @@ async def create_aws_ecr_upstream(
         yield AWSECRUpstream(client=client, time_factory=time_factory)
 
 
-package_version = pkg_resources.get_distribution("platform-registry-api").version
+package_version = version("platform-registry-api")
 
 
 async def add_version_to_header(request: Request, response: StreamResponse) -> None:

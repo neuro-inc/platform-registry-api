@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -23,7 +23,7 @@ class TestOAuthToken:
         assert token == OAuthToken(access_token="testtoken", expires_at=1560000045.0)
 
     def test_create_from_payload_expires_at(self) -> None:
-        issued_at = datetime.utcfromtimestamp(1560000000.0).isoformat()
+        issued_at = datetime.fromtimestamp(1560000000.0, timezone.utc).isoformat()
         token = OAuthToken.create_from_payload(
             {"token": "testtoken", "expires_in": 100, "issued_at": issued_at}
         )
@@ -39,7 +39,7 @@ class TestOAuthToken:
     @pytest.mark.parametrize(
         "issued_at",
         (
-            datetime.utcfromtimestamp(1560000000.0).isoformat(),
+            datetime.fromtimestamp(1560000000.0, timezone.utc).isoformat(),
             "2019-06-08T13:20:00Z",
             "2019-06-08T13:20:00+00:00",
             "2019-06-08T14:20:00+01:00",

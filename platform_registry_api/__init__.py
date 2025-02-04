@@ -1,3 +1,3 @@
-import uvloop
-
-uvloop.install()
+# import uvloop
+#
+# uvloop.install()
