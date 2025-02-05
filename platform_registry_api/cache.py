@@ -3,6 +3,7 @@ from typing import Generic, TypeVar
 
 from .typedefs import TimeFactory
 
+
 T = TypeVar("T")
 
 

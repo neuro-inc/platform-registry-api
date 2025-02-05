@@ -64,6 +64,7 @@ from .oauth import OAuthClient, OAuthUpstream
 from .typedefs import TimeFactory
 from .upstream import Upstream
 
+
 logger = logging.getLogger(__name__)
 
 UPSTREAM: AppKey[Upstream] = AppKey("upstream")
