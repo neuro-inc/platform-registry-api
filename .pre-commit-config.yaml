@@ -18,7 +18,6 @@ repos:
   - id: check-json
   - id: check-xml
   - id: debug-statements
-  - id: end-of-file-fixer
   - id: requirements-txt-fixer
   - id: check-symlinks
   - id: debug-statements
@@ -28,16 +27,6 @@ repos:
   - id: upgrade-type-hints
     args:
     - --futures=true
-- repo: https://github.com/Zac-HD/shed
-  rev: 2024.10.1
-  hooks:
-  - id: shed
-    args:
-    - --refactor
-    types_or:
-    - python
-    - markdown
-    - rst
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 'v5.0.0'
   hooks:

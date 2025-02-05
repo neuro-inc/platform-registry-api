@@ -123,9 +123,7 @@ class _TestAWSECRUpstreamHandler:
 
 class TestAWSECRUpstream:
     @pytest.fixture
-    async def upstream_server(
-        self, aiohttp_server: _TestServerFactory
-    ) -> AsyncIterator[URL]:
+    async def upstream_server(self, aiohttp_server: _TestServerFactory) -> URL:
         app = Application()
         handler = _TestAWSECRUpstreamHandler()
         app.router.add_post("/", handler.handle)
