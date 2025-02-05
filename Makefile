@@ -27,7 +27,7 @@ setup:
 .PHONY: lint
 lint:
 	poetry run pre-commit run --all-files
-	poetry run mypy platform_registry_api tests
+	poetry run mypy
 
 .PHONY: docker_build
 docker_build: .python-version dist
