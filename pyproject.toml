@@ -8,7 +8,10 @@ version = "0.0.0"
 description = "Apolo.us platform registry API"
 readme = "README.md"
 license = "Proprietary"
-classifiers = ["Programming Language :: Python :: 3", "Programming Language :: Python :: 3 :: Only"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only"
+]
 
 [tool.poetry.scripts]
 platform-registry-api = "platform_registry_api.api:main"
@@ -33,33 +36,34 @@ yarl = "^1.18.3"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
+pytest-aiohttp = "^1.1.0"
+pytest-asyncio = "^0.25.3"
+ruff = "^0.9.4"
 mypy = "^1.14.1"
 pre-commit = "^4.1.0"
 pytest = "^8.3.4"
-pytest-aiohttp = "^1.1.0"
-pytest-asyncio = "^0.25.3"
 
-#[tool.ruff]
-#target-version = "py313"
-#
-#[tool.ruff.lint]
-#select = [
-#    "E", "F", "I", "C90", "UP", "B", "ASYNC", "N", "A", "C4", "EM", "FA", "ICN",
-#    "G", "PIE", "T20", "PYI", "PT", "RET", "PTH"
-#]
-#ignore = [
-#  "A003",  # Class attribute "..." is shadowing a Python builtin
-#  "N818"
-#]
-#
-#[tool.ruff.lint.isort]
-#combine-as-imports = true
-#lines-after-imports = 2
-#known-third-party = ["alembic"]
-#
-#[tool.ruff.lint.pyupgrade]
-## Preserve types, even if a file imports `from __future__ import annotations`.
-#keep-runtime-typing = true
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "I", "C90", "UP", "B", "ASYNC", "N", "A", "C4", "EM", "FA", "ICN",
+    "G", "PIE", "T20", "PYI", "PT", "RET", "PTH"
+]
+ignore = [
+  "A003",  # Class attribute "..." is shadowing a Python builtin
+  "N818",
+  "EM101"
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+lines-after-imports = 2
+
+[tool.ruff.lint.pyupgrade]
+# Preserve types, even if a file imports `from __future__ import annotations`.
+keep-runtime-typing = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -70,16 +74,6 @@ filterwarnings = """
     ignore::DeprecationWarning:jose
     ignore:The loop argument is deprecated:DeprecationWarning:
     """
-
-#addopts = """
-#    --cov=platform_events
-#    --cov-report=term
-#    --cov-report=xml:coverage/.coverage.xml
-#"""
-
-#[tool.coverage.run]
-#branch = true
-#source = ["platform_events"]
 
 [tool.mypy]
 files = ["platform_registry_api", "tests"]
@@ -93,30 +87,3 @@ warn_unused_ignores = true
 ignore_missing_imports = true
 pretty = true
 # strict = true
-
-
-[tool.flake8]
-max-line-length = 88
-ignore = ['N801', 'N802', 'N803', 'E252', 'W503', 'E133', 'E203', 'F541']
-
-
-
-
-#[build-system]
-#requires = [
-#    "setuptools>=45",
-#    "wheel",
-#    "setuptools_scm>=6.2",
-#]
-#build-backend = "setuptools.build_meta"
-#
-#[tool.setuptools_scm]
-#
-#[tool.black]
-#exclude = '''
-#/(
-#      \.git
-#    | venv
-#    | __pycache__
-#)/
-#'''

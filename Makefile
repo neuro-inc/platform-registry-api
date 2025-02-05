@@ -3,12 +3,9 @@ all test clean:
 
 .PHONY: setup
 setup:
-	pip install -U pip pipx
-	pipx install poetry
-	poetry self add "poetry-dynamic-versioning[plugin]"
-	poetry self add "poetry-plugin-export"
-	poetry lock
-	poetry install --with dev
+	pip install -U pip pipx && pipx install poetry
+	poetry self add "poetry-dynamic-versioning[plugin]" && poetry self add "poetry-plugin-export"
+	poetry lock && poetry install --with dev
 	poetry run pre-commit install
 
 #.PHONY: venv
@@ -29,13 +26,17 @@ lint:
 	poetry run pre-commit run --all-files
 	poetry run mypy
 
+.python-version:
+	@echo "Error: .python-version file is missing!" && exit 1
+
 .PHONY: docker_build
 docker_build: .python-version dist
 	PY_VERSION=$$(cat .python-version) && \
 	docker build -t platformregistryapi:latest --build-arg PY_VERSION=$$PY_VERSION .
 
-.python-version:
-	@echo "Error: .python-version file is missing!" && exit 1
+.PHONY: build_up
+build_up: docker_build
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up
 
 .PHONY: dist
 dist:
@@ -64,7 +65,6 @@ test_e2e: docker_build
 	docker compose -f tests/docker/docker-compose.yaml kill; \
 	docker compose -f tests/docker/docker-compose.yaml rm -f; \
 	exit $$exit_code
-
 
 #setup init:
 #	pip install -U pip

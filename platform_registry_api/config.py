@@ -76,8 +76,7 @@ class EnvironConfigFactory:
         value = self._environ[name]
         if value == "-":
             return None
-        else:
-            return URL(value)
+        return URL(value)
 
     def create_server(self) -> ServerConfig:
         port = int(self._environ.get("NP_REGISTRY_API_PORT", ServerConfig.port))

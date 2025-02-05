@@ -1,7 +1,6 @@
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional
 
 import pytest
 from aiohttp import BasicAuth
@@ -39,8 +38,8 @@ async def regular_user_factory(
     token_factory: Callable[[str], str],
     admin_token: str,
     cluster_name: str,
-) -> Callable[[Optional[str]], Awaitable[_User]]:
-    async def _factory(name: Optional[str] = None) -> _User:
+) -> Callable[[str | None], Awaitable[_User]]:
+    async def _factory(name: str | None = None) -> _User:
         if not name:
             name = str(uuid.uuid4())
         user = User(name=name)

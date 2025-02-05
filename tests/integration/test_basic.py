@@ -78,7 +78,7 @@ class _TestUpstreamHandler:
                     raise ValueError
                 last_repo = last_repo[len(self._project + "/") :]
                 start_index = self.images.index(last_repo) + 1
-            except ValueError:
+            except ValueError as exc:
                 raise HTTPNotFound(
                     text=json.dumps(
                         {
@@ -91,7 +91,7 @@ class _TestUpstreamHandler:
                             ]
                         }
                     )
-                )
+                ) from exc
         images = self.images[start_index : start_index + number]
         response_headers: dict[str, str] = {}
         images = [f"{self._project}/{image}" for image in images]
@@ -132,7 +132,7 @@ class _TestUpstreamHandler:
         if last_tag:
             try:
                 start_index = self.tags.index(last_tag) + 1
-            except ValueError:
+            except ValueError as exc:
                 raise HTTPNotFound(
                     text=json.dumps(
                         {
@@ -145,7 +145,7 @@ class _TestUpstreamHandler:
                             ]
                         }
                     )
-                )
+                ) from exc
         tags = self.tags[start_index : start_index + number]
         response_headers: dict[str, str] = {}
         if self.tags[start_index + number :]:
@@ -325,7 +325,7 @@ class TestBasicUpstream:
                 assert payload == {"repositories": handler.images[:i]}
 
     @pytest.mark.parametrize(
-        "number, replace_max", list(itertools.product(range(1, 10), (True, False)))
+        ("number", "replace_max"), list(itertools.product(range(1, 10), (True, False)))
     )
     async def test_catalog__some_at_a_time(
         self,

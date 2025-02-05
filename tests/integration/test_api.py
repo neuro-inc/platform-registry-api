@@ -181,7 +181,6 @@ class TestV2Api:
         headers = {"X-Forwarded-Proto": "https"}
         url = f"/v2/{user.name}/image/blobs/uploads/"
         async with client.post(url, auth=auth, headers=headers) as resp:
-            print(11111111111, url, auth, headers, resp.status)
             assert resp.status == 202
             location_url = URL(resp.headers["Location"])
             assert location_url.scheme == "https"

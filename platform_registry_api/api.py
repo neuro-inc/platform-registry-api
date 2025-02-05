@@ -9,7 +9,7 @@ from importlib.metadata import version
 from json import JSONDecodeError
 from re import Pattern
 from types import SimpleNamespace
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 import aiobotocore.session
 import aiohttp.web
@@ -66,10 +66,10 @@ from .upstream import Upstream
 
 logger = logging.getLogger(__name__)
 
-UPSTREAM_APP_KEY: AppKey[Upstream] = AppKey("upstream")
-REGISTER_CLIENT_APP_KEY: AppKey[ClientSession] = AppKey("registry_client")
-AUTH_CLIENT_APP_KEY: AppKey[AuthClient] = AppKey("auth_client")
-V2_APP_KEY: AppKey[Application] = AppKey("v2_app")
+UPSTREAM: AppKey[Upstream] = AppKey("upstream")
+REGISTER_CLIENT: AppKey[ClientSession] = AppKey("registry_client")
+AUTH_CLIENT: AppKey[AuthClient] = AppKey("auth_client")
+V2_APP: AppKey[Application] = AppKey("v2_app")
 
 
 @dataclass(frozen=True)
@@ -123,7 +123,8 @@ class RepoURL:
     def _parse(cls, url: URL) -> tuple[str, str, URL]:
         match = cls._path_re.fullmatch(url.path)
         if not match:
-            raise ValueError(f"unexpected path in a registry URL: {url}")
+            exc_msg = f"unexpected path in a registry URL: {url}"
+            raise ValueError(exc_msg)
         path_suffix = URL.build(path=match.group("path_suffix"), query=url.query)
         assert not path_suffix.is_absolute()
         mounted_repo = ""
@@ -176,11 +177,11 @@ class URLFactory:
         self._upstream_project = upstream_project
 
     @property
-    def registry_host(self) -> Optional[str]:
+    def registry_host(self) -> str | None:
         return self._registry_endpoint_url.host
 
     @property
-    def upstream_host(self) -> Optional[str]:
+    def upstream_host(self) -> str | None:
         return self._upstream_endpoint_url.host
 
     @property
@@ -213,10 +214,11 @@ class URLFactory:
         upstream_repo = upstream_url.repo
         prefix = self._upstream_project + "/"
         if not upstream_repo.startswith(prefix):
-            raise ValueError(
+            exc_msg = (
                 f"{upstream_repo!r} does not match the configured "
                 f"upstream project {self._upstream_project!r}"
             )
+            raise ValueError(exc_msg)
         repo = upstream_repo[len(prefix) :]
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
@@ -229,15 +231,15 @@ class V2Handler:
 
     @property
     def _auth_client(self) -> AuthClient:
-        return self._app[AUTH_CLIENT_APP_KEY]
+        return self._app[AUTH_CLIENT]
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
-        return self._app[REGISTER_CLIENT_APP_KEY]
+        return self._app[REGISTER_CLIENT]
 
     @property
     def _upstream(self) -> Upstream:
-        return self._app[UPSTREAM_APP_KEY]
+        return self._app[UPSTREAM]
 
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
@@ -271,8 +273,8 @@ class V2Handler:
     async def _get_user_from_request(self, request: Request) -> User:
         try:
             user_name = await check_authorized(request)
-        except ValueError:
-            raise HTTPBadRequest()
+        except ValueError as exc:
+            raise HTTPBadRequest() from exc
         except HTTPUnauthorized:
             self._raise_unauthorized()
         return User(name=user_name)
@@ -312,7 +314,7 @@ class V2Handler:
                     yield index, image
             else:
                 msg = f'expected project "{project_name}" in image "{image}"'
-                logger.info(f"Bad image: {msg} (skipping)")
+                logger.info("Bad image: %s (skipping)", msg)
 
     def _prepare_catalog_request_params(self, page: CatalogPage) -> dict[str, str]:
         params = {"n": str(page.number)}
@@ -320,12 +322,13 @@ class V2Handler:
             params["last"] = page.last_token
         return params
 
-    async def handle_catalog(self, request: Request) -> Response:
+    async def handle_catalog(self, request: Request) -> Response:  # noqa: C901
+        # TODO refactor too complex
         logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         page: CatalogPage = CATALOG_PAGE_VALIDATOR.check(request.query)
 
-        logger.debug(f"requested catalog page: {page}")
+        logger.debug("requested catalog page: %s", page)
 
         user = await self._get_user_from_request(request)
         tree = await self._auth_client.get_permissions_tree(
@@ -334,7 +337,7 @@ class V2Handler:
 
         url_factory = self._create_url_factory(request)
         project_name = url_factory.upstream_project
-        paging_url: Optional[URL] = url_factory.create_upstream_catalog_url(
+        paging_url: URL | None = url_factory.create_upstream_catalog_url(
             self._prepare_catalog_request_params(page)
         )
 
@@ -412,8 +415,11 @@ class V2Handler:
         return response
 
     async def _get_next_catalog_items(
-        self, url: URL, headers: CIMultiDict[str], timeout: aiohttp.ClientTimeout
-    ) -> tuple[list[str], Optional[URL]]:
+        self,
+        url: URL,
+        headers: CIMultiDict[str],
+        timeout: aiohttp.ClientTimeout,  # noqa: ASYNC109
+    ) -> tuple[list[str], URL | None]:
         async with self._registry_client.request(
             method="GET", url=url, headers=headers, timeout=timeout
         ) as client_response:
@@ -428,14 +434,14 @@ class V2Handler:
                     )
                     raise HTTPNotFound(
                         text=result_text, content_type="application/json"
-                    )
+                    ) from exc
                 raise
 
             # passing content_type=None here to disable the strict content
             # type check. GCR sends application/json, whereas ECR sends
             # text/plan.
             result_dict = await client_response.json(content_type=None)
-            next_upstream_url: Optional[URL] = None
+            next_upstream_url: URL | None = None
             if client_response.links.get("next"):
                 next_upstream_url = URL(client_response.links["next"]["url"])
 
@@ -598,16 +604,13 @@ class V2Handler:
                 "errors": [
                     {
                         "code": "UNSUPPORTED",
-                        "message": f"AWS list_images failed",
+                        "message": "AWS list_images failed",
                         "detail": str(e),
                     }
                 ]
             }
 
-        response = aiohttp.web.json_response(
-            data, status=status, headers=response_headers
-        )
-        return response
+        return aiohttp.web.json_response(data, status=status, headers=response_headers)
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
@@ -664,7 +667,7 @@ class V2Handler:
         self, request: Request, permissions: Sequence[Permission]
     ) -> None:
         assert self._config.cluster_name
-        logger.info(f"Checking {permissions}")
+        logger.info("Checking %s", permissions)
         try:
             await check_permission(request, "ignored", permissions)
         except HTTPUnauthorized:
@@ -729,52 +732,50 @@ class V2Handler:
                     response.headers,
                 )
             return response
-        else:
-            aws_blob_request = (
-                request.method == "GET"
-                and self._config.upstream_registry.type == UpstreamType.AWS_ECR
-                and path_components[-1] == "blobs"
+        aws_blob_request = (
+            request.method == "GET"
+            and self._config.upstream_registry.type == UpstreamType.AWS_ECR
+            and path_components[-1] == "blobs"
+        )
+        async with self._registry_client.request(
+            method=request.method,
+            url=url,
+            headers=request_headers,
+            skip_auto_headers=("Content-Type",),
+            data=data,
+            timeout=timeout,
+            allow_redirects=aws_blob_request,
+        ) as client_response:
+            logger.debug("upstream response: %s", client_response)
+
+            response_headers = self._prepare_response_headers(
+                client_response.headers, url_factory
             )
-            print(111111111111, url, request.method, request_headers, data)
-            async with self._registry_client.request(
-                method=request.method,
-                url=url,
-                headers=request_headers,
-                skip_auto_headers=("Content-Type",),
-                data=data,
-                timeout=timeout,
-                allow_redirects=aws_blob_request,
-            ) as client_response:
-                logger.debug("upstream response: %s", client_response)
+            response = aiohttp.web.StreamResponse(
+                status=client_response.status, headers=response_headers
+            )
 
-                response_headers = self._prepare_response_headers(
-                    client_response.headers, url_factory
-                )
-                response = aiohttp.web.StreamResponse(
-                    status=client_response.status, headers=response_headers
+            await response.prepare(request)
+
+            logger.debug(
+                "registry response: %s; headers: %s", response, response.headers
+            )
+
+            if response.status >= 500:
+                logger.error(
+                    "Upstream failed with %d, headers=%r",
+                    response.status,
+                    response.headers,
                 )
 
-                await response.prepare(request)
+            async for chunk, _ in client_response.content.iter_chunks():
+                if chunk:
+                    await response.write(chunk)
+                else:
+                    break
 
-                logger.debug(
-                    "registry response: %s; headers: %s", response, response.headers
-                )
-
-                if response.status >= 500:
-                    logger.error(
-                        "Upstream failed with %d, headers=%r",
-                        response.status,
-                        response.headers,
-                    )
-
-                async for chunk, end_http in client_response.content.iter_chunks():
-                    if chunk:
-                        await response.write(chunk)
-                    else:
-                        break
-
-                await response.write_eof()
-                return response
+            await response.write_eof()
+            return response
 
     async def _delete_aws_ecr_image(self, repository_name: str, reference: str) -> Any:
         upstream: AWSECRUpstream = self._upstream  # type: ignore
@@ -941,9 +942,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            app[V2_APP_KEY][REGISTER_CLIENT_APP_KEY] = session
+            app[V2_APP][REGISTER_CLIENT] = session
 
-            is_aws = False
             if config.upstream_registry.is_basic:
                 upstream_cm = create_basic_upstream(config=config.upstream_registry)
             elif config.upstream_registry.is_oauth:
@@ -952,14 +952,12 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             else:
                 upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
-                is_aws = True
 
-            app[V2_APP_KEY][UPSTREAM_APP_KEY] = await exit_stack.enter_async_context(
-                upstream_cm
-            )
+            app[V2_APP][UPSTREAM] = await exit_stack.enter_async_context(upstream_cm)
 
-            if is_aws:
-                app[V2_APP_KEY][UPSTREAM_APP_KEY]._client  # type: ignore
+            # useless attribute access if not cause error delete it
+            # if is_aws:
+            #     app[V2_APP][UPSTREAM]._client
 
             auth_client = await exit_stack.enter_async_context(
                 AuthClient(
@@ -968,7 +966,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 )
             )
 
-            app[V2_APP_KEY][AUTH_CLIENT_APP_KEY] = auth_client
+            app[V2_APP][AUTH_CLIENT] = auth_client
 
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
@@ -982,7 +980,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     v2_handler = V2Handler(app=v2_app, config=config)
     v2_handler.register(v2_app)
 
-    app[V2_APP_KEY] = v2_app
+    app[V2_APP] = v2_app
 
     # app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
