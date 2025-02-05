@@ -1,7 +1,7 @@
 version: "3"
 services:
   auth:
-    image: cesanta/docker_auth@sha256:c2968eea28ff51b75b88e45147b1d5b8387fd7836400cb97d076c0feb4a451d9
+    image: cesanta/docker_auth:1.13.0
     ports:
     - "5001:5001"
     volumes:
