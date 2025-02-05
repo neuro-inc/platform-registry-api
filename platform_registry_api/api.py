@@ -23,12 +23,12 @@ from aiohttp.hdrs import (
     LINK,
     METH_DELETE,
     METH_GET,
-    METH_HEAD,
     METH_PATCH,
     METH_POST,
     METH_PUT,
 )
 from aiohttp.web import (
+    AppKey,
     Application,
     HTTPBadRequest,
     HTTPForbidden,
@@ -65,6 +65,11 @@ from .typedefs import TimeFactory
 from .upstream import Upstream
 
 logger = logging.getLogger(__name__)
+
+UPSTREAM_APP_KEY: AppKey[Upstream] = AppKey("upstream")
+REGISTER_CLIENT_APP_KEY: AppKey[ClientSession] = AppKey("registry_client")
+AUTH_CLIENT_APP_KEY: AppKey[AuthClient] = AppKey("auth_client")
+V2_APP_KEY: AppKey[Application] = AppKey("v2_app")
 
 
 @dataclass(frozen=True)
@@ -224,15 +229,15 @@ class V2Handler:
 
     @property
     def _auth_client(self) -> AuthClient:
-        return self._app["auth_client"]
+        return self._app[AUTH_CLIENT_APP_KEY]
 
     @property
     def _registry_client(self) -> aiohttp.ClientSession:
-        return self._app["registry_client"]
+        return self._app[REGISTER_CLIENT_APP_KEY]
 
     @property
     def _upstream(self) -> Upstream:
-        return self._app["upstream"]
+        return self._app[UPSTREAM_APP_KEY]
 
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
@@ -249,7 +254,7 @@ class V2Handler:
                 self.handle,
             )
             for method in (
-                METH_HEAD,
+                # METH_HEAD,
                 METH_GET,
                 METH_POST,
                 METH_DELETE,
@@ -730,6 +735,7 @@ class V2Handler:
                 and self._config.upstream_registry.type == UpstreamType.AWS_ECR
                 and path_components[-1] == "blobs"
             )
+            print(111111111111, url, request.method, request_headers, data)
             async with self._registry_client.request(
                 method=request.method,
                 url=url,
@@ -934,7 +940,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     connector=aiohttp.TCPConnector(force_close=True),
                 )
             )
-            app["v2_app"]["registry_client"] = session
+
+            app[V2_APP_KEY][REGISTER_CLIENT_APP_KEY] = session
 
             is_aws = False
             if config.upstream_registry.is_basic:
@@ -946,12 +953,13 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             else:
                 upstream_cm = create_aws_ecr_upstream(config=config.upstream_registry)
                 is_aws = True
-            app["v2_app"]["upstream"] = await exit_stack.enter_async_context(
+
+            app[V2_APP_KEY][UPSTREAM_APP_KEY] = await exit_stack.enter_async_context(
                 upstream_cm
             )
 
             if is_aws:
-                app["v2_app"]["upstream"]._client
+                app[V2_APP_KEY][UPSTREAM_APP_KEY]._client  # type: ignore
 
             auth_client = await exit_stack.enter_async_context(
                 AuthClient(
@@ -959,7 +967,8 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     token=config.auth.service_token,
                 )
             )
-            app["v2_app"]["auth_client"] = auth_client
+
+            app[V2_APP_KEY][AUTH_CLIENT_APP_KEY] = auth_client
 
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
@@ -973,7 +982,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     v2_handler = V2Handler(app=v2_app, config=config)
     v2_handler.register(v2_app)
 
-    app["v2_app"] = v2_app
+    app[V2_APP_KEY] = v2_app
+
+    # app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
 
     app.on_response_prepare.append(add_version_to_header)

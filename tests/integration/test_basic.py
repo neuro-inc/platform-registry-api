@@ -297,7 +297,7 @@ class TestBasicUpstream:
         async with client.get(
             "/v2/_catalog",
             auth=user1.to_basic_auth(),
-            params={"n": "1", "last": last_token},
+            params={"n": "1", "last": last_token},  # type: ignore
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()

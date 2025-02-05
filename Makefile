@@ -7,6 +7,7 @@ setup:
 	pipx install poetry
 	poetry self add "poetry-dynamic-versioning[plugin]"
 	poetry self add "poetry-plugin-export"
+	poetry lock
 	poetry install --with dev
 	poetry run pre-commit install
 
@@ -26,21 +27,7 @@ setup:
 .PHONY: lint
 lint:
 	poetry run pre-commit run --all-files
-	poetry run mypy
-
-.PHONY: test_unit
-test_unit:
-	poetry run pytest -vv tests/unit
-
-.PHONY: test_integration
-test_integration: docker_build
-	docker compose -f tests/docker/docker-compose.yaml pull -q; \
-	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
-	pytest -vv tests/integration; \
-	exit_code=$$?; \
-	docker compose -f tests/docker/docker-compose.yaml kill; \
-	docker compose -f tests/docker/docker-compose.yaml rm -f; \
-	exit $$exit_code
+	poetry run mypy platform_registry_api tests
 
 .PHONY: docker_build
 docker_build: .python-version dist
@@ -56,6 +43,27 @@ dist:
 	poetry export -f requirements.txt --without-hashes -o requirements.txt; \
 	poetry build -f wheel; \
 
+.PHONY: test_unit
+test_unit:
+	poetry run pytest -vv tests/unit
+
+.PHONY: test_integration
+test_integration: docker_build
+	docker compose -f tests/docker/docker-compose.yaml pull -q; \
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
+	pytest -vv tests/integration; \
+	exit_code=$$?; \
+	docker compose -f tests/docker/docker-compose.yaml kill; \
+	docker compose -f tests/docker/docker-compose.yaml rm -f; \
+	exit $$exit_code
+
+test_e2e: docker_build
+	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d registry; \
+	tests/e2e/tests.sh; \
+	exit_code=$$?; \
+	docker compose -f tests/docker/docker-compose.yaml kill; \
+	docker compose -f tests/docker/docker-compose.yaml rm -f; \
+	exit $$exit_code
 
 
 #setup init:

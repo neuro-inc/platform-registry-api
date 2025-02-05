@@ -84,6 +84,7 @@ class OAuthClient:
         url = self._url
         if scopes:
             url = url.update_query([("scope", s) for s in scopes])
+        print(2222222222, url, self._auth)
         async with self._client.get(url, auth=self._auth) as response:
             # TODO: check the status code
             # TODO: raise exceptions
