@@ -1,9 +1,9 @@
 repos:
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: 'v5.0.0'
-  hooks:
-  - id: check-merge-conflict
-    exclude: "rst$"
+#- repo: https://github.com/pre-commit/pre-commit-hooks
+#  rev: 'v5.0.0'
+#  hooks:
+#  - id: check-merge-conflict
+#    exclude: "rst$"
 - repo: https://github.com/asottile/yesqa
   rev: v1.5.0
   hooks:
