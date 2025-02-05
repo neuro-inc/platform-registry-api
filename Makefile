@@ -51,7 +51,7 @@ test_unit:
 test_integration: docker_build
 	docker compose -f tests/docker/docker-compose.yaml pull -q; \
 	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
-	pytest -vv tests/integration; \
+	poetry run pytest -vv tests/integration; \
 	exit_code=$$?; \
 	docker compose -f tests/docker/docker-compose.yaml kill; \
 	docker compose -f tests/docker/docker-compose.yaml rm -f; \
