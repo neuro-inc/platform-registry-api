@@ -61,3 +61,4 @@ ci:
   skip:
   - check-github-actions
   - check-github-workflows
+  - poetry-lock
