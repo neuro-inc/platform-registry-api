@@ -54,8 +54,8 @@ repos:
   rev: v0.9.4
   hooks:
   - id: ruff-format
-#  - id: ruff
-#    args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+  - id: ruff
+    args: [--fix, --exit-non-zero-on-fix, --show-fixes]
 - repo: https://github.com/mrtazz/checkmake.git
   # Or another commit hash or version
   rev: 0.2.2
