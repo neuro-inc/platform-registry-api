@@ -127,13 +127,17 @@ class RepoURL:
             mounted_repo = path_suffix.query["from"]
         return match.group("repo"), mounted_repo, path_suffix
 
-    def with_project(self, project: str) -> "RepoURL":
+    def with_project(
+        self, project: str, upstream_repo: Optional[str] = None
+    ) -> "RepoURL":
         _, _, url_suffix = self._parse(self.url)
         new_mounted_repo = ""
         if self.mounted_repo:
             new_mounted_repo = f"{project}/{self.mounted_repo}"
             url_suffix = url_suffix.update_query([("from", new_mounted_repo)])
-        new_repo = f"{project}/{self.repo}"
+        new_repo = (
+            f"{project}/{upstream_repo + '/' if upstream_repo else ''}{self.repo}"
+        )
         rel_url = URL(f"/v2/{new_repo}/").join(url_suffix)
         url = self.url.join(rel_url)
         # TODO: dataclasses.replace turns out out be buggy :D
@@ -165,10 +169,12 @@ class URLFactory:
         registry_endpoint_url: URL,
         upstream_endpoint_url: URL,
         upstream_project: str,
+        upstream_repo: Optional[str] = None,  # for registries that have repo like GAR
     ) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
         self._upstream_project = upstream_project
+        self._upstream_repo = upstream_repo
 
     @property
     def registry_host(self) -> Optional[str]:
@@ -182,12 +188,17 @@ class URLFactory:
     def upstream_project(self) -> str:
         return self._upstream_project
 
+    @property
+    def upstream_repo(self) -> Optional[str]:
+        return self._upstream_repo
+
     @classmethod
     def from_config(cls, registry_endpoint_url: URL, config: Config) -> "URLFactory":
         return cls(
             registry_endpoint_url=registry_endpoint_url,
             upstream_endpoint_url=config.upstream_registry.endpoint_url,
             upstream_project=config.upstream_registry.project,
+            upstream_repo=config.upstream_registry.repo,
         )
 
     def create_registry_version_check_url(self) -> URL:
@@ -200,9 +211,9 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        return registry_url.with_project(self._upstream_project).with_origin(
-            self._upstream_endpoint_url
-        )
+        return registry_url.with_project(
+            self._upstream_project, self._upstream_repo
+        ).with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -296,9 +307,14 @@ class V2Handler:
 
     @classmethod
     def filter_images_1_indexed(
-        cls, images_names: Iterable[str], tree: ClientSubTreeViewRoot, project_name: str
+        cls,
+        images_names: Iterable[str],
+        tree: ClientSubTreeViewRoot,
+        project_name: str,
+        upstream_repo: Optional[str] = None,
     ) -> Iterator[tuple[int, str]]:
-        project_prefix = project_name + "/"
+        upstream_repo_prefix = f"{upstream_repo}/" if upstream_repo else ""
+        project_prefix = f"{project_name}/{upstream_repo_prefix}"
         len_project_prefix = len(project_prefix)
         for index, image in enumerate(images_names, 1):
             if image.startswith(project_prefix):
@@ -355,7 +371,7 @@ class V2Handler:
             if not images_list:
                 break
             for index, image in self.filter_images_1_indexed(
-                images_list, tree, project_name
+                images_list, tree, project_name, url_factory.upstream_repo
             ):
                 filtered.append(image)
                 if len(filtered) == page.number:

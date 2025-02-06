@@ -11,3 +11,5 @@ dist/
 
 temp_deploy/
 .docker_build
+
+.idea/
