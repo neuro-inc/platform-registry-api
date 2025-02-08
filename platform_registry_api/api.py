@@ -767,7 +767,7 @@ class V2Handler(ArtifactsMixing):
                 upstream_response, url_factory
             )
             logger.info(
-                "2registry response: %s; headers: %s", response, response.headers
+                "registry response: %s; headers: %s", response, response.headers
             )
             if response.status >= 500:
                 logger.error(
@@ -782,7 +782,6 @@ class V2Handler(ArtifactsMixing):
                 and self._config.upstream_registry.type == UpstreamType.AWS_ECR
                 and path_components[-1] == "blobs"
             )
-            logger.info(f"11111111 {url=} {request.method=} {request_headers=} {data=}")
             async with self._registry_client.request(
                 method=request.method,
                 url=url,
@@ -792,7 +791,7 @@ class V2Handler(ArtifactsMixing):
                 timeout=timeout,
                 allow_redirects=aws_blob_request,
             ) as client_response:
-                logger.info("1upstream response: %s", client_response)
+                logger.debug("upstream response: %s", client_response)
 
                 response_headers = self._prepare_response_headers(
                     client_response.headers, url_factory
@@ -803,8 +802,8 @@ class V2Handler(ArtifactsMixing):
 
                 await response.prepare(request)
 
-                logger.info(
-                    "123registry response: %s; headers: %s", response, response.headers
+                logger.debug(
+                    "registry response: %s; headers: %s", response, response.headers
                 )
 
                 if response.status >= 500:
