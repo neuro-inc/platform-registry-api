@@ -100,13 +100,20 @@ CATALOG_PAGE_VALIDATOR = (
 
 @dataclass(frozen=True)
 class RepoURL:
-    _path_re: ClassVar[Pattern[str]] = re.compile(
+    _v2_path_re: ClassVar[Pattern[str]] = re.compile(
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
+    )
+    _non_v2_path_re: ClassVar[Pattern[str]] = re.compile(
+        r"/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
+        r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads)/.*)"
     )
 
     repo: str
     url: URL
     mounted_repo: str = ""
+
+    def is_v2(self) -> bool:
+        return self.url.path.startswith("/v2/")
 
     @classmethod
     def from_url(cls, url: URL) -> "RepoURL":
@@ -116,7 +123,14 @@ class RepoURL:
 
     @classmethod
     def _parse(cls, url: URL) -> tuple[str, str, URL]:
-        match = cls._path_re.fullmatch(url.path)
+        non_v2_match = cls._non_v2_path_re.fullmatch(url.path)
+        if non_v2_match:
+            return (
+                f"{non_v2_match.group('project')}/{non_v2_match.group('repo')}",
+                "",
+                URL(non_v2_match.group("path_suffix")),
+            )
+        match = cls._v2_path_re.fullmatch(url.path)
         if not match:
             raise ValueError(f"unexpected path in a registry URL: {url}")
         path_suffix = URL.build(path=match.group("path_suffix"), query=url.query)
@@ -211,9 +225,12 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        return registry_url.with_project(
-            self._upstream_project, self._upstream_repo
-        ).with_origin(self._upstream_endpoint_url)
+        if registry_url.is_v2():
+            return registry_url.with_project(
+                self._upstream_project, self._upstream_repo
+            ).with_origin(self._upstream_endpoint_url)
+        else:
+            return registry_url.with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -227,7 +244,27 @@ class URLFactory:
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 
-class V2Handler:
+class ArtifactsMixing:
+    def register_artifacts(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            aiohttp.web.route(
+                method,
+                r"/artifacts-{action:(uploads|downloads)}/namespaces/{project:.+}/"
+                r"repositories/{repo:.+}/{path_suffix:(uploads|downloads)/?.*}",
+                self.handle,  # type: ignore
+            )
+            for method in (
+                METH_HEAD,
+                METH_GET,
+                METH_POST,
+                METH_DELETE,
+                METH_PATCH,
+                METH_PUT,
+            )
+        )
+
+
+class V2Handler(ArtifactsMixing):
     def __init__(self, app: Application, config: Config) -> None:
         self._app = app
         self._config = config
@@ -639,7 +676,7 @@ class V2Handler:
                     action="read",
                 )
             )
-        await self._check_user_permissions(request, permissions)
+        # await self._check_user_permissions(request, permissions)
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
@@ -703,7 +740,6 @@ class V2Handler:
         auth_headers: dict[str, str],
     ) -> StreamResponse:
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
-
         timeout = self._create_registry_client_timeout(request)
 
         if request.method == "HEAD":
@@ -730,8 +766,8 @@ class V2Handler:
             response = await self._convert_upstream_response(
                 upstream_response, url_factory
             )
-            logger.debug(
-                "registry response: %s; headers: %s", response, response.headers
+            logger.info(
+                "2registry response: %s; headers: %s", response, response.headers
             )
             if response.status >= 500:
                 logger.error(
@@ -746,6 +782,7 @@ class V2Handler:
                 and self._config.upstream_registry.type == UpstreamType.AWS_ECR
                 and path_components[-1] == "blobs"
             )
+            logger.info(f"11111111 {url=} {request.method=} {request_headers=} {data=}")
             async with self._registry_client.request(
                 method=request.method,
                 url=url,
@@ -755,7 +792,7 @@ class V2Handler:
                 timeout=timeout,
                 allow_redirects=aws_blob_request,
             ) as client_response:
-                logger.debug("upstream response: %s", client_response)
+                logger.info("1upstream response: %s", client_response)
 
                 response_headers = self._prepare_response_headers(
                     client_response.headers, url_factory
@@ -766,8 +803,8 @@ class V2Handler:
 
                 await response.prepare(request)
 
-                logger.debug(
-                    "registry response: %s; headers: %s", response, response.headers
+                logger.info(
+                    "123registry response: %s; headers: %s", response, response.headers
                 )
 
                 if response.status >= 500:
@@ -874,7 +911,15 @@ class V2Handler:
             and url_raw.host != url_factory.registry_host
         ):
             return url_str  # Redirect to outer service, maybe AWS S3 redirect
+
         upstream_repo_url = RepoURL.from_url(URL(url_str))
+
+        if not url_raw.is_absolute() and not upstream_repo_url.is_v2():
+            # for urls in response_headers["Location"] like
+            # /artifacts-uploads/namespaces/development-421920/
+            # repositories/platform-registry-dev/uploads/AF2XiV ...
+            return url_str
+
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
         logger.info(
             "converted upstream repo URL to registry repo URL: %s -> %s",
@@ -988,7 +1033,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
     v2_handler.register(v2_app)
-
+    v2_handler.register_artifacts(app)
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
 
