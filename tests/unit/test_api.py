@@ -28,7 +28,14 @@ _TestServerFactory = Callable[
 
 class TestRepoURL:
     @pytest.mark.parametrize(
-        "url", (URL("/"), URL("/v2/"), URL("/v2/tags/list"), URL("/v2/blobs/uploads/"))
+        "url",
+        (
+            URL("/"),
+            URL("/v2/"),
+            URL("/v2/tags/list"),
+            URL("/v2/blobs/uploads/"),
+            URL("/artifacts-uploads/repo/uploads/"),
+        ),
     )
     def test_from_url_value_error(self, url: URL) -> None:
         with pytest.raises(
@@ -36,10 +43,23 @@ class TestRepoURL:
         ):
             RepoURL.from_url(url)
 
-    def test_from_url(self) -> None:
+    def test_is_v2(self) -> None:
+        url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
+        reg_url = RepoURL.from_url(url)
+        assert reg_url.is_v2()
+
+    def test_from_url_v2(self) -> None:
         url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="name", url=url)
+
+    def test_from_url_non_v2(self) -> None:
+        url = URL(
+            "/artifacts-uploads/namespaces/project-name/repositories/repo-name/uploads/"
+            "docker-upload-blob"
+        )
+        reg_url = RepoURL.from_url(url)
+        assert reg_url == RepoURL(repo="project-name/repo-name", url=url)
 
     def test_from_url_edge_case_1(self) -> None:
         url = URL("/v2/tags/tags/list?whatever=thatis")
@@ -148,11 +168,23 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list" "?what=ever"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url
         )
+
+        # Test non v2 artifacts-uploads URL
+        reg_repo_url = RepoURL.from_url(
+            URL("/artifacts-uploads/namespaces/proj/repositories/repo/uploads/blob")
+        )
+        up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
+
+        expected_url = URL(
+            "http://upstream:5000/artifacts-uploads/namespaces/proj/repositories/repo/"
+            "uploads/blob"
+        )
+        assert up_repo_url == RepoURL(repo="proj/repo", url=expected_url)
 
     def test_create_registry_repo_url(self, url_factory: URLFactory) -> None:
         up_repo_url = RepoURL.from_url(

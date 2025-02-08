@@ -676,7 +676,7 @@ class V2Handler(ArtifactsMixing):
                     action="read",
                 )
             )
-        # await self._check_user_permissions(request, permissions)
+        await self._check_user_permissions(request, permissions)
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
