@@ -766,7 +766,7 @@ class V2Handler(ArtifactsMixing):
             response = await self._convert_upstream_response(
                 upstream_response, url_factory
             )
-            logger.info(
+            logger.debug(
                 "registry response: %s; headers: %s", response, response.headers
             )
             if response.status >= 500:
