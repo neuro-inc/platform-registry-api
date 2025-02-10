@@ -108,8 +108,11 @@ class RepoURL:
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
     _allowed_skip_perms_path_re: tuple[Pattern[str], Pattern[str]] = (
-        # Urls that uses GAR and they without Authorization headers,
-        # so we can't check permissions
+        # URLs used exclusively by Google Artifact Registry (GAR).
+        # These URLs are sent without Authorization headers,
+        # so we cannot check permissions.
+        # We need just proxy such requests to the upstream without modifying the URL.
+        # === Examples: ===
         # /artifacts-uploads/namespaces/development-421920/
         # repositories/platform-registry-dev/uploads/AF2XiV ...
         # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
