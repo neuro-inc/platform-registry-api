@@ -69,13 +69,26 @@ class TestRepoURL:
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="name", url=url)
 
-    def test_from_url_non_v2(self) -> None:
-        url = URL(
-            "/artifacts-uploads/namespaces/project-name/repositories/repo-name/uploads/"
-            "docker-upload-blob"
-        )
+    @pytest.mark.parametrize(
+        "url, expected_repo",
+        [
+            (URL("https://example.com/v2/name/tags/list?whatever=thatis"), "name"),
+            (
+                URL(
+                    "/artifacts-uploads/namespaces/project-name/"
+                    "repositories/repo-name/uploads/docker-upload-blob"
+                ),
+                "project-name/repo-name",
+            ),
+            (
+                URL("/v2/project-name/repo-name/pkg/blobs/uploads/smth"),
+                "project-name/repo-name",
+            ),
+        ],
+    )
+    def test_from_url(self, url: URL, expected_repo: str) -> None:
         reg_url = RepoURL.from_url(url)
-        assert reg_url == RepoURL(repo="project-name/repo-name", url=url)
+        assert reg_url == RepoURL(repo=expected_repo, url=url)
 
     def test_from_url_edge_case_1(self) -> None:
         url = URL("/v2/tags/tags/list?whatever=thatis")

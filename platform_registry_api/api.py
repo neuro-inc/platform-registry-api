@@ -235,12 +235,12 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        if not registry_url.allow_skip_perms():
+        if registry_url.allow_skip_perms():
+            return registry_url.with_origin(self._upstream_endpoint_url)
+        else:
             return registry_url.with_project(
                 self._upstream_project, self._upstream_repo
             ).with_origin(self._upstream_endpoint_url)
-        else:
-            return registry_url.with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -669,12 +669,7 @@ class V2Handler(ArtifactsMixing):
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
-        logger.debug(
-            "registry request: %s; %s; headers: %s",
-            request,
-            request.headers.get("Authorization"),
-            request.headers,
-        )
+        logger.debug("registry request: %s; headers: %s", request, request.headers)
 
         registry_repo_url = RepoURL.from_url(request.url)
 
