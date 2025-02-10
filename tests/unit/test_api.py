@@ -35,6 +35,8 @@ class TestRepoURL:
             URL("/v2/tags/list"),
             URL("/v2/blobs/uploads/"),
             URL("/artifacts-uploads/repo/uploads/"),
+            URL("/project/pkg/blobs/"),
+            URL("/project/repo/pkg/uploads/"),
         ),
     )
     def test_from_url_value_error(self, url: URL) -> None:
@@ -43,10 +45,24 @@ class TestRepoURL:
         ):
             RepoURL.from_url(url)
 
-    def test_is_v2(self) -> None:
-        url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
+    @pytest.mark.parametrize(
+        "url, expected",
+        [
+            (URL("/v2/project/repo/pkg/blobs/uploads/smth"), True),
+            (
+                URL(
+                    "/artifacts-uploads/namespaces/project-name/"
+                    "repositories/repo-name/uploads/smth"
+                ),
+                True,
+            ),
+            (URL("/v2/project/pkg/blobs/uploads/smth"), False),
+            (URL("/v2/this/img/blobs/uploads/?what=ever&from=another/img"), False),
+        ],
+    )
+    def test_allow_skip_perms(self, url: URL, expected: bool) -> None:
         reg_url = RepoURL.from_url(url)
-        assert reg_url.is_v2()
+        assert reg_url.allow_skip_perms() == expected
 
     def test_from_url_v2(self) -> None:
         url = URL("https://example.com/v2/name/tags/list?whatever=thatis")

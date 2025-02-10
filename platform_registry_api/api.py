@@ -100,20 +100,28 @@ CATALOG_PAGE_VALIDATOR = (
 
 @dataclass(frozen=True)
 class RepoURL:
-    _v2_path_re: ClassVar[Pattern[str]] = re.compile(
-        r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
-    )
-    _non_v2_path_re: ClassVar[Pattern[str]] = re.compile(
-        r"/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
-        r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads)/.*)"
-    )
-
     repo: str
     url: URL
     mounted_repo: str = ""
 
-    def is_v2(self) -> bool:
-        return self.url.path.startswith("/v2/")
+    _v2_path_re: ClassVar[Pattern[str]] = re.compile(
+        r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
+    )
+    _allowed_skip_perms_path_re: tuple[Pattern[str], Pattern[str]] = (
+        re.compile(
+            r"^/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
+            r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads))/"
+            r"(?P<upload_id>[A-Za-z0-9_=-]+)"
+        ),
+        re.compile(r"^/v2/(?P<project>.+)/(?P<repo>.+)/pkg/(?P<path_suffix>blobs/.+)"),
+    )
+
+    @staticmethod
+    def _get_match_skip_perms_path_re(url: URL) -> Optional[re.Match[str]]:
+        for path_re in RepoURL._allowed_skip_perms_path_re:
+            if match := path_re.fullmatch(url.path):
+                return match
+        return None
 
     @classmethod
     def from_url(cls, url: URL) -> "RepoURL":
@@ -123,12 +131,11 @@ class RepoURL:
 
     @classmethod
     def _parse(cls, url: URL) -> tuple[str, str, URL]:
-        non_v2_match = cls._non_v2_path_re.fullmatch(url.path)
-        if non_v2_match:
+        if match := cls._get_match_skip_perms_path_re(url):
             return (
-                f"{non_v2_match.group('project')}/{non_v2_match.group('repo')}",
+                f"{match.group('project')}/{match.group('repo')}",
                 "",
-                URL(non_v2_match.group("path_suffix")),
+                URL(match.group("path_suffix")),
             )
         match = cls._v2_path_re.fullmatch(url.path)
         if not match:
@@ -140,6 +147,9 @@ class RepoURL:
             # Support cross repository blob mount
             mounted_repo = path_suffix.query["from"]
         return match.group("repo"), mounted_repo, path_suffix
+
+    def allow_skip_perms(self) -> bool:
+        return True if self._get_match_skip_perms_path_re(self.url) else False
 
     def with_project(
         self, project: str, upstream_repo: Optional[str] = None
@@ -225,7 +235,7 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        if registry_url.is_v2():
+        if not registry_url.allow_skip_perms():
             return registry_url.with_project(
                 self._upstream_project, self._upstream_repo
             ).with_origin(self._upstream_endpoint_url)
@@ -659,24 +669,30 @@ class V2Handler(ArtifactsMixing):
 
     async def handle(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
-        logger.debug("registry request: %s; headers: %s", request, request.headers)
+        logger.debug(
+            "registry request: %s; %s; headers: %s",
+            request,
+            request.headers.get("Authorization"),
+            request.headers,
+        )
 
         registry_repo_url = RepoURL.from_url(request.url)
 
-        permissions = [
-            Permission(
-                uri=self._create_image_uri(registry_repo_url.repo),
-                action="read" if self._is_pull_request(request) else "write",
-            )
-        ]
-        if registry_repo_url.mounted_repo:
-            permissions.append(
+        if not registry_repo_url.allow_skip_perms():
+            permissions = [
                 Permission(
-                    uri=self._create_image_uri(registry_repo_url.mounted_repo),
-                    action="read",
+                    uri=self._create_image_uri(registry_repo_url.repo),
+                    action="read" if self._is_pull_request(request) else "write",
                 )
-            )
-        await self._check_user_permissions(request, permissions)
+            ]
+            if registry_repo_url.mounted_repo:
+                permissions.append(
+                    Permission(
+                        uri=self._create_image_uri(registry_repo_url.mounted_repo),
+                        action="read",
+                    )
+                )
+            await self._check_user_permissions(request, permissions)
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
@@ -913,10 +929,11 @@ class V2Handler(ArtifactsMixing):
 
         upstream_repo_url = RepoURL.from_url(URL(url_str))
 
-        if not url_raw.is_absolute() and not upstream_repo_url.is_v2():
+        if upstream_repo_url.allow_skip_perms():
             # for urls in response_headers["Location"] like
             # /artifacts-uploads/namespaces/development-421920/
             # repositories/platform-registry-dev/uploads/AF2XiV ...
+            # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
             return url_str
 
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
