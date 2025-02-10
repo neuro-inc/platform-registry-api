@@ -108,6 +108,11 @@ class RepoURL:
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
     _allowed_skip_perms_path_re: tuple[Pattern[str], Pattern[str]] = (
+        # Urls that uses GAR and they without Authorization headers,
+        # so we can't check permissions
+        # /artifacts-uploads/namespaces/development-421920/
+        # repositories/platform-registry-dev/uploads/AF2XiV ...
+        # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
         re.compile(
             r"^/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
             r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads))/"
@@ -254,27 +259,7 @@ class URLFactory:
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 
-class ArtifactsMixing:
-    def register_artifacts(self, app: aiohttp.web.Application) -> None:
-        app.add_routes(
-            aiohttp.web.route(
-                method,
-                r"/artifacts-{action:(uploads|downloads)}/namespaces/{project:.+}/"
-                r"repositories/{repo:.+}/{path_suffix:(uploads|downloads)/?.*}",
-                self.handle,  # type: ignore
-            )
-            for method in (
-                METH_HEAD,
-                METH_GET,
-                METH_POST,
-                METH_DELETE,
-                METH_PATCH,
-                METH_PUT,
-            )
-        )
-
-
-class V2Handler(ArtifactsMixing):
+class V2Handler:
     def __init__(self, app: Application, config: Config) -> None:
         self._app = app
         self._config = config
@@ -304,6 +289,24 @@ class V2Handler(ArtifactsMixing):
             aiohttp.web.route(
                 method,
                 r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
+                self.handle,
+            )
+            for method in (
+                METH_HEAD,
+                METH_GET,
+                METH_POST,
+                METH_DELETE,
+                METH_PATCH,
+                METH_PUT,
+            )
+        )
+
+    def register_artifacts(self, app: aiohttp.web.Application) -> None:
+        app.add_routes(
+            aiohttp.web.route(
+                method,
+                r"/artifacts-{action:(uploads|downloads)}/namespaces/{project:.+}/"
+                r"repositories/{repo:.+}/{path_suffix:(uploads|downloads)/?.*}",
                 self.handle,
             )
             for method in (
@@ -925,10 +928,6 @@ class V2Handler(ArtifactsMixing):
         upstream_repo_url = RepoURL.from_url(URL(url_str))
 
         if upstream_repo_url.allow_skip_perms():
-            # for urls in response_headers["Location"] like
-            # /artifacts-uploads/namespaces/development-421920/
-            # repositories/platform-registry-dev/uploads/AF2XiV ...
-            # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
             return url_str
 
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
