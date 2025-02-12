@@ -134,9 +134,7 @@ class RepoURL:
             mounted_repo = path_suffix.query["from"]
         return match.group("repo"), mounted_repo, path_suffix
 
-    def with_project(
-        self, project: str, upstream_repo: Optional[str] = None
-    ) -> "RepoURL":
+    def with_project(self, project: str, upstream_repo: str | None = None) -> "RepoURL":
         _, _, url_suffix = self._parse(self.url)
         new_mounted_repo = ""
         if self.mounted_repo:
@@ -176,7 +174,7 @@ class URLFactory:
         registry_endpoint_url: URL,
         upstream_endpoint_url: URL,
         upstream_project: str,
-        upstream_repo: Optional[str] = None,  # for registries that have repo like GAR
+        upstream_repo: str | None = None,  # for registries that have repo like GAR
     ) -> None:
         self._registry_endpoint_url = registry_endpoint_url
         self._upstream_endpoint_url = upstream_endpoint_url
@@ -196,7 +194,7 @@ class URLFactory:
         return self._upstream_project
 
     @property
-    def upstream_repo(self) -> Optional[str]:
+    def upstream_repo(self) -> str | None:
         return self._upstream_repo
 
     @classmethod
@@ -319,7 +317,7 @@ class V2Handler:
         images_names: Iterable[str],
         tree: ClientSubTreeViewRoot,
         project_name: str,
-        upstream_repo: Optional[str] = None,
+        upstream_repo: str | None = None,
     ) -> Iterator[tuple[int, str]]:
         upstream_repo_prefix = f"{upstream_repo}/" if upstream_repo else ""
         project_prefix = f"{project_name}/{upstream_repo_prefix}"
