@@ -21,12 +21,6 @@ repos:
   - id: requirements-txt-fixer
   - id: check-symlinks
   - id: debug-statements
-- repo: https://github.com/sondrelg/pep585-upgrade
-  rev: v1.0
-  hooks:
-  - id: upgrade-type-hints
-    args:
-    - --futures=true
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: 'v5.0.0'
   hooks:
