@@ -1016,6 +1016,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
     v2_handler.register(v2_app)
+
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
 

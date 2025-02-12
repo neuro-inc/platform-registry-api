@@ -181,6 +181,18 @@ class TestURLFactory:
 
 
 class TestV2Handler:
+    def test_is_bypass_to_upstream(self) -> None:
+        assert not V2Handler._is_bypass_to_upstream("/v2/")
+        assert not V2Handler._is_bypass_to_upstream("/v2/tags/list")
+        assert not V2Handler._is_bypass_to_upstream("/v2/blobs/uploads/")
+        assert V2Handler._is_bypass_to_upstream("/v2/proj/repo/pkg/blobs/smth")
+        assert V2Handler._is_bypass_to_upstream(
+            "/artifacts-uploads/namespaces/proj/repositories/repo/uploads/smth"
+        )
+        assert V2Handler._is_bypass_to_upstream(
+            "/artifacts-downloads/namespaces/proj/repositories/repo/downloads/smth"
+        )
+
     def test_filter_images_by_project(self) -> None:
         images_names = [
             "testproject/alice/img1",
