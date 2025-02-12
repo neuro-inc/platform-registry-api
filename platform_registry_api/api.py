@@ -107,29 +107,6 @@ class RepoURL:
     _v2_path_re: ClassVar[Pattern[str]] = re.compile(
         r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
     )
-    _allowed_skip_perms_path_re: tuple[Pattern[str], Pattern[str]] = (
-        # URLs used exclusively by Google Artifact Registry (GAR).
-        # These URLs are sent without Authorization headers,
-        # so we cannot check permissions.
-        # We need just proxy such requests to the upstream without modifying the URL.
-        # === Examples: ===
-        # /artifacts-uploads/namespaces/development-421920/
-        # repositories/platform-registry-dev/uploads/AF2XiV ...
-        # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
-        re.compile(
-            r"^/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
-            r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads))/"
-            r"(?P<upload_id>[A-Za-z0-9_=-]+)"
-        ),
-        re.compile(r"^/v2/(?P<project>.+)/(?P<repo>.+)/pkg/(?P<path_suffix>blobs/.+)"),
-    )
-
-    @staticmethod
-    def _get_match_skip_perms_path_re(url: URL) -> Optional[re.Match[str]]:
-        for path_re in RepoURL._allowed_skip_perms_path_re:
-            if match := path_re.fullmatch(url.path):
-                return match
-        return None
 
     @classmethod
     def from_url(cls, url: URL) -> "RepoURL":
@@ -139,12 +116,6 @@ class RepoURL:
 
     @classmethod
     def _parse(cls, url: URL) -> tuple[str, str, URL]:
-        if match := cls._get_match_skip_perms_path_re(url):
-            return (
-                f"{match.group('project')}/{match.group('repo')}",
-                "",
-                URL(match.group("path_suffix")),
-            )
         match = cls._v2_path_re.fullmatch(url.path)
         if not match:
             raise ValueError(f"unexpected path in a registry URL: {url}")
@@ -155,9 +126,6 @@ class RepoURL:
             # Support cross repository blob mount
             mounted_repo = path_suffix.query["from"]
         return match.group("repo"), mounted_repo, path_suffix
-
-    def allow_skip_perms(self) -> bool:
-        return True if self._get_match_skip_perms_path_re(self.url) else False
 
     def with_project(
         self, project: str, upstream_repo: Optional[str] = None
@@ -243,12 +211,9 @@ class URLFactory:
         return self._registry_endpoint_url.with_path("/v2/_catalog").with_query(query)
 
     def create_upstream_repo_url(self, registry_url: RepoURL) -> RepoURL:
-        if registry_url.allow_skip_perms():
-            return registry_url.with_origin(self._upstream_endpoint_url)
-        else:
-            return registry_url.with_project(
-                self._upstream_project, self._upstream_repo
-            ).with_origin(self._upstream_endpoint_url)
+        return registry_url.with_project(
+            self._upstream_project, self._upstream_repo
+        ).with_origin(self._upstream_endpoint_url)
 
     def create_registry_repo_url(self, upstream_url: RepoURL) -> RepoURL:
         upstream_repo = upstream_url.repo
@@ -292,24 +257,6 @@ class V2Handler:
             aiohttp.web.route(
                 method,
                 r"/{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}",
-                self.handle,
-            )
-            for method in (
-                METH_HEAD,
-                METH_GET,
-                METH_POST,
-                METH_DELETE,
-                METH_PATCH,
-                METH_PUT,
-            )
-        )
-
-    def register_artifacts(self, app: aiohttp.web.Application) -> None:
-        app.add_routes(
-            aiohttp.web.route(
-                method,
-                r"/artifacts-{action:(uploads|downloads)}/namespaces/{project:.+}/"
-                r"repositories/{repo:.+}/{path_suffix:(uploads|downloads)/?.*}",
                 self.handle,
             )
             for method in (
@@ -679,21 +626,20 @@ class V2Handler:
 
         registry_repo_url = RepoURL.from_url(request.url)
 
-        if not registry_repo_url.allow_skip_perms():
-            permissions = [
+        permissions = [
+            Permission(
+                uri=self._create_image_uri(registry_repo_url.repo),
+                action="read" if self._is_pull_request(request) else "write",
+            )
+        ]
+        if registry_repo_url.mounted_repo:
+            permissions.append(
                 Permission(
-                    uri=self._create_image_uri(registry_repo_url.repo),
-                    action="read" if self._is_pull_request(request) else "write",
+                    uri=self._create_image_uri(registry_repo_url.mounted_repo),
+                    action="read",
                 )
-            ]
-            if registry_repo_url.mounted_repo:
-                permissions.append(
-                    Permission(
-                        uri=self._create_image_uri(registry_repo_url.mounted_repo),
-                        action="read",
-                    )
-                )
-            await self._check_user_permissions(request, permissions)
+            )
+        await self._check_user_permissions(request, permissions)
 
         url_factory = self._create_url_factory(request)
         upstream_repo_url = url_factory.create_upstream_repo_url(registry_repo_url)
@@ -919,6 +865,30 @@ class V2Handler:
             )
         return response_headers
 
+    @staticmethod
+    def _is_bypass_to_upstream(url: str) -> bool:
+        _path_re_list: list[Pattern[str]] = [
+            # URLs used exclusively by Google Artifact Registry (GAR).
+            # We need bypass such requests to the upstream without modifying the url.
+            # === Examples: ===
+            # /artifacts-uploads/namespaces/development-421920/
+            # repositories/platform-registry-dev/uploads/AF2XiV ...
+            # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
+            re.compile(
+                r"^/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
+                r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads))/"
+                r"(?P<upload_id>[A-Za-z0-9_=-]+)"
+            ),
+            re.compile(
+                r"^/v2/(?P<project>.+)/(?P<repo>.+)/pkg/(?P<path_suffix>blobs/.+)"
+            ),
+        ]
+
+        for path_re in _path_re_list:
+            if path_re.fullmatch(url):
+                return True
+        return False
+
     def _convert_location_header(self, url_str: str, url_factory: URLFactory) -> str:
         url_raw = URL(url_str)
         if (
@@ -928,10 +898,10 @@ class V2Handler:
         ):
             return url_str  # Redirect to outer service, maybe AWS S3 redirect
 
-        upstream_repo_url = RepoURL.from_url(URL(url_str))
+        if self._is_bypass_to_upstream(url_str):
+            return str(self._config.upstream_registry.endpoint_url.join(url_raw))
 
-        if upstream_repo_url.allow_skip_perms():
-            return url_str
+        upstream_repo_url = RepoURL.from_url(URL(url_str))
 
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
         logger.info(
@@ -1046,7 +1016,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
     v2_handler.register(v2_app)
-    v2_handler.register_artifacts(app)
     app["v2_app"] = v2_app
     app.add_subapp("/v2", v2_app)
 
