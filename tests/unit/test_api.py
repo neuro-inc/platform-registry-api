@@ -28,13 +28,7 @@ _TestServerFactory = Callable[
 
 class TestRepoURL:
     @pytest.mark.parametrize(
-        "url",
-        (
-            URL("/"),
-            URL("/v2/"),
-            URL("/v2/tags/list"),
-            URL("/v2/blobs/uploads/"),
-        ),
+        "url", (URL("/"), URL("/v2/"), URL("/v2/tags/list"), URL("/v2/blobs/uploads/"))
     )
     def test_from_url_value_error(self, url: URL) -> None:
         with pytest.raises(
@@ -42,7 +36,7 @@ class TestRepoURL:
         ):
             RepoURL.from_url(url)
 
-    def test_from_url_v2(self) -> None:
+    def test_from_url(self) -> None:
         url = URL("https://example.com/v2/name/tags/list?whatever=thatis")
         reg_url = RepoURL.from_url(url)
         assert reg_url == RepoURL(repo="name", url=url)
@@ -148,14 +142,17 @@ class TestURLFactory:
         )
 
     def test_create_upstream_repo_url(self, url_factory: URLFactory) -> None:
-        reg_url = URL("http://registry:5000/v2/this/image/tags/list?what=ever")
-        expected_repo = "upstream/nested/this/image"
-        expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever"
+        reg_repo_url = RepoURL.from_url(
+            URL("http://registry:5000/v2/this/image/tags/list?what=ever")
         )
-        reg_repo_url = RepoURL.from_url(reg_url)
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
-        assert up_repo_url == RepoURL(repo=expected_repo, url=expected_url)
+
+        expected_url = URL(
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list" "?what=ever"
+        )
+        assert up_repo_url == RepoURL(
+            repo="upstream/nested/this/image", url=expected_url
+        )
 
     def test_create_registry_repo_url(self, url_factory: URLFactory) -> None:
         up_repo_url = RepoURL.from_url(
