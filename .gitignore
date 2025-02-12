@@ -173,4 +173,3 @@ cython_debug/
 requirements.txt
 
 .coverage-*.xml
-
