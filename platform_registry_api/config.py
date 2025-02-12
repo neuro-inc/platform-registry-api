@@ -31,6 +31,7 @@ class UpstreamType(str, Enum):
 class UpstreamRegistryConfig:
     endpoint_url: URL
     project: str
+    repo: str | None = None
 
     type: UpstreamType = UpstreamType.OAUTH
 
@@ -118,6 +119,8 @@ class EnvironConfigFactory:
                     ],
                 }
             )
+            if "NP_REGISTRY_UPSTREAM_REPO" in self._environ:
+                upstream["repo"] = self._environ["NP_REGISTRY_UPSTREAM_REPO"]
             if "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE" in self._environ:
                 upstream["token_registry_catalog_scope"] = self._environ[
                     "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE"

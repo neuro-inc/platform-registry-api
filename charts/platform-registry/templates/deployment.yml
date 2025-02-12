@@ -64,6 +64,8 @@ spec:
           value: {{ .Values.upstreamRegistry.url | quote }}
         - name: NP_REGISTRY_UPSTREAM_PROJECT
           value: {{ .Values.upstreamRegistry.project | quote }}
+        - name: NP_REGISTRY_UPSTREAM_REPO
+          value: {{ .Values.upstreamRegistry.repo | quote }}
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
           value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME

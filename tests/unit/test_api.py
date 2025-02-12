@@ -74,6 +74,13 @@ class TestRepoURL:
             url=URL("https://example.com/v2/neuro/this/img/tags/list?what=ever"),
         )
 
+        # Test with project and upstream repo as it is in Google Artifact Registry
+        reg_url = RepoURL.from_url(url).with_project("neuro", "repo")
+        assert reg_url == RepoURL(
+            repo="neuro/repo/this/img",
+            url=URL("https://example.com/v2/neuro/repo/this/img/tags/list?what=ever"),
+        )
+
     def test_with_project_and_cross_repo_blob_mount(self) -> None:
         url = URL(
             "https://example.com/v2/this/img/blobs/uploads/?what=ever&from=another/img"
