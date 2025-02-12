@@ -100,13 +100,13 @@ CATALOG_PAGE_VALIDATOR = (
 
 @dataclass(frozen=True)
 class RepoURL:
+    _path_re: ClassVar[Pattern[str]] = re.compile(
+        r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
+    )
+
     repo: str
     url: URL
     mounted_repo: str = ""
-
-    _v2_path_re: ClassVar[Pattern[str]] = re.compile(
-        r"/v2/(?P<repo>.+)/(?P<path_suffix>(tags|manifests|blobs)/.*)"
-    )
 
     @classmethod
     def from_url(cls, url: URL) -> "RepoURL":
@@ -116,7 +116,7 @@ class RepoURL:
 
     @classmethod
     def _parse(cls, url: URL) -> tuple[str, str, URL]:
-        match = cls._v2_path_re.fullmatch(url.path)
+        match = cls._path_re.fullmatch(url.path)
         if not match:
             raise ValueError(f"unexpected path in a registry URL: {url}")
         path_suffix = URL.build(path=match.group("path_suffix"), query=url.query)
