@@ -703,6 +703,7 @@ class V2Handler:
         auth_headers: dict[str, str],
     ) -> StreamResponse:
         request_headers = self._prepare_request_headers(request.headers, auth_headers)
+
         timeout = self._create_registry_client_timeout(request)
 
         if request.method == "HEAD":
