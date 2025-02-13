@@ -228,6 +228,21 @@ class URLFactory:
 
 
 class V2Handler:
+    _direct_gar_access_re_list: list[Pattern[str]] = [
+        # URLs used exclusively by Google Artifact Registry (GAR).
+        # We need bypass such requests to the upstream without modifying the url.
+        # === Examples: ===
+        # /artifacts-uploads/namespaces/development-421920/
+        # repositories/platform-registry-dev/uploads/AF2XiV ...
+        # /v2/development-421920/platform-registry-dev/pkg/blobs/uploads/AJMTJPA ...
+        re.compile(
+            r"^/(artifacts-uploads|artifacts-downloads)/namespaces/(?P<project>.+)/"
+            r"repositories/(?P<repo>.+)/(?P<path_suffix>(uploads|downloads))/"
+            r"(?P<upload_id>[A-Za-z0-9_=-]+)"
+        ),
+        re.compile(r"^/v2/(?P<project>.+)/(?P<repo>.+)/pkg/(?P<path_suffix>blobs/.+)"),
+    ]
+
     def __init__(self, app: Application, config: Config) -> None:
         self._app = app
         self._config = config
@@ -866,6 +881,13 @@ class V2Handler:
             )
         return response_headers
 
+    @staticmethod
+    def _should_access_gar_directly(url: URL) -> bool:
+        for path_re in V2Handler._direct_gar_access_re_list:
+            if path_re.fullmatch(url.path):
+                return True
+        return False
+
     def _convert_location_header(self, url_str: str, url_factory: URLFactory) -> str:
         url_raw = URL(url_str)
         if (
@@ -874,7 +896,14 @@ class V2Handler:
             and url_raw.host != url_factory.registry_host
         ):
             return url_str  # Redirect to outer service, maybe AWS S3 redirect
+
+        if self._should_access_gar_directly(url_raw):
+            return str(
+                self._config.upstream_registry.endpoint_url.join(URL(url_raw.path))
+            )
+
         upstream_repo_url = RepoURL.from_url(URL(url_str))
+
         registry_repo_url = url_factory.create_registry_repo_url(upstream_repo_url)
         logger.info(
             "converted upstream repo URL to registry repo URL: %s -> %s",
