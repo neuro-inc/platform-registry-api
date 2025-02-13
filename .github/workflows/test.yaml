@@ -6,21 +6,26 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 0
-    - name: Install python
+    - name: Install Python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.9
-    - name: Cache packages
+        python-version-file: .python-version
+    - name: Install pipx
+      run: python3 -m pip install --user pipx && python3 -m pipx ensurepath
+    - name: Install Poetry with pipx
+      run: |
+        pipx install poetry
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Install dependencies
       run: make setup
     - name: Lint
@@ -34,18 +39,17 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.9
-    - name: Cache packages
+        python-version-file: .python-version
+    - name: Setup Python dependencies cache
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Install dependencies
       run: make setup
     - name: Run unit tests
@@ -57,18 +61,17 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version-file: .python-version
     - name: Cache packages
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io
@@ -86,18 +89,17 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version-file: .python-version
     - name: Cache packages
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io
@@ -115,18 +117,17 @@ jobs:
     steps:
     - name: Checkout commit
       uses: actions/checkout@v4
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-        fetch-depth: 0
     - name: Install python
       uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version-file: .python-version
     - name: Cache packages
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
-        key: py-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('setup.cfg') }}
+        path: ~/.cache/pypoetry
+        key: poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          poetry-
     - name: Install dependencies
       run: make setup
     - name: Login to ghcr.io

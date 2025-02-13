@@ -13,13 +13,14 @@ from platform_registry_api.aws_ecr import AWSECRAuthToken, AWSECRUpstream
 from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.upstream import Upstream
 
+
 _TestServerFactory = Callable[[Application], Awaitable[_TestServer]]
 
 
 class TestAWSECRAuthToken:
     @pytest.mark.parametrize(
         "payload",
-        (
+        [
             {},
             {"authorizationData": []},
             {"authorizationData": [{"authorizationToken": "testtoken"}]},
@@ -39,7 +40,7 @@ class TestAWSECRAuthToken:
                     {"authorizationToken": "testtoken", "expiresAt": 123}
                 ]
             },
-        ),
+        ],
     )
     def test_create_from_payload_invalid_payload(self, payload: dict[str, Any]) -> None:
         with pytest.raises(ValueError, match="invalid payload"):
@@ -82,7 +83,7 @@ class _TestAWSECRUpstreamHandler:
         target = request.headers["X-Amz-Target"]
         if target == "AmazonEC2ContainerRegistry_V20150921.GetAuthorizationToken":
             return await self._handle_get_auth_token(request)
-        elif target == "AmazonEC2ContainerRegistry_V20150921.CreateRepository":
+        if target == "AmazonEC2ContainerRegistry_V20150921.CreateRepository":
             return await self._handle_create_repo(request)
         return json_response({}, status=500)
 
@@ -122,14 +123,12 @@ class _TestAWSECRUpstreamHandler:
 
 class TestAWSECRUpstream:
     @pytest.fixture
-    async def upstream_server(
-        self, aiohttp_server: _TestServerFactory
-    ) -> AsyncIterator[URL]:
+    async def upstream_server(self, aiohttp_server: _TestServerFactory) -> URL:
         app = Application()
         handler = _TestAWSECRUpstreamHandler()
         app.router.add_post("/", handler.handle)
         server = await aiohttp_server(app)
-        yield server.make_url("")
+        return server.make_url("")
 
     @pytest.fixture
     async def upstream(self, upstream_server: URL) -> AsyncIterator[Upstream]:

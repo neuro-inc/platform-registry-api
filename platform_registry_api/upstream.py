@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class Upstream(ABC):
-    async def create_repo(self, repo: str) -> None:
+    async def create_repo(self, repo: str) -> None:  # noqa: B027
+        # TODO unabstract method for ABC
         pass
 
     @abstractmethod

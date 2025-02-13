@@ -1,7 +1,7 @@
 import datetime
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Any, Optional
+from typing import Any
 
 import aiohttp
 import pytest
@@ -21,6 +21,7 @@ from platform_registry_api.api import (
 from platform_registry_api.config import UpstreamRegistryConfig
 from platform_registry_api.helpers import check_image_catalog_permission
 
+
 _TestServerFactory = Callable[
     [aiohttp.web.Application], Awaitable[aiohttp.test_utils.TestServer]
 ]
@@ -28,7 +29,7 @@ _TestServerFactory = Callable[
 
 class TestRepoURL:
     @pytest.mark.parametrize(
-        "url", (URL("/"), URL("/v2/"), URL("/v2/tags/list"), URL("/v2/blobs/uploads/"))
+        "url", [URL("/"), URL("/v2/"), URL("/v2/tags/list"), URL("/v2/blobs/uploads/")]
     )
     def test_from_url_value_error(self, url: URL) -> None:
         with pytest.raises(
@@ -148,7 +149,7 @@ class TestURLFactory:
         up_repo_url = url_factory.create_upstream_repo_url(reg_repo_url)
 
         expected_url = URL(
-            "http://upstream:5000/v2/upstream/nested/this/image/tags/list" "?what=ever"
+            "http://upstream:5000/v2/upstream/nested/this/image/tags/list?what=ever"
         )
         assert up_repo_url == RepoURL(
             repo="upstream/nested/this/image", url=expected_url
@@ -288,7 +289,7 @@ class TestV2Handler:
         ) == ["image:tag"]
 
 
-class TestHelpers_CheckImageCatalogPermission:
+class TestHelpersCheckImageCatalogPermission:
     def test_default_permissions(self) -> None:
         # alice checks her own image "alice/img"
         image = "alice/img"
@@ -416,8 +417,8 @@ class TestHelpers_CheckImageCatalogPermission:
 
 class MockAuthServer:
     counter: int = 0
-    expires_in: Optional[int] = None
-    issued_at: Optional[str] = None
+    expires_in: int | None = None
+    issued_at: str | None = None
 
     async def handle(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         service = request.query.get("service")
@@ -447,7 +448,7 @@ class UpstreamTokenManager:
         self,
         client: ClientSession,
         registry_config: UpstreamRegistryConfig,
-        timefunc: Optional[Callable[[], float]] = None,
+        timefunc: Callable[[], float] | None = None,
     ) -> None:
         timefunc = timefunc or time.time
         self._oauth_upstream = OAuthUpstream(
@@ -548,7 +549,7 @@ class TestUpstreamTokenManager:
         mock_time: MockTime,
     ) -> None:
         utm = upstream_token_manager
-        issued_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        issued_at = datetime.datetime.now(datetime.UTC) - datetime.timedelta(
             seconds=200
         )
         mock_auth_server.issued_at = issued_at.isoformat()
