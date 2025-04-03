@@ -8,6 +8,7 @@ version = "0.0.0"
 description = "Apolo.us platform registry API"
 readme = "README.md"
 license = "Proprietary"
+authors = ["Apolo.us"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only"
