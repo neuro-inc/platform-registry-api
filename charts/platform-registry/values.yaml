@@ -8,17 +8,21 @@ replicas: 2
 
 platform:
   clusterName: ""
-  authUrl: https://staging.neu.ro
+  authUrl: ""
   token: {}
 
 upstreamRegistry:
-  type: aws_ecr
-  url: https://771188043543.dkr.ecr.us-east-1.amazonaws.com
+  type: ""
+  url: ""
   region: us-east-1
   catalogScope: ""
   repositoryScopeActions: ""
-  maxCatalogEntries: 1000
-  project: dev
+  maxCatalogEntries: ""
+  project: ""
+  tokenUrl: ""
+  tokenService: ""
+  tokenUsername: {}
+  tokenPassword: {}
 
 resources:
   requests:
@@ -40,6 +44,8 @@ service:
   annotations: {}
 
 sentry:
+  dsn: ""
+  clusterName: ""
   appName: platform-registry
   sampleRate: 0.002
 
