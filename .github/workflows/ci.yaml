@@ -46,7 +46,7 @@ jobs:
       image: platformregistryapi
       helm_charts: platform-registry
 
-  deploy_dev:
+  deploy:
     name: Deploy
     needs: release
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
