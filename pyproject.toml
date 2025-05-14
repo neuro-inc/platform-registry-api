@@ -31,7 +31,7 @@ neuro-auth-client = "^24.8.0"
 aiobotocore = "^2.21.1"
 neuro-logging = "^25.1.0"
 trafaret = "^2.1.1"
-yarl = "^1.18.3"
+yarl = "^1.19.0"
 
 [tool.poetry.group.dev]
 optional = true
