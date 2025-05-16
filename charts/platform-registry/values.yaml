@@ -34,6 +34,18 @@ resources:
 
 secrets: []
 
+externalSecrets:
+  - name: platform-admin-secret
+    secretStoreName: vault-backend
+    secretStoreKind: ClusterSecretStore
+    data:
+      DATABASE_URL:
+        key: kv-v2/platform
+        property: DATABASE_URL
+      API_KEY:
+        key: kv-v2/platform
+        property: API_KEY
+
 ingress:
   enabled: false
   ingressClassName: ""
