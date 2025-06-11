@@ -41,6 +41,22 @@ spec:
         - name: http
           containerPort: 8080
           protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
         env:
         - name: NP_REGISTRY_AUTH_URL
           value: {{ .Values.platform.authUrl | quote }}
