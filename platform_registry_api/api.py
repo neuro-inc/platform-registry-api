@@ -269,6 +269,7 @@ class V2Handler:
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
             (
+                aiohttp.web.get("/ping", self.handle_ping),
                 aiohttp.web.get("/", self.handle_version_check),
                 aiohttp.web.get("/_catalog", self.handle_catalog),
                 aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
@@ -308,6 +309,9 @@ class V2Handler:
         raise HTTPUnauthorized(
             headers={"WWW-Authenticate": f'Basic realm="{self._config.server.name}"'}
         )
+
+    async def handle_ping(self, request: Request) -> Response:
+        return Response(text="pong")
 
     async def handle_version_check(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
