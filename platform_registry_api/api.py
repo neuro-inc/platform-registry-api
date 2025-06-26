@@ -233,6 +233,14 @@ class URLFactory:
         return upstream_url.with_repo(repo).with_origin(self._registry_endpoint_url)
 
 
+class RootHandler:
+    def register(self, app: aiohttp.web.Application) -> None:
+        app.add_routes((aiohttp.web.get("/ping", self.handle_ping),))
+
+    async def handle_ping(self, request: Request) -> Response:
+        return Response(text="pong")
+
+
 class V2Handler:
     _direct_gar_access_re_list: list[Pattern[str]] = [
         # URLs used exclusively by Google Artifact Registry (GAR).
@@ -269,7 +277,6 @@ class V2Handler:
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
             (
-                aiohttp.web.get("/ping", self.handle_ping),
                 aiohttp.web.get("/", self.handle_version_check),
                 aiohttp.web.get("/_catalog", self.handle_catalog),
                 aiohttp.web.get(r"/{repo:.+}/tags/list", self.handle_repo_tags_list),
@@ -309,9 +316,6 @@ class V2Handler:
         raise HTTPUnauthorized(
             headers={"WWW-Authenticate": f'Basic realm="{self._config.server.name}"'}
         )
-
-    async def handle_ping(self, request: Request) -> Response:
-        return Response(text="pong")
 
     async def handle_version_check(self, request: Request) -> StreamResponse:
         # TODO: prevent leaking sensitive headers
@@ -1023,6 +1027,9 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             yield
 
     app.cleanup_ctx.append(_init_app)
+
+    root_handler = RootHandler()
+    root_handler.register(app)
 
     v2_app = aiohttp.web.Application()
     v2_handler = V2Handler(app=v2_app, config=config)
