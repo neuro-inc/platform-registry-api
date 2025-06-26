@@ -35,6 +35,16 @@ def config(admin_token: str, cluster_name: str) -> Config:
     )
 
 
+class TestPing:
+    async def test_ping(
+        self, aiohttp_client: _TestClientFactory, config: Config
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        async with client.get("/ping") as resp:
+            assert resp.status == 200
+
+
 class TestV2Api:
     async def test_unauthorized(
         self, aiohttp_client: _TestClientFactory, config: Config
