@@ -22,13 +22,15 @@ spec:
         app: {{ include "platformRegistry.name" . }}
         release: {{ .Release.Name }}
         service: platform-registry
+      {{- if or .Values.annotations .Values.secrets }}
       annotations:
-{{- with .Values.annotations }}
-{{ toYaml . | indent 8 }}
-{{- end }}
-{{- if .Values.secrets }}
+        {{- with .Values.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.secrets }}
         checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
-{{- end }}
+        {{- end }}
+      {{- end }}
     spec:
       containers:
       - name: platform-registry
