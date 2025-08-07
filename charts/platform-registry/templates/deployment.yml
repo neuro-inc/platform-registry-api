@@ -66,6 +66,8 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
+        - name: NP_REGISTRY_CLIENT_URL
+          value: {{ .Values.platform.registryClientUrl | quote }}
         {{- if .Values.sentry }}
         - name: SENTRY_DSN
           value: {{ .Values.sentry.dsn }}

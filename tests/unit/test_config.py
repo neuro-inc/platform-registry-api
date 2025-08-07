@@ -4,6 +4,7 @@ from platform_registry_api.config import (
     AuthConfig,
     Config,
     EnvironConfigFactory,
+    RegistryClientConfig,
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
@@ -22,6 +23,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_AUTH_URL": "-",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_CLUSTER_NAME": "test-cluster",
+            "NP_REGISTRY_CLIENT_URL": "https://test_host",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -43,6 +45,10 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
+            registry_client=RegistryClientConfig(
+                url=URL("https://test_host"),
+                token="test_auth_token",
+            ),
         )
         assert config.upstream_registry.is_oauth
 
@@ -62,6 +68,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE": "",
             "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS": "push,pull",
             "NP_CLUSTER_NAME": "test-cluster",
+            "NP_REGISTRY_CLIENT_URL": "https://test_host",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -83,6 +90,10 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
+            registry_client=RegistryClientConfig(
+                url=URL("https://test_host"),
+                token="test_auth_token",
+            ),
         )
         assert config.upstream_registry.is_oauth
 
@@ -95,6 +106,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_CLUSTER_NAME": "test-cluster",
+            "NP_REGISTRY_CLIENT_URL": "https://test_host",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -110,6 +122,10 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
+            registry_client=RegistryClientConfig(
+                url=URL("https://test_host"),
+                token="test_auth_token",
+            ),
         )
         assert not config.upstream_registry.is_oauth
 
@@ -122,6 +138,7 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
             "NP_CLUSTER_NAME": "test-cluster",
+            "NP_REGISTRY_CLIENT_URL": "https://test_host",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -137,6 +154,10 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
+            registry_client=RegistryClientConfig(
+                url=URL("https://test_host"),
+                token="test_auth_token",
+            ),
         )
         assert config.upstream_registry.is_basic
         assert not config.upstream_registry.is_oauth
@@ -152,6 +173,7 @@ class TestEnvironConfigFactory:
             "NP_CLUSTER_NAME": "test-cluster",
             "NP_REGISTRY_UPSTREAM_BASIC_USERNAME": "testuser",
             "NP_REGISTRY_UPSTREAM_BASIC_PASSWORD": "testpassword",
+            "NP_REGISTRY_CLIENT_URL": "https://test_host",
         }
         config = EnvironConfigFactory(environ=environ).create()
         assert config == Config(
@@ -169,6 +191,9 @@ class TestEnvironConfigFactory:
                 service_token="test_auth_token",
             ),
             cluster_name="test-cluster",
+            registry_client=RegistryClientConfig(
+                url=URL("https://test_host"), token="test_auth_token"
+            ),
         )
         assert config.upstream_registry.is_basic
         assert not config.upstream_registry.is_oauth
