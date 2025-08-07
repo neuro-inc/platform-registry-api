@@ -10,6 +10,7 @@ platform:
   clusterName: ""
   authUrl: ""
   token: {}
+  registryClientUrl: ""
 
 upstreamRegistry:
   type: ""
