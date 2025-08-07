@@ -67,7 +67,7 @@ async def test_deleter(
     async with client.get("/v2/org/project/alpine/tags/list", auth=auth) as response:
         resp = await response.json()
         assert response.status == 200
-        assert resp["tags"] == ["latest", "v1"]
+        assert set(resp["tags"]) == {"latest", "v1"}
         assert resp["name"] == "org/project/alpine"
 
     await events_queues.outcome.put(
@@ -94,6 +94,7 @@ async def test_deleter(
     assert isinstance(ev, Ack)
     assert ev.events[StreamType("platform-admin")] == ["123"]
 
+    # check that image manifests are deleted
     async with client.get("/v2/org/project/alpine/tags/list", auth=auth) as response:
         resp = await response.json()
         assert response.status == 200
