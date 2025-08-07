@@ -33,7 +33,6 @@ neuro-logging = "^25.6.1"
 trafaret = "^2.1.1"
 yarl = "^1.18.3"
 apolo-events-client = "^25.7.7"
-apolo-sdk = "^25.7.2"
 
 [tool.poetry.group.dev]
 optional = true
