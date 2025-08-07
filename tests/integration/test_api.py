@@ -7,6 +7,7 @@ from platform_registry_api.api import create_app
 from platform_registry_api.config import (
     AuthConfig,
     Config,
+    RegistryClientConfig,
     ServerConfig,
     UpstreamRegistryConfig,
 )
@@ -27,11 +28,15 @@ def config(admin_token: str, cluster_name: str) -> Config:
     auth = AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )
+    registry_client = RegistryClientConfig(
+        url=URL("http://localhost:5000"), token=admin_token
+    )
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
         cluster_name=cluster_name,
+        registry_client=registry_client,
     )
 
 

@@ -23,6 +23,7 @@ from platform_registry_api.api import create_app
 from platform_registry_api.config import (
     AuthConfig,
     Config,
+    RegistryClientConfig,
     ServerConfig,
     UpstreamRegistryConfig,
     UpstreamType,
@@ -193,11 +194,15 @@ def config(upstream: URL, auth_config: AuthConfig, project: str) -> Config:
         basic_username="testuser",
         basic_password="testpassword",
     )
+    registry_client = RegistryClientConfig(
+        url=URL("http://localhost:5000"), token=auth_config.service_token
+    )
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth_config,
         cluster_name="test-cluster",
+        registry_client=registry_client,
     )
 
 

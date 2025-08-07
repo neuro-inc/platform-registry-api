@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from apolo_events_client import EventsClientConfig
 from yarl import URL
 
 
@@ -19,6 +20,12 @@ class ServerConfig:
 class AuthConfig:
     server_endpoint_url: URL | None
     service_token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
+class RegistryClientConfig:
+    url: URL
+    token: str = field(repr=False)
 
 
 class UpstreamType(str, Enum):
@@ -67,6 +74,8 @@ class Config:
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
     cluster_name: str
+    registry_client: RegistryClientConfig
+    events: EventsClientConfig | None = None
 
 
 class EnvironConfigFactory:
@@ -143,15 +152,31 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)
 
+    def create_events(self) -> EventsClientConfig | None:
+        if "NP_REGISTRY_EVENTS_URL" in self._environ:
+            url = URL(self._environ["NP_REGISTRY_EVENTS_URL"])
+            token = self._environ["NP_REGISTRY_EVENTS_TOKEN"]
+            return EventsClientConfig(url=url, token=token, name="platform-regisry")
+        return None
+
+    def create_registry_client(self) -> RegistryClientConfig:
+        url = URL(self._environ["NP_REGISTRY_CLIENT_URL"])
+        token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
+        return RegistryClientConfig(url=url, token=token)
+
     def create(self) -> Config:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
+        events = self.create_events()
+        registry_client = self.create_registry_client()
         assert cluster_name
         return Config(
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
             cluster_name=cluster_name,
+            registry_client=registry_client,
+            events=events,
         )

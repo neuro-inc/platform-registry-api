@@ -45,13 +45,14 @@ dist:
 
 .PHONY: test_unit
 test_unit:
-	poetry run pytest -vv tests/unit
+	poetry run pytest -svv tests/unit
 
 .PHONY: test_integration
 test_integration: docker_build
 	docker compose -f tests/docker/docker-compose.yaml pull -q; \
 	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
-	poetry run pytest -vv tests/integration; \
+	bash tests/integration/project_deleter_fixture.sh; \
+	poetry run pytest -svv tests/integration; \
 	exit_code=$$?; \
 	docker compose -f tests/docker/docker-compose.yaml kill; \
 	docker compose -f tests/docker/docker-compose.yaml rm -f; \

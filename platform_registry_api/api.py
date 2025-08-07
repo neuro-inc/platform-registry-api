@@ -51,6 +51,8 @@ from neuro_logging import (
 from yarl import URL
 
 from platform_registry_api.helpers import check_image_catalog_permission
+from platform_registry_api.project_deleter import ProjectDeleter
+from platform_registry_api.registry_client import RegistryApiClient
 
 from .aws_ecr import AWSECRUpstream
 from .basic import BasicUpstream
@@ -1024,7 +1026,20 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC
             )
 
+            registry_client = await exit_stack.enter_async_context(
+                RegistryApiClient(
+                    url=config.registry_client.url,
+                    token=config.registry_client.token,
+                )
+            )
+
+            deleter = await exit_stack.enter_async_context(
+                ProjectDeleter(registry_client, config.events)
+            )
+
             yield
+
+            await deleter.aclose()
 
     app.cleanup_ctx.append(_init_app)
 
