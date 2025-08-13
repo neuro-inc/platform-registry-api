@@ -31,7 +31,7 @@ class UpstreamType(str, Enum):
 class UpstreamRegistryConfig:
     endpoint_url: URL
     project: str
-    repo: str | None = None
+    repo: str = ""
 
     type: UpstreamType = UpstreamType.OAUTH
 

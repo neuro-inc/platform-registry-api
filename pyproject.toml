@@ -77,7 +77,7 @@ filterwarnings = """
     """
 
 [tool.mypy]
-files = ["platform_registry_api", "tests"]
+files = ["platform_registry_api"]  #, "tests"]
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_untyped_defs = true

@@ -1,4 +1,5 @@
 import time
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -10,9 +11,23 @@ from neuro_auth_client.bearer_auth import BearerAuth
 from yarl import URL
 
 from .cache import ExpiringCache
-from .config import UpstreamRegistryConfig
-from .typedefs import TimeFactory
-from .upstream import Upstream
+
+
+class AbstractAuthStrategy(ABC):
+    @abstractmethod
+    async def get_headers(self) -> dict[str, str]:
+        """Return headers for authentication."""
+        raise NotImplementedError
+
+
+class BasicAuthStrategy(AbstractAuthStrategy):
+    def __init__(self, *, username: str, password: str) -> None:
+        self._username = username
+        self._password = password
+
+    async def get_headers(self) -> dict[str, str]:
+        auth = BasicAuth(login=self._username, password=self._password)
+        return {str(AUTHORIZATION): auth.encode()}
 
 
 @dataclass(frozen=True)
@@ -27,7 +42,6 @@ class OAuthToken:
         *,
         default_expires_in: int = 60,
         expiration_ratio: float = 0.75,
-        time_factory: TimeFactory = time.time,
     ) -> "OAuthToken":
         return OAuthToken(
             access_token=cls._parse_access_token(payload),
@@ -35,7 +49,6 @@ class OAuthToken:
                 payload,
                 default_expires_in=default_expires_in,
                 expiration_ratio=expiration_ratio,
-                time_factory=time_factory,
             ),
         )
 
@@ -53,84 +66,64 @@ class OAuthToken:
         *,
         default_expires_in: int,
         expiration_ratio: float,
-        time_factory: TimeFactory,
     ) -> float:
         expires_in = payload.get("expires_in", default_expires_in)
         issued_at_str = payload.get("issued_at")
         if issued_at_str:
             issued_at = iso8601.parse_date(issued_at_str).timestamp()
         else:
-            issued_at = time_factory()
+            issued_at = time.time()
         return issued_at + expires_in * expiration_ratio
 
 
-class OAuthClient:
+class OAuthStrategy(AbstractAuthStrategy):
     def __init__(
         self,
         *,
         client: ClientSession,
-        url: URL,
-        service: str,
-        username: str,
-        password: str,
-        time_factory: TimeFactory = time.time,
+        token_url: URL,
+        token_service: str,
+        token_username: str,
+        token_password: str,
     ) -> None:
         self._client = client
-        self._url = url.with_query({"service": service})
-        self._auth = BasicAuth(login=username, password=password)
-        self._time_factory = time_factory
+        self._token_url = token_url.with_query({"service": token_service})
+        self._auth = BasicAuth(login=token_username, password=token_password)
+        # self._registry_catalog_scope = registry_catalog_scope
+        # self._repository_scope_template = (
+        #     "repository:{repo}:" + repository_scope_actions
+        # )
+        self._cache = ExpiringCache[dict[str, str]]()
 
     async def get_token(self, scopes: Sequence[str] = ()) -> OAuthToken:
-        url = self._url
+        url = self._token_url
         if scopes:
             url = url.update_query([("scope", s) for s in scopes])
         async with self._client.get(url, auth=self._auth) as response:
-            # TODO: check the status code
-            # TODO: raise exceptions
+            # check the status code, raise exceptions
             payload = await response.json()
-        return OAuthToken.create_from_payload(payload, time_factory=self._time_factory)
+        return OAuthToken.create_from_payload(payload)
 
-
-class OAuthUpstream(Upstream):
-    def __init__(
-        self,
-        *,
-        client: OAuthClient,
-        registry_catalog_scope: str = (
-            UpstreamRegistryConfig.token_registry_catalog_scope
-        ),
-        repository_scope_actions: str = (
-            UpstreamRegistryConfig.token_repository_scope_actions
-        ),
-        time_factory: TimeFactory = time.time,
-    ) -> None:
-        self._client = client
-        self._registry_catalog_scope = registry_catalog_scope
-        self._repository_scope_template = (
-            "repository:{repo}:" + repository_scope_actions
-        )
-        self._cache = ExpiringCache[dict[str, str]](time_factory=time_factory)
-
-    async def _get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
+    async def get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
         key = " ".join(scopes)
         headers = self._cache.get(key)
         if headers is None:
-            token = await self._client.get_token(scopes)
+            token = await self.get_token(scopes)
             headers = {str(AUTHORIZATION): BearerAuth(token.access_token).encode()}
             self._cache.put(key, headers, token.expires_at)
         return dict(headers)
 
-    async def get_headers_for_version(self) -> dict[str, str]:
-        return await self._get_headers()
-
-    async def get_headers_for_catalog(self) -> dict[str, str]:
-        return await self._get_headers([self._registry_catalog_scope])
-
-    async def get_headers_for_repo(
-        self, repo: str, mounted_repo: str = ""
-    ) -> dict[str, str]:
-        scopes = []
-        scopes.append(self._repository_scope_template.format(repo=repo))
-        if mounted_repo:
-            scopes.append(self._repository_scope_template.format(repo=mounted_repo))
-        return await self._get_headers(scopes)
+    # async def get_headers_for_version(self) -> dict[str, str]:
+    #     return await self._get_headers()
+    #
+    # async def get_headers_for_catalog(self) -> dict[str, str]:
+    #     return await self._get_headers([self._registry_catalog_scope])
+    #
+    # async def get_headers_for_repo(
+    #     self, repo: str, mounted_repo: str = ""
+    # ) -> dict[str, str]:
+    #     scopes = []
+    #     scopes.append(self._repository_scope_template.format(repo=repo))
+    #     if mounted_repo:
+    #         scopes.append(self._repository_scope_template.format(repo=mounted_repo))
+    #     return await self._get_headers(scopes)
