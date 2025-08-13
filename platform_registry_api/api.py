@@ -148,7 +148,7 @@ class V2Handler:
         )
         await self._check_user_permissions(request, [permission])
 
-        tags = await self._upstream_client.image_tags_list(image=repo)
+        tags = await self._upstream_client.image_tags_list(repo=repo)
         return json_response(data={"name": repo, "tags": tags})
 
     async def handle(self, request: Request) -> StreamResponse:

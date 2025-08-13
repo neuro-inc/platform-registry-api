@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from collections import defaultdict
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from types import TracebackType
 from typing import Self
 
@@ -61,6 +61,16 @@ class UpstreamV2ApiClient:
             url = url.with_query(suffix_url.query)
         return url
 
+    def _get_catalog_scopes(self) -> Sequence[str]:
+        return ("registry:catalog:*",)
+
+    def _get_repo_scopes(self, repo: str, mounted_repo: str = "") -> Sequence[str]:
+        scopes = []
+        scopes.append(f"repository:{repo}:*")
+        if mounted_repo:
+            scopes.append(f"repository:{mounted_repo}:*")
+        return scopes
+
     async def get_auth_strategy(self) -> AbstractAuthStrategy:
         if self._config.is_basic:
             return BasicAuthStrategy(
@@ -102,8 +112,8 @@ class UpstreamV2ApiClient:
         assert self._url.host
         return self._url.host.endswith(".pkg.dev")
 
-    async def auth_headers(self) -> dict[str, str]:
-        return await self._auth_strategy.get_headers()
+    async def auth_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
+        return await self._auth_strategy.get_headers(scopes)
 
     async def v2(self) -> dict[str, str]:
         headers = await self.auth_headers()
@@ -114,8 +124,9 @@ class UpstreamV2ApiClient:
         self, org: str, project: str, page_size: int = 1000
     ) -> AsyncIterator[str]:
         url = self._v2_catalog_url().with_query(n=page_size)
+        scopes = self._get_catalog_scopes()
         while True:
-            headers = await self.auth_headers()
+            headers = await self.auth_headers(scopes)
             async with self._client.get(url, headers=headers) as response:
                 response_json = await response.json()
 
@@ -131,61 +142,64 @@ class UpstreamV2ApiClient:
                     break
                 url = url.update_query(n=page_size)
 
-    async def image_tags_list(self, image: str) -> list[str]:
-        headers = await self.auth_headers()
+    async def image_tags_list(self, repo: str) -> list[str]:
+        scopes = self._get_repo_scopes(repo)
+        headers = await self.auth_headers(scopes)
         async with self._client.get(
-            self._v2_tags_list_url(image), headers=headers
+            self._v2_tags_list_url(repo), headers=headers
         ) as response:
             response_json = await response.json()
             return response_json["tags"] or []
 
-    async def image_digest(self, image: str, tag: str) -> str:
-        headers = await self.auth_headers()
+    async def image_digest(self, repo: str, tag: str) -> str:
+        scopes = self._get_repo_scopes(repo)
+        headers = await self.auth_headers(scopes)
         headers["Accept"] = "application/vnd.docker.distribution.manifest.v2+json"
         async with self._client.get(
-            self._v2_image_manifests_tag_url(image, tag),
+            self._v2_image_manifests_tag_url(repo, tag),
             headers=headers,
         ) as response:
             return response.headers["Docker-Content-Digest"]
 
-    async def delete_tag(self, image: str, tag: str) -> None:
+    async def delete_tag(self, repo: str, tag: str) -> None:
         async with self._sem:
-            headers = await self.auth_headers()
+            scopes = self._get_repo_scopes(repo)
+            headers = await self.auth_headers(scopes)
             async with self._client.delete(
-                self._v2_image_manifests_tag_url(image, tag), headers=headers
+                self._v2_image_manifests_tag_url(repo, tag), headers=headers
             ) as response:
                 assert response.status == 202
 
     async def delete_image_manifest(
-        self, image: str, digest: str, tags: list[str]
+        self, repo: str, digest: str, tags: list[str]
     ) -> None:
         async with self._sem:
             if self._is_upstream_gar():
-                # GAR requires deleting tags before deleting the image manifest
-                await asyncio.gather(*[self.delete_tag(image, tag) for tag in tags])
-
-            headers = await self.auth_headers()
+                # GAR requires deleting tags before deleting the repo manifest
+                await asyncio.gather(*[self.delete_tag(repo, tag) for tag in tags])
+            scopes = self._get_repo_scopes(repo)
+            headers = await self.auth_headers(scopes)
             async with self._client.delete(
-                self._v2_image_manifests_digest_url(image, digest), headers=headers
+                self._v2_image_manifests_digest_url(repo, digest), headers=headers
             ) as response:
                 assert response.status == 202
 
     async def _get_images_for_delete(
         self, org: str, project: str
     ) -> AsyncIterator[tuple[str, str, list[str]]]:
-        async for image in self.list_images(org, project):
+        async for repo in self.list_images(org, project):
             digest_tags = defaultdict(list)
-            for tag in await self.image_tags_list(image):
-                digest = await self.image_digest(image, tag)
+            for tag in await self.image_tags_list(repo):
+                digest = await self.image_digest(repo, tag)
                 digest_tags[digest].append(tag)
             for digest, tags in digest_tags.items():
-                yield image, digest, tags
+                yield repo, digest, tags
 
     async def delete_project_images(self, org: str, project: str) -> None:
         await asyncio.gather(
             *[
-                self.delete_image_manifest(image, digest, tags)
-                async for image, digest, tags in self._get_images_for_delete(
+                self.delete_image_manifest(repo, digest, tags)
+                async for repo, digest, tags in self._get_images_for_delete(
                     org, project
                 )
             ]

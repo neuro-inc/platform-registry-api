@@ -15,7 +15,7 @@ from .cache import ExpiringCache
 
 class AbstractAuthStrategy(ABC):
     @abstractmethod
-    async def get_headers(self) -> dict[str, str]:
+    async def get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
         """Return headers for authentication."""
         raise NotImplementedError
 
@@ -25,7 +25,7 @@ class BasicAuthStrategy(AbstractAuthStrategy):
         self._username = username
         self._password = password
 
-    async def get_headers(self) -> dict[str, str]:
+    async def get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
         auth = BasicAuth(login=self._username, password=self._password)
         return {str(AUTHORIZATION): auth.encode()}
 
@@ -89,10 +89,6 @@ class OAuthStrategy(AbstractAuthStrategy):
         self._client = client
         self._token_url = token_url.with_query({"service": token_service})
         self._auth = BasicAuth(login=token_username, password=token_password)
-        # self._registry_catalog_scope = registry_catalog_scope
-        # self._repository_scope_template = (
-        #     "repository:{repo}:" + repository_scope_actions
-        # )
         self._cache = ExpiringCache[dict[str, str]]()
 
     async def get_token(self, scopes: Sequence[str] = ()) -> OAuthToken:
@@ -112,18 +108,3 @@ class OAuthStrategy(AbstractAuthStrategy):
             headers = {str(AUTHORIZATION): BearerAuth(token.access_token).encode()}
             self._cache.put(key, headers, token.expires_at)
         return dict(headers)
-
-    # async def get_headers_for_version(self) -> dict[str, str]:
-    #     return await self._get_headers()
-    #
-    # async def get_headers_for_catalog(self) -> dict[str, str]:
-    #     return await self._get_headers([self._registry_catalog_scope])
-    #
-    # async def get_headers_for_repo(
-    #     self, repo: str, mounted_repo: str = ""
-    # ) -> dict[str, str]:
-    #     scopes = []
-    #     scopes.append(self._repository_scope_template.format(repo=repo))
-    #     if mounted_repo:
-    #         scopes.append(self._repository_scope_template.format(repo=mounted_repo))
-    #     return await self._get_headers(scopes)

@@ -43,14 +43,12 @@ class UpstreamRegistryConfig:
     token_service: str = ""
     token_endpoint_username: str = field(repr=False, default="")
     token_endpoint_password: str = field(repr=False, default="")
-    token_registry_catalog_scope: str = "registry:catalog:*"
-    token_repository_scope_actions: str = "*"
 
     sock_connect_timeout_s: float | None = 30.0
     sock_read_timeout_s: float | None = 30.0
 
     # https://github.com/docker/distribution/blob/dcfe05ce6cff995f419f8df37b59987257ffb8c1/registry/handlers/catalog.go#L16
-    max_catalog_entries: int = 100
+    max_catalog_entries: int = 1000
 
     @property
     def is_basic(self) -> bool:
