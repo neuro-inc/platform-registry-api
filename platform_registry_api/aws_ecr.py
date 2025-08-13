@@ -47,7 +47,7 @@ class AWSECRUpstream(Upstream):
     ) -> None:
         self._client = client
         self._time_factory = time_factory
-        self._cache = ExpiringCache[dict[str, str]](time_factory=time_factory)
+        self._cache = ExpiringCache[dict[str, str]]()
 
     async def _get_token(self) -> AWSECRAuthToken:
         payload = await self._client.get_authorization_token()
