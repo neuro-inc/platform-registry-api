@@ -194,7 +194,10 @@ class V2Handler:
                     )
                 )
         await self._check_user_permissions(request, permissions)
-        return await self._upstream_client.proxy_request(request)
+        try:
+            return await self._upstream_client.proxy_request(request)
+        except UpstreamApiException as e:
+            return self._upstream_exc_to_response(e)
 
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")

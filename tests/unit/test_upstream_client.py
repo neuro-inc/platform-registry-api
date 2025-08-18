@@ -1,3 +1,4 @@
+import base64
 from unittest.mock import AsyncMock
 
 import pytest
@@ -19,7 +20,10 @@ class TestUpstreamV2APIClient:
         async with UpstreamV2ApiClient(config=config_basic.upstream_registry) as client:
             assert isinstance(client._auth_strategy, BasicAuthStrategy)
             headers = await client.auth_headers()
-            assert headers == {"Authorization": "Basic dGVzdHVzZXI6dGVzdHBhc3N3b3Jk"}
+            assert headers == {
+                "Authorization": f"Basic "
+                f"{base64.b64encode(b'testuser:testpassword').decode()}"
+            }
 
     async def test_oauth_auth_strategy(
         self, config_oauth: Config, monkeypatch: pytest.MonkeyPatch
