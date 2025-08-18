@@ -53,13 +53,13 @@ async def create_local_app_server(
 
 
 @pytest.fixture
-def project() -> str:
+def upstream_project() -> str:
     return "testproject"
 
 
 class _TestUpstreamHandler:
-    def __init__(self, project: str) -> None:
-        self._project = project
+    def __init__(self, upstream_project: str) -> None:
+        self._project = upstream_project
         self.images: list[str] = []
         self.tags: list[str] = []
         self.base_url = URL()
@@ -158,8 +158,8 @@ class _TestUpstreamHandler:
 
 
 @pytest.fixture
-def handler(project: str) -> _TestUpstreamHandler:
-    return _TestUpstreamHandler(project)
+def handler(upstream_project: str) -> _TestUpstreamHandler:
+    return _TestUpstreamHandler(upstream_project)
 
 
 @pytest.fixture
@@ -185,11 +185,11 @@ def auth_config(admin_token: str) -> AuthConfig:
 
 
 @pytest.fixture
-def config(upstream: URL, auth_config: AuthConfig, project: str) -> Config:
+def config(upstream: URL, auth_config: AuthConfig, upstream_project: str) -> Config:
     upstream_registry = UpstreamRegistryConfig(
         type=UpstreamType.BASIC,
         endpoint_url=upstream,
-        project=project,
+        project=upstream_project,
         basic_username="testuser",
         basic_password="testpassword",
     )
@@ -208,12 +208,16 @@ class TestBasicUpstream:
         regular_user_factory: Callable[[], Awaitable[_User]],
         aiohttp_client: _TestClientFactory,
         handler: _TestUpstreamHandler,
+        org: str,
+        project: str,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         user = await regular_user_factory()
-
-        async with client.get("/v2/_catalog", auth=user.to_basic_auth()) as resp:
+        params = {"org": org, "project": project}
+        async with client.get(
+            "/v2/_catalog", auth=user.to_basic_auth(), params=params
+        ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload == {"repositories": []}
@@ -224,17 +228,21 @@ class TestBasicUpstream:
         regular_user_factory: Callable[[], Awaitable[_User]],
         aiohttp_client: _TestClientFactory,
         handler: _TestUpstreamHandler,
+        org: str,
+        project: str,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         user = await regular_user_factory()
 
-        handler.images = [user.name + "/test"]
-
-        async with client.get("/v2/_catalog", auth=user.to_basic_auth()) as resp:
+        handler.images = [f"{org}/{project}/test"]
+        params = {"org": org, "project": project}
+        async with client.get(
+            "/v2/_catalog", auth=user.to_basic_auth(), params=params
+        ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
-            assert payload == {"repositories": [user.name + "/test"]}
+            assert payload == {"repositories": [f"{org}/{project}/test"]}
 
     async def test_catalog__last_not_found(
         self,
@@ -242,6 +250,8 @@ class TestBasicUpstream:
         regular_user_factory: Callable[[], Awaitable[_User]],
         aiohttp_client: _TestClientFactory,
         handler: _TestUpstreamHandler,
+        org: str,
+        project: str,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
@@ -250,7 +260,11 @@ class TestBasicUpstream:
         async with client.get(
             "/v2/_catalog",
             auth=user.to_basic_auth(),
-            params={"last": f"{user.name}/whatever"},
+            params={
+                "last": f"{org}/{project}/whatever",
+                "org": org,
+                "project": project,
+            },
         ) as resp:
             assert resp.status == HTTPNotFound.status_code, await resp.text()
             payload = await resp.json()
@@ -258,71 +272,11 @@ class TestBasicUpstream:
                 "errors": [
                     {
                         "code": "NAME_UNKNOWN",
-                        "message": f"'{user.name}/whatever' not found",
-                        "detail": f"'{user.name}/whatever' not found",
+                        "message": f"'{org}/{project}/whatever' not found",
+                        "detail": f"'{org}/{project}/whatever' not found",
                     }
                 ]
             }
-
-    async def test_catalog__multiple_users(
-        self,
-        config: Config,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        aiohttp_client: _TestClientFactory,
-        handler: _TestUpstreamHandler,
-    ) -> None:
-        app = await create_app(config)
-        client = await aiohttp_client(app)
-        user1 = await regular_user_factory()
-        user2 = await regular_user_factory()
-        user3 = await regular_user_factory()
-
-        handler.images = sorted(
-            [
-                user2.name + "/test2",
-                user1.name + "/test1",
-                user1.name + "/test4",
-                user3.name + "/test3",
-            ]
-        )
-
-        async with client.get(
-            "/v2/_catalog", auth=user1.to_basic_auth(), params={"n": "1"}
-        ) as resp:
-            assert resp.status == HTTPOk.status_code, await resp.text()
-            last_token = URL(
-                resp.links.getone("next", {}).get("url")  # type: ignore
-            ).query.get("last")
-
-        async with client.get(
-            "/v2/_catalog",
-            auth=user1.to_basic_auth(),
-            params={"n": "1", "last": last_token},  # type: ignore
-        ) as resp:
-            assert resp.status == HTTPOk.status_code, await resp.text()
-            payload = await resp.json()
-            assert payload == {"repositories": [user1.name + "/test4"]}
-
-    async def test_catalog__number(
-        self,
-        config: Config,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        aiohttp_client: _TestClientFactory,
-        handler: _TestUpstreamHandler,
-    ) -> None:
-        app = await create_app(config)
-        client = await aiohttp_client(app)
-        user = await regular_user_factory()
-
-        handler.images = [user.name + f"/test{i}" for i in range(1, 10)]
-
-        for i in range(1, 9):
-            async with client.get(
-                "/v2/_catalog", auth=user.to_basic_auth(), params={"n": str(i)}
-            ) as resp:
-                assert resp.status == HTTPOk.status_code, await resp.text()
-                payload = await resp.json()
-                assert payload == {"repositories": handler.images[:i]}
 
     @pytest.mark.parametrize(
         ("number", "replace_max"), list(itertools.product(range(1, 10), (True, False)))
@@ -335,6 +289,8 @@ class TestBasicUpstream:
         handler: _TestUpstreamHandler,
         number: int,
         replace_max: bool,
+        org: str,
+        project: str,
     ) -> None:
         if replace_max:
             config = replace(
@@ -347,7 +303,7 @@ class TestBasicUpstream:
         client = await aiohttp_client(app)
         user = await regular_user_factory()
 
-        expected = [user.name + f"/test{i}" for i in range(1, 10)]
+        expected = [f"{org}/{project}/test{i}" for i in range(1, 10)]
         handler.images = (
             [f"aaaa{i}" for i in range(1, 10)]
             + expected
@@ -358,7 +314,9 @@ class TestBasicUpstream:
         url = client.server.make_url("/") / "v2/_catalog"
         while url:
             async with client.session.get(
-                url, auth=user.to_basic_auth(), params={"n": str(number)}
+                url,
+                auth=user.to_basic_auth(),
+                params={"n": str(number), "org": org, "project": project},
             ) as resp:
                 assert resp.status == HTTPOk.status_code, await resp.text()
                 payload = await resp.json()
@@ -373,72 +331,24 @@ class TestBasicUpstream:
         regular_user_factory: Callable[[], Awaitable[_User]],
         aiohttp_client: _TestClientFactory,
         handler: _TestUpstreamHandler,
+        org: str,
+        project: str,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         user = await regular_user_factory()
-        repo = user.name + "/test"
+        repo = f"{org}/{project}/test"
         handler.images = [repo]
         handler.tags = ["alpha", "beta", "gamma"]
 
         async with client.get(
-            f"/v2/{repo}/tags/list", auth=user.to_basic_auth()
+            f"/v2/{repo}/tags/list",
+            auth=user.to_basic_auth(),
+            params={"org": org, "project": project},
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
             assert payload == {"name": repo, "tags": handler.tags}
-
-    async def test_tags_list__last_not_found(
-        self,
-        config: Config,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        aiohttp_client: _TestClientFactory,
-        handler: _TestUpstreamHandler,
-    ) -> None:
-        app = await create_app(config)
-        client = await aiohttp_client(app)
-        user = await regular_user_factory()
-        repo = user.name + "/test"
-        handler.images = [repo]
-
-        async with client.get(
-            f"/v2/{repo}/tags/list",
-            auth=user.to_basic_auth(),
-            params={"last": "whatever"},
-        ) as resp:
-            assert resp.status == HTTPNotFound.status_code, await resp.text()
-            payload = await resp.json()
-            assert payload == {
-                "errors": [
-                    {
-                        "code": "NAME_UNKNOWN",
-                        "message": "Tag 'whatever' not found",
-                        "detail": "Tag 'whatever' not found",
-                    }
-                ]
-            }
-
-    async def test_tags_list__number(
-        self,
-        config: Config,
-        regular_user_factory: Callable[[], Awaitable[_User]],
-        aiohttp_client: _TestClientFactory,
-        handler: _TestUpstreamHandler,
-    ) -> None:
-        app = await create_app(config)
-        client = await aiohttp_client(app)
-        user = await regular_user_factory()
-        repo = user.name + "/test"
-        handler.images = [repo]
-        handler.tags = [f"tag{i}" for i in range(1, 10)]
-
-        for i in range(1, 9):
-            async with client.get(
-                f"/v2/{repo}/tags/list", auth=user.to_basic_auth(), params={"n": str(i)}
-            ) as resp:
-                assert resp.status == HTTPOk.status_code, await resp.text()
-                payload = await resp.json()
-                assert payload == {"name": repo, "tags": handler.tags[:i]}
 
     @pytest.mark.parametrize("number", range(1, 10))
     async def test_tags_list__some_at_a_time(
@@ -448,11 +358,13 @@ class TestBasicUpstream:
         aiohttp_client: _TestClientFactory,
         handler: _TestUpstreamHandler,
         number: int,
+        org: str,
+        project: str,
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
         user = await regular_user_factory()
-        repo = user.name + "/test"
+        repo = f"{org}/{project}/test"
         handler.images = [repo]
         handler.tags = [f"tag{i}" for i in range(1, 10)]
 
@@ -460,7 +372,9 @@ class TestBasicUpstream:
         url = client.server.make_url("/") / f"v2/{repo}/tags/list"
         while url:
             async with client.session.get(
-                url, auth=user.to_basic_auth(), params={"n": str(number)}
+                url,
+                auth=user.to_basic_auth(),
+                params={"n": str(number), "org": org, "project": project},
             ) as resp:
                 assert resp.status == HTTPOk.status_code, await resp.text()
                 payload = await resp.json()

@@ -1,8 +1,9 @@
+import time
 from datetime import UTC, datetime
 
 import pytest
 
-from platform_registry_api.oauth import OAuthToken
+from platform_registry_api.auth_strategies import OAuthToken
 
 
 class TestOAuthToken:
@@ -10,16 +11,16 @@ class TestOAuthToken:
         with pytest.raises(ValueError, match="no access token"):
             OAuthToken.create_from_payload({})
 
-    def test_create_from_payload_token(self) -> None:
-        token = OAuthToken.create_from_payload(
-            {"token": "testtoken"}, time_factory=(lambda: 1560000000.0)
-        )
+    def test_create_from_payload_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000000.0)
+        token = OAuthToken.create_from_payload({"token": "testtoken"})
         assert token == OAuthToken(access_token="testtoken", expires_at=1560000045.0)
 
-    def test_create_from_payload_access_token(self) -> None:
-        token = OAuthToken.create_from_payload(
-            {"access_token": "testtoken"}, time_factory=(lambda: 1560000000.0)
-        )
+    def test_create_from_payload_access_token(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000000.0)
+        token = OAuthToken.create_from_payload({"access_token": "testtoken"})
         assert token == OAuthToken(access_token="testtoken", expires_at=1560000045.0)
 
     def test_create_from_payload_expires_at(self) -> None:
@@ -29,10 +30,12 @@ class TestOAuthToken:
         )
         assert token == OAuthToken(access_token="testtoken", expires_at=1560000075.0)
 
-    def test_create_from_payload_expires_in(self) -> None:
+    def test_create_from_payload_expires_in(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000000.0)
         token = OAuthToken.create_from_payload(
             {"token": "testtoken", "expires_in": 100},
-            time_factory=(lambda: 1560000000.0),
         )
         assert token == OAuthToken(access_token="testtoken", expires_at=1560000075.0)
 

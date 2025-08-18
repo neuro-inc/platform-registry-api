@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from collections.abc import AsyncIterator, Sequence
 from contextlib import AsyncExitStack
@@ -35,20 +36,30 @@ from neuro_logging import (
     setup_sentry,
     trace,
 )
+from pydantic import BaseModel, ConfigDict, ValidationError
 from yarl import URL
 
 from .config import (
     Config,
     EnvironConfigFactory,
 )
-from .upstream_client import UpstreamV2ApiClient
+from .upstream_client import UpstreamApiException, UpstreamV2ApiClient
 
 
 logger = logging.getLogger(__name__)
 
-AUTH_CLIENT: AppKey[AuthClient] = AppKey("auth_client")
+
 V2_APP: AppKey[Application] = AppKey("v2_app")
 UPSTREAM_CLIENT: AppKey[UpstreamV2ApiClient] = AppKey("upstream_client")
+
+
+class CatalogQueryParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    org: str
+    project: str
+    n: int | None = None
+    last: str | None = None
 
 
 class RootHandler:
@@ -64,10 +75,6 @@ class V2Handler:
         self._app = app
         self._config = config
         self._upstream_registry_config = config.upstream_registry
-
-    @property
-    def _auth_client(self) -> AuthClient:
-        return self._app[AUTH_CLIENT]
 
     @property
     def _upstream_client(self) -> UpstreamV2ApiClient:
@@ -111,34 +118,47 @@ class V2Handler:
             headers={"WWW-Authenticate": f'Basic realm="{self._config.server.name}"'}
         )
 
-    async def handle_version_check(self, request: Request) -> StreamResponse:
+    def _upstream_exc_to_response(self, exception: UpstreamApiException) -> Response:
+        try:
+            json_data = json.loads(exception.message)
+            return json_response(status=exception.code, data=json_data)
+        except json.JSONDecodeError:
+            return Response(status=exception.code, text=exception.message)
+
+    async def handle_version_check(self, request: Request) -> Response:
         await self._get_user_from_request(request)
-        return await self._upstream_client.proxy_request(request)
+        try:
+            v2_result = await self._upstream_client.v2()
+            return json_response(v2_result)
+        except UpstreamApiException as e:
+            return self._upstream_exc_to_response(e)
 
     async def handle_catalog(self, request: Request) -> Response:  # noqa: C901
-        org = request.query.get("org")
-        project = request.query.get("project")
-
-        if not org or not project:
-            raise HTTPBadRequest(text="Missing 'org' or 'project' query parameters")
+        try:
+            params = CatalogQueryParams(**request.query)
+        except ValidationError as e:
+            raise HTTPBadRequest(text=e.json()) from e
 
         await self._get_user_from_request(request)
 
         permission = Permission(
-            uri=f"image://{self._config.cluster_name}/{org}/{project}",
+            uri=f"image://{self._config.cluster_name}/{params.org}/{params.project}",
             action="read",
         )
         await self._check_user_permissions(request, [permission])
 
-        repositories = [
-            repo
-            async for repo in self._upstream_client.list_images(
-                org=org, project=project
-            )
-        ]
-        return json_response(data={"repositories": repositories})
+        try:
+            repositories = [
+                repo
+                async for repo in self._upstream_client.list_images(
+                    org=params.org, project=params.project, n=params.n, last=params.last
+                )
+            ]
+            return json_response(data={"repositories": repositories})
+        except UpstreamApiException as e:
+            return self._upstream_exc_to_response(e)
 
-    async def handle_repo_tags_list(self, request: Request) -> StreamResponse:
+    async def handle_repo_tags_list(self, request: Request) -> Response:
         await self._get_user_from_request(request)
         repo = request.match_info["repo"]
 
@@ -148,8 +168,11 @@ class V2Handler:
         )
         await self._check_user_permissions(request, [permission])
 
-        tags = await self._upstream_client.image_tags_list(repo=repo)
-        return json_response(data={"name": repo, "tags": tags})
+        try:
+            tags = await self._upstream_client.image_tags_list(repo=repo)
+            return json_response(data={"name": repo, "tags": tags})
+        except UpstreamApiException as e:
+            return self._upstream_exc_to_response(e)
 
     async def handle(self, request: Request) -> StreamResponse:
         await self._get_user_from_request(request)
@@ -219,8 +242,6 @@ async def create_app(config: Config) -> aiohttp.web.Application:
                     token=config.auth.service_token,
                 )
             )
-
-            app[V2_APP][AUTH_CLIENT] = auth_client
 
             await setup_security(
                 app=app, auth_client=auth_client, auth_scheme=AuthScheme.BASIC

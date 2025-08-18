@@ -48,11 +48,11 @@ class UpstreamV2ApiClient:
     def _v2_tags_list_url(self, repo: str) -> URL:
         return self._v2_url / self._full_repo_name(repo) / "tags" / "list"
 
-    def _v2_image_manifests_tag_url(self, image: str, tag: str) -> URL:
-        return self._v2_url / image / "manifests" / tag
+    def _v2_image_manifests_tag_url(self, repo: str, tag: str) -> URL:
+        return self._v2_url / self._full_repo_name(repo) / "manifests" / tag
 
-    def _v2_image_manifests_digest_url(self, image: str, digest: str) -> URL:
-        return self._v2_url / image / "manifests" / digest
+    def _v2_image_manifests_digest_url(self, repo: str, digest: str) -> URL:
+        return self._v2_url / self._full_repo_name(repo) / "manifests" / digest
 
     def _v2_repo_with_suffix(self, repo: str, suffix: str) -> URL:
         suffix_url = URL(suffix)
@@ -64,11 +64,13 @@ class UpstreamV2ApiClient:
     def _get_catalog_scopes(self) -> Sequence[str]:
         return ("registry:catalog:*",)
 
-    def _get_repo_scopes(self, repo: str, mounted_repo: str = "") -> Sequence[str]:
+    def _get_repo_scopes(
+        self, repo: str, mounted_repo: str | None = None
+    ) -> Sequence[str]:
         scopes = []
-        scopes.append(f"repository:{repo}:*")
+        scopes.append(f"repository:{self._full_repo_name(repo)}:*")
         if mounted_repo:
-            scopes.append(f"repository:{mounted_repo}:*")
+            scopes.append(f"repository:{self._full_repo_name(mounted_repo)}:*")
         return scopes
 
     async def get_auth_strategy(self) -> AbstractAuthStrategy:
@@ -121,9 +123,12 @@ class UpstreamV2ApiClient:
             return await response.json()
 
     async def list_images(
-        self, org: str, project: str, page_size: int = 1000
+        self, org: str, project: str, n: int | None = None, last: str | None = None
     ) -> AsyncIterator[str]:
+        page_size = n or self._config.max_catalog_entries
         url = self._v2_catalog_url().with_query(n=page_size)
+        if last:
+            url = url.update_query(last=last)
         scopes = self._get_catalog_scopes()
         while True:
             headers = await self.auth_headers(scopes)
@@ -220,6 +225,9 @@ class UpstreamV2ApiClient:
         )
 
     async def proxy_request(self, request: Request) -> StreamResponse:
+        """
+        This method works only for /{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*
+        """
         repo = request.match_info["repo"]
         path_suffix = request.match_info["path_suffix"]
 
@@ -232,7 +240,10 @@ class UpstreamV2ApiClient:
         else:
             data = request.content.iter_any()
 
-        auth_headers = await self.auth_headers()
+        path_suffix_url = URL(path_suffix)
+        mounted_repo = path_suffix_url.query.get("from")
+        scopes = self._get_repo_scopes(repo, mounted_repo)
+        auth_headers = await self.auth_headers(scopes)
         headers.update(auth_headers)
         url = self._v2_repo_with_suffix(repo, path_suffix)
         async with self._client.request(
@@ -269,22 +280,6 @@ class UpstreamV2ApiClient:
 
 
 async def raise_for_status(response: aiohttp.ClientResponse) -> None:
-    exc_text = None
-    match response.status:
-        case 401:
-            exc_text = "Platform Upstream: Unauthorized"
-        case 402:
-            exc_text = "Platform Upstream: Payment Required"
-        case 403:
-            exc_text = "Platform Upstream: Forbidden"
-        case 404:
-            exc_text = "Platform Upstream: Not Found"
-        case _ if not 200 <= response.status < 300:
-            text = await response.text()
-            exc_text = (
-                f"Platform Upstream api response status is not 2xx. "
-                f"Status: {response.status} Response: {text}"
-            )
-    if exc_text:
-        raise UpstreamApiException(code=response.status, message=exc_text)
+    if not 200 <= response.status < 300:
+        raise UpstreamApiException(code=response.status, message=await response.text())
     return

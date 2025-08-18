@@ -36,7 +36,7 @@ class TestEnvironConfigFactory:
                 token_endpoint_password="test_password",
                 token_registry_catalog_scope="registry:catalog:*",
                 token_repository_scope_actions="*",
-                max_catalog_entries=100,
+                max_catalog_entries=1000,
             ),
             auth=AuthConfig(
                 server_endpoint_url=None,

@@ -3,33 +3,15 @@ from unittest import mock
 from aiohttp import BasicAuth
 from aiohttp.hdrs import AUTHORIZATION
 
-from platform_registry_api.basic import BasicUpstream
+from platform_registry_api.auth_strategies import BasicAuthStrategy
 
 
-class TestBasicUpstream:
+class TestBasicAuthStrategy:
     async def test_get_headers(self) -> None:
-        upstream = BasicUpstream(username="testname", password="testpassword")
+        bacis_auth = BasicAuthStrategy(username="testname", password="testpassword")
         expected_headers = {AUTHORIZATION: mock.ANY}
 
-        headers = await upstream.get_headers_for_version()
-        assert headers == expected_headers
-        assert BasicAuth.decode(headers[AUTHORIZATION]) == BasicAuth(
-            login="testname", password="testpassword"
-        )
-
-    async def test_get_headers_for_catalog(self) -> None:
-        upstream = BasicUpstream(username="testname", password="testpassword")
-        expected_headers = {AUTHORIZATION: mock.ANY}
-        headers = await upstream.get_headers_for_catalog()
-        assert headers == expected_headers
-        assert BasicAuth.decode(headers[AUTHORIZATION]) == BasicAuth(
-            login="testname", password="testpassword"
-        )
-
-    async def test_get_headers_for_repo(self) -> None:
-        upstream = BasicUpstream(username="testname", password="testpassword")
-        expected_headers = {AUTHORIZATION: mock.ANY}
-        headers = await upstream.get_headers_for_repo("testrepo")
+        headers = await bacis_auth.get_headers()
         assert headers == expected_headers
         assert BasicAuth.decode(headers[AUTHORIZATION]) == BasicAuth(
             login="testname", password="testpassword"
