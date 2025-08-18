@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Install Python
       uses: actions/setup-python@v5
       with:
@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Install python
       uses: actions/setup-python@v5
       with:
@@ -60,7 +60,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Install python
       uses: actions/setup-python@v5
       with:
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Install python
       uses: actions/setup-python@v5
       with:
@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout commit
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: Install python
       uses: actions/setup-python@v5
       with:
