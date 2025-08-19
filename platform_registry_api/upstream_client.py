@@ -244,16 +244,16 @@ class UpstreamV2ApiClient:
         else:
             data = request.content.iter_any()
 
-        mounted_repo = request.query.get("from")
+        params = dict(request.query)
+        mounted_repo = params.get("from")
         if mounted_repo:
             upstream_mounted_repo = self._upstream_repo_name(mounted_repo)
-            params = dict(request.query)
             params["from"] = upstream_mounted_repo
         scopes = self._get_repo_scopes(repo, mounted_repo)
         auth_headers = await self.auth_headers(scopes)
         headers.update(auth_headers)
         url = self._v2_repo_with_suffix(repo, path_suffix)
-        if request.query:
+        if params:
             url = url.update_query(params)
 
         async with self._client.request(
