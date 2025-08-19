@@ -37,7 +37,6 @@ from neuro_logging import (
     trace,
 )
 from pydantic import BaseModel, ConfigDict, ValidationError
-from yarl import URL
 
 from .config import (
     Config,
@@ -135,7 +134,7 @@ class V2Handler:
 
     async def handle_catalog(self, request: Request) -> Response:  # noqa: C901
         try:
-            params = CatalogQueryParams(**request.query)
+            params = CatalogQueryParams(**dict(request.query))  # type: ignore
         except ValidationError as e:
             raise HTTPBadRequest(text=e.json()) from e
 
@@ -178,21 +177,26 @@ class V2Handler:
         await self._get_user_from_request(request)
         repo = request.match_info["repo"]
         path_suffix = request.match_info["path_suffix"]
+
+        registry_repo = self._upstream_client._registry_repo_name(repo)
         permissions = [
             Permission(
-                uri=f"image://{self._config.cluster_name}/{repo}",
+                uri=f"image://{self._config.cluster_name}/{registry_repo}",
                 action="read" if self._is_pull_request(request) else "write",
             )
         ]
-        path_suffix_url = URL(path_suffix)
-        if "blobs/uploads" in path_suffix_url.path:
-            if mounted_repo := path_suffix_url.query.get("from"):
+        if "blobs/uploads" in path_suffix:
+            if mounted_repo := request.query.get("from"):
+                registry_mounted_repo = self._upstream_client._registry_repo_name(
+                    mounted_repo
+                )
                 permissions.append(
                     Permission(
-                        uri=f"image://{self._config.cluster_name}/{mounted_repo}",
+                        uri=f"image://{self._config.cluster_name}/{registry_mounted_repo}",
                         action="read",
                     )
                 )
+
         await self._check_user_permissions(request, permissions)
         try:
             return await self._upstream_client.proxy_request(request)

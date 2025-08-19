@@ -49,9 +49,21 @@ class TestUpstreamV2APIClient:
         assert upstream_client._auth_strategy is not None
         assert upstream_client._client is not None
 
-    async def test_full_repo_name(self, upstream_client: UpstreamV2ApiClient) -> None:
-        full_repo_name = upstream_client._full_repo_name("test-repo")
-        assert full_repo_name == "testproject/test-repo"
+    async def test_upstream_repo_name(
+        self, upstream_client: UpstreamV2ApiClient
+    ) -> None:
+        upstream_repo = upstream_client._upstream_repo_name("test-repo")
+        assert upstream_repo == "testproject/test-repo"
+        upstream_repo = upstream_client._upstream_repo_name("testproject/test-repo")
+        assert upstream_repo == "testproject/test-repo"
+
+    async def test_registry_repo_name(
+        self, upstream_client: UpstreamV2ApiClient
+    ) -> None:
+        registry_repo = upstream_client._registry_repo_name("test-repo")
+        assert registry_repo == "test-repo"
+        registry_repo = upstream_client._registry_repo_name("testproject/test-repo")
+        assert registry_repo == "test-repo"
 
     async def test_endpoints(self, upstream_client: UpstreamV2ApiClient) -> None:
         repo = "repo-name"
@@ -68,8 +80,11 @@ class TestUpstreamV2APIClient:
         assert upstream_client._v2_image_manifests_digest_url(repo, "digest") == URL(
             "http://test-upstream/v2/testproject/repo-name/manifests/digest"
         )
+        assert upstream_client._v2_repo_with_suffix(repo, "suffix") == URL(
+            "http://test-upstream/v2/testproject/repo-name/suffix"
+        )
         assert upstream_client._v2_repo_with_suffix(repo, "suffix?from=from") == URL(
-            "http://test-upstream/v2/testproject/repo-name/suffix?from=from"
+            "http://test-upstream/v2/testproject/repo-name/suffix"
         )
 
     def test_scopes(self, upstream_client: UpstreamV2ApiClient) -> None:

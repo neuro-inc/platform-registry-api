@@ -35,8 +35,15 @@ class UpstreamV2ApiClient:
         self._sock_read_timeout_s = config.sock_read_timeout_s
         self._config = config
 
-    def _full_repo_name(self, repo: str) -> str:
+    def _upstream_repo_name(self, repo: str) -> str:
+        if repo.startswith(str(self._repo_prefix)):
+            return repo
         return str(self._repo_prefix / repo)
+
+    def _registry_repo_name(self, repo: str) -> str:
+        if repo.startswith(str(self._repo_prefix)):
+            return repo[len(str(self._repo_prefix)) :]
+        return repo
 
     @property
     def _v2_url(self) -> URL:
@@ -46,20 +53,17 @@ class UpstreamV2ApiClient:
         return self._v2_url / "_catalog"
 
     def _v2_tags_list_url(self, repo: str) -> URL:
-        return self._v2_url / self._full_repo_name(repo) / "tags" / "list"
+        return self._v2_url / self._upstream_repo_name(repo) / "tags" / "list"
 
     def _v2_image_manifests_tag_url(self, repo: str, tag: str) -> URL:
-        return self._v2_url / self._full_repo_name(repo) / "manifests" / tag
+        return self._v2_url / self._upstream_repo_name(repo) / "manifests" / tag
 
     def _v2_image_manifests_digest_url(self, repo: str, digest: str) -> URL:
-        return self._v2_url / self._full_repo_name(repo) / "manifests" / digest
+        return self._v2_url / self._upstream_repo_name(repo) / "manifests" / digest
 
     def _v2_repo_with_suffix(self, repo: str, suffix: str) -> URL:
         suffix_url = URL(suffix)
-        url = self._v2_url / self._full_repo_name(repo) / suffix_url.path
-        if suffix_url.query:
-            url = url.with_query(suffix_url.query)
-        return url
+        return self._v2_url / self._upstream_repo_name(repo) / suffix_url.path
 
     def _get_catalog_scopes(self) -> Sequence[str]:
         return ("registry:catalog:*",)
@@ -68,9 +72,9 @@ class UpstreamV2ApiClient:
         self, repo: str, mounted_repo: str | None = None
     ) -> Sequence[str]:
         scopes = []
-        scopes.append(f"repository:{self._full_repo_name(repo)}:*")
+        scopes.append(f"repository:{self._upstream_repo_name(repo)}:*")
         if mounted_repo:
-            scopes.append(f"repository:{self._full_repo_name(mounted_repo)}:*")
+            scopes.append(f"repository:{self._upstream_repo_name(mounted_repo)}:*")
         return scopes
 
     async def get_auth_strategy(self) -> AbstractAuthStrategy:
@@ -240,12 +244,18 @@ class UpstreamV2ApiClient:
         else:
             data = request.content.iter_any()
 
-        path_suffix_url = URL(path_suffix)
-        mounted_repo = path_suffix_url.query.get("from")
+        mounted_repo = request.query.get("from")
+        if mounted_repo:
+            upstream_mounted_repo = self._upstream_repo_name(mounted_repo)
+            params = dict(request.query)
+            params["from"] = upstream_mounted_repo
         scopes = self._get_repo_scopes(repo, mounted_repo)
         auth_headers = await self.auth_headers(scopes)
         headers.update(auth_headers)
         url = self._v2_repo_with_suffix(repo, path_suffix)
+        if request.query:
+            url = url.update_query(params)
+
         async with self._client.request(
             method=request.method,
             url=url,
@@ -259,9 +269,13 @@ class UpstreamV2ApiClient:
                 response_headers.pop(name, None)
 
             if "Location" in response_headers:
-                response_headers["Location"] = str(
-                    self._url.join(URL(response_headers["Location"]))
-                )
+                location_url = URL(response_headers["Location"])
+                if location_url.host:
+                    response_headers["Location"] = str(
+                        request.url.origin().join(location_url.relative())
+                    )
+                else:
+                    response_headers["Location"] = str(self._url.join(location_url))
 
             response = StreamResponse(
                 status=client_response.status, headers=response_headers

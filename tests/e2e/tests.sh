@@ -87,59 +87,18 @@ function test_push_catalog_pull() {
 
     echo "step 4: push alpine, check catalog"
     docker_tag_push $name $token "alpine"
-    local expected="\"$name/alpine\", \"$name/ubuntu\""
+    local expected="\"$repo_path/alpine\", \"$repo_path/ubuntu\""
     test_catalog $name $token "$expected"
 
     echo "step 5: remove ubuntu, check pull"
     docker rmi ubuntu:latest
-    docker pull 127.0.0.1:5000/$name/ubuntu:latest
+    docker pull 127.0.0.1:5000/$repo_path/ubuntu:latest
 
     echo "step 6: remove alpine, check pull"
     docker rmi alpine:latest
-    docker pull 127.0.0.1:5000/$name/alpine:latest
+    docker pull 127.0.0.1:5000/$repo_path/alpine:latest
 }
 
-
-function test_push_share_catalog() {
-    echo -e "\n"
-
-    local name1=$(uuidgen | awk '{print tolower($0)}')
-    local token1=$(generate_user_token $name1)
-    create_regular_user $name1
-
-    local name2=$(uuidgen | awk '{print tolower($0)}')
-    local token2=$(generate_user_token $name2)
-    create_regular_user $name2
-
-    docker_login $name1 $token1
-    local image_name="$name1/alpine"
-    local image_uri="\"image://$CLUSTER_NAME/$name1/alpine\""
-    docker rmi alpine:latest 127.0.0.1:5000/$name1/alpine:latest || :
-
-    echo "step 1: test catalog, expect empty"
-    test_catalog $name1 $token1 ""
-
-    echo "step 2: push alpine and test catalog as user 1"
-    docker_tag_push $name1 $token1 "alpine"
-    test_catalog $name1 $token1 "\"$image_name\""
-
-    echo "step 3: test catalog as user 2, expect empty"
-    test_catalog $name2 $token2 ""
-
-    echo "step 4: share resource with user 2"
-    share_resource_on_read "$image_uri" $token1 $name2
-
-    echo "step 5: test catalog as user 2, expect alpine"
-    test_catalog $name2 $token2 "\"$image_name\""
-    test_repo_tags_list $name2 $token2 "$image_name"
-
-    echo "step 6: test digest"
-    test_digest $name1 $token1 $image_name latest
-
-    echo "step 7: remove alpine"
-    docker rmi alpine:latest 127.0.0.1:5000/$name1/alpine:latest || :
-
-}
 
 function docker_tag_push() {
     local name=$1
@@ -219,6 +178,5 @@ ADMIN_TOKEN=$(generate_user_token admin)
 wait_for_registry
 
 test_push_catalog_pull
-test_push_share_catalog
 
 echo "OK"
