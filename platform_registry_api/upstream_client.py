@@ -7,6 +7,7 @@ from typing import Self
 
 import aiohttp
 from aiohttp.web import Request, StreamResponse
+from multidict import MultiDict
 from yarl import URL
 
 from .auth_strategies import AbstractAuthStrategy, BasicAuthStrategy, OAuthStrategy
@@ -185,7 +186,9 @@ class UpstreamV2ApiClient:
         async with self._sem:
             if self._is_upstream_gar():
                 # GAR requires deleting tags before deleting the repo manifest
-                await asyncio.gather(*[self.delete_tag(repo, tag) for tag in tags])
+                async with asyncio.TaskGroup() as tg:
+                    for tag in tags:
+                        tg.create_task(self.delete_tag(repo, tag))
             scopes = self._get_repo_scopes(repo)
             headers = await self.auth_headers(scopes)
             async with self._client.delete(
@@ -205,14 +208,9 @@ class UpstreamV2ApiClient:
                 yield repo, digest, tags
 
     async def delete_project_images(self, org: str, project: str) -> None:
-        await asyncio.gather(
-            *[
-                self.delete_image_manifest(repo, digest, tags)
-                async for repo, digest, tags in self._get_images_for_delete(
-                    org, project
-                )
-            ]
-        )
+        async with asyncio.TaskGroup() as tg:
+            async for repo, digest, tags in self._get_images_for_delete(org, project):
+                tg.create_task(self.delete_image_manifest(repo, digest, tags))
 
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")
@@ -244,9 +242,8 @@ class UpstreamV2ApiClient:
         else:
             data = request.content.iter_any()
 
-        params = dict(request.query)
-        mounted_repo = params.get("from")
-        if mounted_repo:
+        params = MultiDict(request.query)
+        if mounted_repo := params.get("from"):
             upstream_mounted_repo = self._upstream_repo_name(mounted_repo)
             params["from"] = upstream_mounted_repo
         scopes = self._get_repo_scopes(repo, mounted_repo)

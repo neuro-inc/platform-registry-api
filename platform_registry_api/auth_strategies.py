@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Self
 
-import iso8601
+import jwt
 from aiobotocore.client import AioBaseClient
 from aiohttp import BasicAuth, ClientSession
 from aiohttp.hdrs import AUTHORIZATION
@@ -43,19 +43,20 @@ class OAuthToken:
         *,
         default_expires_in: int = 60,
         expiration_ratio: float = 0.75,
-    ) -> "OAuthToken":
-        return OAuthToken(
-            access_token=cls._parse_access_token(payload),
+    ) -> Self:
+        access_token = cls._parse_access_token(payload)
+        return cls(
+            access_token=access_token,
             expires_at=cls._parse_expires_at(
-                payload,
+                access_token,
                 default_expires_in=default_expires_in,
                 expiration_ratio=expiration_ratio,
             ),
         )
 
     @classmethod
-    def _parse_access_token(cls, payload: dict[str, Any]) -> str:
-        access_token = payload.get("token") or payload.get("access_token")
+    def _parse_access_token(cls, payload: dict[str, str]) -> str:
+        access_token = payload.get("access_token") or payload.get("token")
         if not access_token:
             raise ValueError("no access token")
         return access_token
@@ -63,18 +64,15 @@ class OAuthToken:
     @classmethod
     def _parse_expires_at(
         cls,
-        payload: dict[str, Any],
+        access_token: str,
         *,
         default_expires_in: int,
         expiration_ratio: float,
     ) -> float:
-        expires_in = payload.get("expires_in", default_expires_in)
-        issued_at_str = payload.get("issued_at")
-        if issued_at_str:
-            issued_at = iso8601.parse_date(issued_at_str).timestamp()
-        else:
-            issued_at = time.time()
-        return issued_at + expires_in * expiration_ratio
+        token_payload = jwt.decode(access_token, options={"verify_signature": False})
+        if expires_at := token_payload.get("exp"):
+            return expires_at - (1 - expiration_ratio) * default_expires_in
+        return time.time() + default_expires_in * expiration_ratio
 
 
 class OAuthStrategy(AbstractAuthStrategy):
