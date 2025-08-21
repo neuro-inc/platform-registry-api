@@ -15,6 +15,16 @@ def cluster_name() -> str:
     return "test-cluster"
 
 
+@pytest.fixture
+def org() -> str:
+    return "test-org"
+
+
+@pytest.fixture
+def project() -> str:
+    return "test-project"
+
+
 @dataclass
 class _User:
     name: str
@@ -38,6 +48,7 @@ async def regular_user_factory(
     token_factory: Callable[[str], str],
     admin_token: str,
     cluster_name: str,
+    org: str,
 ) -> Callable[[str | None], Awaitable[_User]]:
     async def _factory(name: str | None = None) -> _User:
         if not name:
@@ -47,7 +58,7 @@ async def regular_user_factory(
         # Grant permissions to the user images
         headers = auth_client._generate_headers(admin_token)
         payload = [
-            {"uri": f"image://{cluster_name}/{name}", "action": "manage"},
+            {"uri": f"image://{cluster_name}/{org}", "action": "manage"},
         ]
         async with auth_client._request(
             "POST", f"/api/v1/users/{name}/permissions", headers=headers, json=payload

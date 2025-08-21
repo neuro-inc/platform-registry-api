@@ -96,25 +96,29 @@ class TestV2Api:
         aiohttp_client: _TestClientFactory,
         config: Config,
         regular_user_factory: Callable[[], Awaitable[_User]],
+        org: str,
+        project: str,
     ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
         auth = user.to_basic_auth()
         url = "/v2/_catalog"
-        async with client.get(url, auth=auth) as resp:
+        params = {"org": org, "project": project}
+        async with client.get(url, auth=auth, params=params) as resp:
             assert resp.status == 200, await resp.text()
             data = await resp.json()
             assert "repositories" in data
             assert isinstance(data["repositories"], list)
 
     async def test_catalog__no_auth(
-        self, aiohttp_client: _TestClientFactory, config: Config
+        self, aiohttp_client: _TestClientFactory, config: Config, org: str, project: str
     ) -> None:
         app = await create_app(config)
         client = await aiohttp_client(app)
+        params = {"org": org, "project": project}
         url = "/v2/_catalog"
-        async with client.get(url) as resp:
+        async with client.get(url, params=params) as resp:
             assert resp.status == 401, await resp.text()
 
     async def test_repo_unauthorized(
@@ -131,12 +135,15 @@ class TestV2Api:
         aiohttp_client: _TestClientFactory,
         config: Config,
         regular_user_factory: Callable[[], Awaitable[_User]],
+        org: str,
+        project: str,
     ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
         auth = user.to_basic_auth()
-        url = f"/v2/{user.name}/unknown/tags/list"
+        repo = f"{org}/{project}/unknown"
+        url = f"/v2/{repo}/tags/list"
         async with client.get(url, auth=auth) as resp:
             assert resp.status == 404
             payload = await resp.json()
@@ -144,7 +151,7 @@ class TestV2Api:
                 "errors": [
                     {
                         "code": "NAME_UNKNOWN",
-                        "detail": {"name": f"{user.name}/unknown"},
+                        "detail": {"name": f"testproject/{repo}"},
                         "message": "repository name not known to registry",
                     }
                 ]
@@ -155,12 +162,15 @@ class TestV2Api:
         aiohttp_client: _TestClientFactory,
         config: Config,
         regular_user_factory: Callable[[], Awaitable[_User]],
+        org: str,
+        project: str,
     ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
         auth = user.to_basic_auth()
-        url = f"/v2/{user.name}/unknown/blobs/uploads/?from={user.name}/unknown2"
+        repo = f"{org}/{project}/unknown"
+        url = f"/v2/{repo}/blobs/uploads/?from={org}/{project}/unknown2"
         async with client.post(url, auth=auth) as resp:
             assert resp.status == 202, await resp.text()
 
@@ -183,13 +193,16 @@ class TestV2Api:
         aiohttp_client: _TestClientFactory,
         config: Config,
         regular_user_factory: Callable[[], Awaitable[_User]],
+        org: str,
+        project: str,
     ) -> None:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
         auth = user.to_basic_auth()
         headers = {"X-Forwarded-Proto": "https"}
-        url = f"/v2/{user.name}/image/blobs/uploads/"
+        repo = f"{org}/{project}/unknown"
+        url = f"/v2/{repo}/image/blobs/uploads/"
         async with client.post(url, auth=auth, headers=headers) as resp:
             assert resp.status == 202
             location_url = URL(resp.headers["Location"])

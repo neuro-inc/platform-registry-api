@@ -1,17 +1,33 @@
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
+import aiobotocore.session
 import botocore
 import pytest
 from aiohttp.test_utils import TestServer as _TestServer
 from aiohttp.web import Application, Request, StreamResponse, json_response
 from yarl import URL
 
-from platform_registry_api.api import create_aws_ecr_upstream
-from platform_registry_api.aws_ecr import AWSECRAuthToken, AWSECRUpstream
+# from platform_registry_api.api import create_aws_ecr_upstream
+from platform_registry_api.auth_strategies import AWSECRAuthStrategy, AWSECRAuthToken
 from platform_registry_api.config import UpstreamRegistryConfig
-from platform_registry_api.upstream import Upstream
+
+
+# from platform_registry_api.upstream import Upstream
+
+
+@asynccontextmanager
+async def create_aws_ecr_upstream(
+    *,
+    config: UpstreamRegistryConfig,
+    **kwargs: Any,
+) -> AsyncIterator[AWSECRAuthStrategy]:
+    session = aiobotocore.session.get_session()
+    async with session.create_client("ecr", **kwargs) as client:
+        yield AWSECRAuthStrategy(client=client)
 
 
 _TestServerFactory = Callable[[Application], Awaitable[_TestServer]]
@@ -46,7 +62,10 @@ class TestAWSECRAuthToken:
         with pytest.raises(ValueError, match="invalid payload"):
             AWSECRAuthToken.create_from_payload(payload)
 
-    def test_create_from_payload_expires_at(self) -> None:
+    def test_create_from_payload_expires_at(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000000.0)
         token = AWSECRAuthToken.create_from_payload(
             {
                 "authorizationData": [
@@ -56,11 +75,13 @@ class TestAWSECRAuthToken:
                     }
                 ]
             },
-            time_factory=(lambda: 1560000000.0),
         )
         assert token == AWSECRAuthToken(token="testtoken", expires_at=1560000075.0)
 
-    def test_create_from_payload_already_expired(self) -> None:
+    def test_create_from_payload_already_expired(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000100.0)
         with pytest.raises(ValueError, match="already expired"):
             AWSECRAuthToken.create_from_payload(
                 {
@@ -71,7 +92,6 @@ class TestAWSECRAuthToken:
                         }
                     ]
                 },
-                time_factory=(lambda: 1560000100.0),
             )
 
 
@@ -131,12 +151,12 @@ class TestAWSECRUpstream:
         return server.make_url("")
 
     @pytest.fixture
-    async def upstream(self, upstream_server: URL) -> AsyncIterator[Upstream]:
+    async def upstream(self, upstream_server: URL) -> AsyncIterator[AWSECRAuthStrategy]:
         config = UpstreamRegistryConfig(endpoint_url=URL(), project="test_project")
         async with create_aws_ecr_upstream(
             config=config,
             endpoint_url=str(upstream_server),
-            time_factory=(lambda: 1560000000.0),
+            # time_factory=(lambda: 1560000000.0),
             use_ssl=False,
             region_name="us-east-1",
             aws_access_key_id="test_access_key_id",
@@ -144,30 +164,29 @@ class TestAWSECRUpstream:
         ) as up:
             yield up
 
-    async def test_create_repo(self, upstream: Upstream) -> None:
+    async def test_create_repo(self, upstream: AWSECRAuthStrategy) -> None:
         # simply should not fail
         await upstream.create_repo("test_repo")
         await upstream.create_repo("test_repo")
 
-    async def test_create_repo_already_exists(self, upstream: Upstream) -> None:
+    async def test_create_repo_already_exists(
+        self, upstream: AWSECRAuthStrategy
+    ) -> None:
         await upstream.create_repo("test_repo_already_exists")
 
-    async def test_create_repo_unexpected(self, upstream: Upstream) -> None:
+    async def test_create_repo_unexpected(self, upstream: AWSECRAuthStrategy) -> None:
         with pytest.raises(botocore.exceptions.ClientError):
             await upstream.create_repo("test_invalid_repo")
 
-    async def test_get_headers(self, upstream: Upstream) -> None:
-        headers = await upstream.get_headers_for_version()
-        assert headers == {"Authorization": "Basic test_token"}
-
-        headers = await upstream.get_headers_for_catalog()
-        assert headers == {"Authorization": "Basic test_token"}
-
-        headers = await upstream.get_headers_for_repo("test_repo")
+    async def test_get_headers(
+        self, upstream: AWSECRAuthStrategy, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(time, "time", lambda: 1560000000.0)
+        headers = await upstream.get_headers()
         assert headers == {"Authorization": "Basic test_token"}
 
     async def test_get_image_delete_response_success(
-        self, upstream: AWSECRUpstream
+        self, upstream: AWSECRAuthStrategy
     ) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -180,7 +199,7 @@ class TestAWSECRUpstream:
         assert response_content == {}
 
     async def test_get_image_delete_response_image_not_found(
-        self, upstream: AWSECRUpstream
+        self, upstream: AWSECRAuthStrategy
     ) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -203,7 +222,7 @@ class TestAWSECRUpstream:
         }
 
     async def test_get_image_delete_response_repository_not_found(
-        self, upstream: AWSECRUpstream
+        self, upstream: AWSECRAuthStrategy
     ) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -229,7 +248,7 @@ class TestAWSECRUpstream:
         }
 
     async def test_get_image_delete_response_unknown_error(
-        self, upstream: AWSECRUpstream
+        self, upstream: AWSECRAuthStrategy
     ) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -251,7 +270,9 @@ class TestAWSECRUpstream:
             ]
         }
 
-    async def test_get_image_tags_no_failures(self, upstream: AWSECRUpstream) -> None:
+    async def test_get_image_tags_no_failures(
+        self, upstream: AWSECRAuthStrategy
+    ) -> None:
         upstream_response: dict[str, Any] = {
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
