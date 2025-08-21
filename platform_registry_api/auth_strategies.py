@@ -39,40 +39,25 @@ class OAuthToken:
     @classmethod
     def create_from_payload(
         cls,
-        payload: dict[str, Any],
+        payload: dict[str, str],
         *,
         default_expires_in: int = 60,
         expiration_ratio: float = 0.75,
     ) -> Self:
-        access_token = cls._parse_access_token(payload)
-        return cls(
-            access_token=access_token,
-            expires_at=cls._parse_expires_at(
-                access_token,
-                default_expires_in=default_expires_in,
-                expiration_ratio=expiration_ratio,
-            ),
-        )
-
-    @classmethod
-    def _parse_access_token(cls, payload: dict[str, str]) -> str:
-        access_token = payload.get("access_token") or payload.get("token")
-        if not access_token:
+        token = payload.get("access_token") or payload.get("token")
+        if not token:
             raise ValueError("no access token")
-        return access_token
 
-    @classmethod
-    def _parse_expires_at(
-        cls,
-        access_token: str,
-        *,
-        default_expires_in: int,
-        expiration_ratio: float,
-    ) -> float:
-        token_payload = jwt.decode(access_token, options={"verify_signature": False})
-        if expires_at := token_payload.get("exp"):
-            return expires_at - (1 - expiration_ratio) * default_expires_in
-        return time.time() + default_expires_in * expiration_ratio
+        try:
+            token_payload = jwt.decode(token, options={"verify_signature": False})
+            exp = token_payload.get("exp")
+            expires_in = exp - time.time() if exp else default_expires_in
+        except jwt.exceptions.DecodeError:
+            expires_in = int(payload.get("expires_in", default_expires_in))
+
+        expires_at = time.time() + expires_in * expiration_ratio
+
+        return cls(access_token=token, expires_at=expires_at)
 
 
 class OAuthStrategy(AbstractAuthStrategy):
