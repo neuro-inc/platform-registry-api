@@ -13,6 +13,9 @@ services:
     volumes:
     - ./tests/docker/registry/config.yml:/etc/docker/registry/config.yml
     - ./tests/docker/docker_auth/server.pem:/etc/docker/registry/server.pem
+    - registry_data:/var/lib/registry
+    environment:
+    - REGISTRY_STORAGE_DELETE_ENABLED=true
     links:
     - auth
 
@@ -43,3 +46,6 @@ services:
     - auth
     - upstream
     - auth_server
+
+volumes:
+  registry_data:

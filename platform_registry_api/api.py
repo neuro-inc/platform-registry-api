@@ -38,6 +38,8 @@ from neuro_logging import (
 )
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from platform_registry_api.project_deleter import ProjectDeleter
+
 from .config import (
     Config,
     EnvironConfigFactory,
@@ -260,7 +262,13 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             app[V2_APP][UPSTREAM_CLIENT] = upstream_client
 
+            deleter = await exit_stack.enter_async_context(
+                ProjectDeleter(upstream_client, config.events)
+            )
+
             yield
+
+            await deleter.aclose()
 
     app.cleanup_ctx.append(_init_app)
 

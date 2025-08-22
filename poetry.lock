@@ -242,6 +242,25 @@ files = [
 ]
 
 [[package]]
+name = "apolo-events-client"
+version = "25.7.7"
+description = "Apolo client for platform-events"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "apolo_events_client-25.7.7-py3-none-any.whl", hash = "sha256:14b91e499da162303ef14e644787dc5b2cf9dd15fdef5fc706512f4cfc4d7b30"},
+    {file = "apolo_events_client-25.7.7.tar.gz", hash = "sha256:1353fa9210291ec17a6b56821b00c2d6f888e20924197c40adde3f425cc3af9a"},
+]
+
+[package.dependencies]
+aiohttp = {version = ">=3.12.7", extras = ["speedups"]}
+pydantic = ">=2.11.5"
+
+[package.extras]
+pytest = ["pytest (>=8.4.1)", "pytest-aiohttp (>=1.1.0)", "pytest-asyncio (>=1.0.0)"]
+
+[[package]]
 name = "attrs"
 version = "25.1.0"
 description = "Classes Without Boilerplate"
@@ -2084,4 +2103,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "389f0151b15910431e647fdb014ce5438ef593610c9e8a0976f4803f516dad0b"
+content-hash = "5f6d587a74754493338c4e9e2ab0afdcd0cf0018e06af330a08a0e7501b546e7"
