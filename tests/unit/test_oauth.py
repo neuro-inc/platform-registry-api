@@ -22,3 +22,10 @@ class TestOAuthToken:
         access_token = jwt.encode({"exp": 1560000060}, "secret", algorithm="HS256")
         token = OAuthToken.create_from_payload({"access_token": access_token})
         assert token == OAuthToken(access_token=access_token, expires_at=1560000045.0)
+
+        token = OAuthToken.create_from_payload(
+            {"access_token": "some-not-jwt-token", "expires_in": "60"}
+        )
+        assert token == OAuthToken(
+            access_token="some-not-jwt-token", expires_at=1560000045.0
+        )
