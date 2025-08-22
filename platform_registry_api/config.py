@@ -149,7 +149,7 @@ class EnvironConfigFactory:
         if "NP_REGISTRY_EVENTS_URL" in self._environ:
             url = URL(self._environ["NP_REGISTRY_EVENTS_URL"])
             token = self._environ["NP_REGISTRY_EVENTS_TOKEN"]
-            return EventsClientConfig(url=url, token=token, name="platform-regisry")
+            return EventsClientConfig(url=url, token=token, name="platform-registry")
         return None
 
     def create(self) -> Config:
