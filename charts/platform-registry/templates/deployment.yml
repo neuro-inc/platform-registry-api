@@ -66,6 +66,12 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
+        - name: NP_REGISTRY_EVENTS_URL
+          value: {{ .Values.platform.eventsUrl }}
+        - name: NP_REGISTRY_EVENTS_TOKEN
+{{- if .Values.platform.token }}
+{{- toYaml .Values.platform.token | nindent 10 }}
+{{- end }}
         {{- if .Values.sentry }}
         - name: SENTRY_DSN
           value: {{ .Values.sentry.dsn }}

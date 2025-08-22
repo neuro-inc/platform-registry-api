@@ -9,6 +9,7 @@ replicas: 2
 platform:
   clusterName: ""
   authUrl: ""
+  eventsUrl: http://platform-events:8080/apis/events
   token: {}
 
 upstreamRegistry:
