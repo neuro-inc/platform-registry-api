@@ -1,11 +1,7 @@
 import time
-from typing import Generic, TypeVar
 
 
-T = TypeVar("T")
-
-
-class ExpiringCache(Generic[T]):
+class ExpiringCache[T]:
     def __init__(self) -> None:
         self._cache: dict[str | None, tuple[T, float]] = {}
 
