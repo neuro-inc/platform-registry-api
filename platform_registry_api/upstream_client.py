@@ -147,7 +147,7 @@ class UpstreamV2ApiClient:
                     if image.startswith(str(self._repo_prefix / org / project)):
                         yield image[len(str(self._repo_prefix)) :]
 
-                url = response.links.get("next", {}).get("url")
+                url = response.links.get("next", {}).get("url")  # type: ignore
                 if not url:
                     break
                 url = url.update_query(n=page_size)
