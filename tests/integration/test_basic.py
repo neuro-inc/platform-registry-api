@@ -321,7 +321,7 @@ class TestBasicUpstream:
                 assert resp.status == HTTPOk.status_code, await resp.text()
                 payload = await resp.json()
                 result.extend(payload["repositories"])
-                url = resp.links.getone("next", {}).get("url")  # type: ignore
+                url = resp.links.getone("next", {}).get("url")
 
         assert result == expected
 
@@ -380,6 +380,6 @@ class TestBasicUpstream:
                 payload = await resp.json()
                 assert payload["name"] == repo, payload
                 result.extend(payload["tags"])
-                url = resp.links.getone("next", {}).get("url")  # type: ignore
+                url = resp.links.getone("next", {}).get("url")
 
         assert result == handler.tags

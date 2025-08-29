@@ -136,7 +136,7 @@ class V2Handler:
 
     async def handle_catalog(self, request: Request) -> Response:  # noqa: C901
         try:
-            params = CatalogQueryParams(**dict(request.query))  # type: ignore
+            params = CatalogQueryParams(**dict(request.query))
         except ValidationError as e:
             raise HTTPBadRequest(text=e.json()) from e
 
