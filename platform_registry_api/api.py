@@ -262,13 +262,11 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             app[V2_APP][UPSTREAM_CLIENT] = upstream_client
 
-            deleter = await exit_stack.enter_async_context(
+            await exit_stack.enter_async_context(
                 ProjectDeleter(upstream_client, config.events)
             )
 
             yield
-
-            await deleter.aclose()
 
     app.cleanup_ctx.append(_init_app)
 
