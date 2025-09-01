@@ -12,6 +12,7 @@ from apolo_events_client import (
     StreamType,
     Tag,
 )
+from apolo_events_client.pytest import EventsQueues
 from yarl import URL
 
 from platform_registry_api.api import create_app
@@ -22,8 +23,6 @@ from platform_registry_api.config import (
     UpstreamRegistryConfig,
 )
 from tests import _TestClientFactory
-
-from .conftest_events import Queues
 
 
 @pytest.fixture
@@ -53,7 +52,7 @@ def config(
 async def test_deleter(
     aiohttp_client: _TestClientFactory,
     config: Config,
-    events_queues: Queues,
+    events_queues: EventsQueues,
 ) -> None:
     app = await create_app(config)
     client = await aiohttp_client(app)
