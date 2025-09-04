@@ -153,7 +153,7 @@ class EnvironConfigFactory:
         return AuthConfig(server_endpoint_url=url, service_token=token)
 
     def create_admin_client(self) -> AdminClientConfig:
-        url = URL(self._environ["NP_REGISTRY_ADMIN_CLIENT_URL"])
+        url = self._get_url("NP_REGISTRY_ADMIN_CLIENT_URL")
         token = self._environ["NP_REGISTRY_ADMIN_CLIENT_TOKEN"]
         return AdminClientConfig(endpoint_url=url, token=token)
 
