@@ -17,6 +17,7 @@ from yarl import URL
 
 from platform_registry_api.api import create_app
 from platform_registry_api.config import (
+    AdminClientConfig,
     AuthConfig,
     Config,
     ServerConfig,
@@ -40,10 +41,14 @@ def config(
     auth = AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )
+    admin_client = AdminClientConfig(
+        endpoint_url=URL("http://admin-api"), token=admin_token
+    )
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
+        admin_client=admin_client,
         cluster_name=cluster_name,
         events=events_config,
     )

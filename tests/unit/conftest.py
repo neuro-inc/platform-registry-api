@@ -4,6 +4,7 @@ import pytest
 from yarl import URL
 
 from platform_registry_api.config import (
+    AdminClientConfig,
     AuthConfig,
     Config,
     ServerConfig,
@@ -25,10 +26,12 @@ def config_basic() -> Config:
     auth = AuthConfig(
         server_endpoint_url=URL("http://test-auth-api"), service_token="admin_token"
     )
+    admin_client = AdminClientConfig(URL("http://test-admin-api"), token="admin_token")
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
+        admin_client=admin_client,
         cluster_name="test-cluster",
     )
 
@@ -46,10 +49,14 @@ def config_oauth() -> Config:
     auth = AuthConfig(
         server_endpoint_url=URL("http://test-auth-api"), service_token="admin_token"
     )
+    admin_token = AdminClientConfig(
+        endpoint_url=URL("http://test-admin-api"), token="admin_token"
+    )
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
+        admin_client=admin_token,
         cluster_name="test-cluster",
     )
 
