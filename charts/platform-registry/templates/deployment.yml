@@ -66,9 +66,9 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
-        - name: NP_REGISTRY_ADMIN_CLIENT_URL
+        - name: NP_REGISTRY_ADMIN_URL
           value: {{ .Values.platform.adminClientUrl | quote }}
-        - name: NP_REGISTRY_ADMIN_CLIENT_TOKEN
+        - name: NP_REGISTRY_ADMIN_TOKEN
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}

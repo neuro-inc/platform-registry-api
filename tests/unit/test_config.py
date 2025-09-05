@@ -21,9 +21,9 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_USERNAME": "test_username",
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
             "NP_REGISTRY_AUTH_URL": "-",
-            "NP_REGISTRY_ADMIN_CLIENT_URL": "-",
+            "NP_REGISTRY_ADMIN_URL": "-",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
-            "NP_REGISTRY_ADMIN_CLIENT_TOKEN": "admin_token",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
             "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
@@ -45,7 +45,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=None,
                 service_token="test_auth_token",
             ),
-            admin_client=AdminClientConfig(endpoint_url=None, token="admin_token"),
+            admin=AdminClientConfig(endpoint_url=None, token="admin_token"),
             cluster_name="test-cluster",
         )
         assert config.upstream_registry.is_oauth
@@ -63,8 +63,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
-            "NP_REGISTRY_ADMIN_CLIENT_URL": "https://test_admin",
-            "NP_REGISTRY_ADMIN_CLIENT_TOKEN": "admin_token",
+            "NP_REGISTRY_ADMIN_URL": "https://test_admin",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
             "NP_REGISTRY_UPSTREAM_TOKEN_REGISTRY_SCOPE": "",
             "NP_REGISTRY_UPSTREAM_TOKEN_REPO_SCOPE_ACTIONS": "push,pull",
             "NP_CLUSTER_NAME": "test-cluster",
@@ -88,7 +88,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            admin_client=AdminClientConfig(
+            admin=AdminClientConfig(
                 endpoint_url=URL("https://test_admin"), token="admin_token"
             ),
             cluster_name="test-cluster",
@@ -103,8 +103,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
-            "NP_REGISTRY_ADMIN_CLIENT_URL": "https://test_admin",
-            "NP_REGISTRY_ADMIN_CLIENT_TOKEN": "admin_token",
+            "NP_REGISTRY_ADMIN_URL": "https://test_admin",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
             "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
@@ -120,7 +120,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            admin_client=AdminClientConfig(
+            admin=AdminClientConfig(
                 endpoint_url=URL("https://test_admin"), token="admin_token"
             ),
             cluster_name="test-cluster",
@@ -135,8 +135,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
-            "NP_REGISTRY_ADMIN_CLIENT_URL": "https://test_admin",
-            "NP_REGISTRY_ADMIN_CLIENT_TOKEN": "admin_token",
+            "NP_REGISTRY_ADMIN_URL": "https://test_admin",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
             "NP_CLUSTER_NAME": "test-cluster",
         }
         config = EnvironConfigFactory(environ=environ).create()
@@ -152,7 +152,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            admin_client=AdminClientConfig(
+            admin=AdminClientConfig(
                 endpoint_url=URL("https://test_admin"), token="admin_token"
             ),
             cluster_name="test-cluster",
@@ -168,8 +168,8 @@ class TestEnvironConfigFactory:
             "NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES": "1000",
             "NP_REGISTRY_AUTH_URL": "https://test_auth",
             "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
-            "NP_REGISTRY_ADMIN_CLIENT_URL": "https://test_admin",
-            "NP_REGISTRY_ADMIN_CLIENT_TOKEN": "admin_token",
+            "NP_REGISTRY_ADMIN_URL": "https://test_admin",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
             "NP_CLUSTER_NAME": "test-cluster",
             "NP_REGISTRY_UPSTREAM_BASIC_USERNAME": "testuser",
             "NP_REGISTRY_UPSTREAM_BASIC_PASSWORD": "testpassword",
@@ -189,7 +189,7 @@ class TestEnvironConfigFactory:
                 server_endpoint_url=URL("https://test_auth"),
                 service_token="test_auth_token",
             ),
-            admin_client=AdminClientConfig(
+            admin=AdminClientConfig(
                 endpoint_url=URL("https://test_admin"), token="admin_token"
             ),
             cluster_name="test-cluster",

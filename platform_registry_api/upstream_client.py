@@ -133,6 +133,8 @@ class UpstreamV2ApiClient:
         n: int | None = None,
         last: str | None = None,
     ) -> AsyncIterator[str]:
+        if not org_project_filters:
+            return
         page_size = n or self._config.max_catalog_entries
         url = self._v2_catalog_url().with_query(n=page_size)
         if last:

@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 V2_APP: AppKey[Application] = AppKey("v2_app")
 UPSTREAM_CLIENT: AppKey[UpstreamV2ApiClient] = AppKey("upstream_client")
-ADMIN_CLIENT: AppKey[AdminClient] = AppKey("admin_client")
+ADMIN: AppKey[AdminClient] = AppKey("admin")
 
 
 class CatalogQueryParams(BaseModel):
@@ -84,8 +84,8 @@ class V2Handler:
         return self._app[UPSTREAM_CLIENT]
 
     @property
-    def _admin_client(self) -> AdminClient:
-        return self._app[ADMIN_CLIENT]
+    def _admin(self) -> AdminClient:
+        return self._app[ADMIN]
 
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
@@ -147,9 +147,9 @@ class V2Handler:
             raise HTTPBadRequest(text=e.json()) from e
 
         user = await self._get_user_from_request(request)
-        user_response: tuple[
-            AdminUser, list[ProjectUser]
-        ] = await self._admin_client.get_user(user.name, include_projects=True)
+        user_response: tuple[AdminUser, list[ProjectUser]] = await self._admin.get_user(
+            user.name, include_projects=True
+        )
 
         org_project_filters = [
             f"{project.org_name}/{project.project_name}"
@@ -158,7 +158,7 @@ class V2Handler:
             and (params.project is None or project.project_name == params.project)
         ]
 
-        # NOTE: we don't need to check permissions, cause admin_client.get_user
+        # NOTE: we don't need to check permissions, cause admin.get_user
         # already return projects with at least reader permission
 
         try:
@@ -277,13 +277,13 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 
             app[V2_APP][UPSTREAM_CLIENT] = upstream_client
 
-            admin_client = await exit_stack.enter_async_context(
+            admin = await exit_stack.enter_async_context(
                 AdminClient(
-                    base_url=config.admin_client.endpoint_url,
-                    service_token=config.admin_client.token,
+                    base_url=config.admin.endpoint_url,
+                    service_token=config.admin.token,
                 )
             )
-            app[V2_APP][ADMIN_CLIENT] = admin_client
+            app[V2_APP][ADMIN] = admin
 
             await exit_stack.enter_async_context(
                 ProjectDeleter(upstream_client, config.events)

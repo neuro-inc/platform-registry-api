@@ -86,7 +86,7 @@ def admin_token(token_factory: Callable[[str], str]) -> str:
 
 
 @pytest.fixture(autouse=True)
-def patch_admin_client_get_user(
+def patch_admin_get_user(
     org: str, project: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     project_user = Mock(spec=ProjectUser)
