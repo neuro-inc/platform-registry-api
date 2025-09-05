@@ -17,6 +17,12 @@ class ServerConfig:
 
 
 @dataclass(frozen=True)
+class AdminClientConfig:
+    endpoint_url: URL | None
+    token: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class AuthConfig:
     server_endpoint_url: URL | None
     service_token: str = field(repr=False)
@@ -67,6 +73,7 @@ class Config:
     server: ServerConfig
     upstream_registry: UpstreamRegistryConfig
     auth: AuthConfig
+    admin: AdminClientConfig
     cluster_name: str
     events: EventsClientConfig | None = None
 
@@ -145,6 +152,11 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_AUTH_TOKEN"]
         return AuthConfig(server_endpoint_url=url, service_token=token)
 
+    def create_admin(self) -> AdminClientConfig:
+        url = self._get_url("NP_REGISTRY_ADMIN_URL")
+        token = self._environ["NP_REGISTRY_ADMIN_TOKEN"]
+        return AdminClientConfig(endpoint_url=url, token=token)
+
     def create_events(self) -> EventsClientConfig | None:
         if "NP_REGISTRY_EVENTS_URL" in self._environ:
             url = URL(self._environ["NP_REGISTRY_EVENTS_URL"])
@@ -156,6 +168,7 @@ class EnvironConfigFactory:
         server_config = self.create_server()
         upstream_registry_config = self.create_upstream_registry()
         auth_config = self.create_auth()
+        admin = self.create_admin()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
         events = self.create_events()
         assert cluster_name
@@ -163,6 +176,7 @@ class EnvironConfigFactory:
             server=server_config,
             upstream_registry=upstream_registry_config,
             auth=auth_config,
+            admin=admin,
             cluster_name=cluster_name,
             events=events,
         )

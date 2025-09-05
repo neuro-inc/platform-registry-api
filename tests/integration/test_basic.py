@@ -21,6 +21,7 @@ from yarl import URL
 
 from platform_registry_api.api import create_app
 from platform_registry_api.config import (
+    AdminClientConfig,
     AuthConfig,
     Config,
     ServerConfig,
@@ -193,10 +194,12 @@ def config(upstream: URL, auth_config: AuthConfig, upstream_project: str) -> Con
         basic_username="testuser",
         basic_password="testpassword",
     )
+    admin = AdminClientConfig(endpoint_url=URL("http://admin-api"), token="token")
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth_config,
+        admin=admin,
         cluster_name="test-cluster",
     )
 

@@ -66,6 +66,12 @@ spec:
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
+        - name: NP_REGISTRY_ADMIN_URL
+          value: {{ .Values.platform.adminClientUrl | quote }}
+        - name: NP_REGISTRY_ADMIN_TOKEN
+{{- if .Values.platform.token }}
+{{ toYaml .Values.platform.token | indent 10 }}
+{{- end }}
         - name: NP_REGISTRY_EVENTS_URL
           value: {{ .Values.platform.eventsUrl }}
         - name: NP_REGISTRY_EVENTS_TOKEN

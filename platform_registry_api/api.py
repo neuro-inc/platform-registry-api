@@ -29,6 +29,7 @@ from aiohttp.web import (
     json_response,
 )
 from aiohttp_security import check_authorized, check_permission
+from neuro_admin_client import AdminClient, ProjectUser, User as AdminUser
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.security import AuthScheme, setup_security
 from neuro_logging import (
@@ -52,13 +53,14 @@ logger = logging.getLogger(__name__)
 
 V2_APP: AppKey[Application] = AppKey("v2_app")
 UPSTREAM_CLIENT: AppKey[UpstreamV2ApiClient] = AppKey("upstream_client")
+ADMIN: AppKey[AdminClient] = AppKey("admin")
 
 
 class CatalogQueryParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    org: str
-    project: str
+    org: str | None = None
+    project: str | None = None
     n: int | None = None
     last: str | None = None
 
@@ -80,6 +82,10 @@ class V2Handler:
     @property
     def _upstream_client(self) -> UpstreamV2ApiClient:
         return self._app[UPSTREAM_CLIENT]
+
+    @property
+    def _admin(self) -> AdminClient:
+        return self._app[ADMIN]
 
     def register(self, app: aiohttp.web.Application) -> None:
         app.add_routes(
@@ -140,19 +146,28 @@ class V2Handler:
         except ValidationError as e:
             raise HTTPBadRequest(text=e.json()) from e
 
-        await self._get_user_from_request(request)
-
-        permission = Permission(
-            uri=f"image://{self._config.cluster_name}/{params.org}/{params.project}",
-            action="read",
+        user = await self._get_user_from_request(request)
+        user_response: tuple[AdminUser, list[ProjectUser]] = await self._admin.get_user(
+            user.name, include_projects=True
         )
-        await self._check_user_permissions(request, [permission])
+
+        org_project_filters = [
+            f"{project.org_name}/{project.project_name}"
+            for project in user_response[1]
+            if (params.org is None or project.org_name == params.org)
+            and (params.project is None or project.project_name == params.project)
+        ]
+
+        # NOTE: we don't need to check permissions, cause admin.get_user
+        # already return projects with at least reader permission
 
         try:
             repositories = [
                 repo
                 async for repo in self._upstream_client.list_images(
-                    org=params.org, project=params.project, n=params.n, last=params.last
+                    org_project_filters=org_project_filters,
+                    n=params.n,
+                    last=params.last,
                 )
             ]
             return json_response(data={"repositories": repositories})
@@ -261,6 +276,14 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             )
 
             app[V2_APP][UPSTREAM_CLIENT] = upstream_client
+
+            admin = await exit_stack.enter_async_context(
+                AdminClient(
+                    base_url=config.admin.endpoint_url,
+                    service_token=config.admin.token,
+                )
+            )
+            app[V2_APP][ADMIN] = admin
 
             await exit_stack.enter_async_context(
                 ProjectDeleter(upstream_client, config.events)

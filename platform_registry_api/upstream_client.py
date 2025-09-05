@@ -128,8 +128,13 @@ class UpstreamV2ApiClient:
             return await response.json()
 
     async def list_images(
-        self, org: str, project: str, n: int | None = None, last: str | None = None
+        self,
+        org_project_filters: Sequence[str],
+        n: int | None = None,
+        last: str | None = None,
     ) -> AsyncIterator[str]:
+        if not org_project_filters:
+            return
         page_size = n or self._config.max_catalog_entries
         url = self._v2_catalog_url().with_query(n=page_size)
         if last:
@@ -144,7 +149,10 @@ class UpstreamV2ApiClient:
                     break
 
                 for image in response_json["repositories"]:
-                    if image.startswith(str(self._repo_prefix / org / project)):
+                    if any(
+                        image.startswith(str(self._repo_prefix / org_project))
+                        for org_project in org_project_filters
+                    ):
                         yield image[len(str(self._repo_prefix)) :]
 
                 url = response.links.get("next", {}).get("url")  # type: ignore
@@ -199,7 +207,7 @@ class UpstreamV2ApiClient:
     async def _get_images_for_delete(
         self, org: str, project: str
     ) -> AsyncIterator[tuple[str, str, list[str]]]:
-        async for repo in self.list_images(org, project):
+        async for repo in self.list_images(org_project_filters=[f"{org}/{project}"]):
             digest_tags = defaultdict(list)
             for tag in await self.image_tags_list(repo):
                 digest = await self.image_digest(repo, tag)
@@ -228,7 +236,7 @@ class UpstreamV2ApiClient:
 
     async def proxy_request(self, request: Request) -> StreamResponse:
         """
-        This method works only for /{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*
+        This method works only for /{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}
         """
         repo = request.match_info["repo"]
         path_suffix = request.match_info["path_suffix"]

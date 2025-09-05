@@ -5,6 +5,7 @@ from yarl import URL
 
 from platform_registry_api.api import create_app
 from platform_registry_api.config import (
+    AdminClientConfig,
     AuthConfig,
     Config,
     ServerConfig,
@@ -27,10 +28,12 @@ def config(admin_token: str, cluster_name: str) -> Config:
     auth = AuthConfig(
         server_endpoint_url=URL("http://localhost:5003"), service_token=admin_token
     )
+    admin = AdminClientConfig(endpoint_url=URL("http://admin-api"), token=admin_token)
     return Config(
         server=ServerConfig(),
         upstream_registry=upstream_registry,
         auth=auth,
+        admin=admin,
         cluster_name=cluster_name,
     )
 
@@ -110,6 +113,20 @@ class TestV2Api:
             data = await resp.json()
             assert "repositories" in data
             assert isinstance(data["repositories"], list)
+
+        # without org
+        params = {"project": project}
+        async with client.get(url, auth=auth, params=params) as resp:
+            assert resp.status == 200
+
+        # without project
+        params = {"org": org}
+        async with client.get(url, auth=auth, params=params) as resp:
+            assert resp.status == 200
+
+        # without project and org
+        async with client.get(url, auth=auth) as resp:
+            assert resp.status == 200
 
     async def test_catalog__no_auth(
         self, aiohttp_client: _TestClientFactory, config: Config, org: str, project: str
