@@ -67,7 +67,7 @@ spec:
 {{ toYaml .Values.platform.token | indent 10 }}
 {{- end }}
         - name: NP_REGISTRY_ADMIN_URL
-          value: {{ .Values.platform.adminClientUrl | quote }}
+          value: {{ .Values.platform.adminUrl | quote }}
         - name: NP_REGISTRY_ADMIN_TOKEN
 {{- if .Values.platform.token }}
 {{ toYaml .Values.platform.token | indent 10 }}
@@ -102,13 +102,9 @@ spec:
           value: {{ .Values.platform.clusterName }}
         {{- if eq .Values.upstreamRegistry.type "basic" }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
-{{- if .Values.upstreamRegistry.basicUsername }}
-{{ toYaml .Values.upstreamRegistry.basicUsername | indent 10 }}
-{{- end }}
+          value: {{ .Values.upstreamRegistry.basicUsername | quote }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_PASSWORD
-{{- if .Values.upstreamRegistry.basicPassword }}
-{{ toYaml .Values.upstreamRegistry.basicPassword | indent 10 }}
-{{- end }}
+          value: {{ .Values.upstreamRegistry.basicPassword | quote }}
         {{- end }}
         {{- if eq .Values.upstreamRegistry.type "oauth" }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE
