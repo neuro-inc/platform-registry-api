@@ -102,9 +102,13 @@ spec:
           value: {{ .Values.platform.clusterName }}
         {{- if eq .Values.upstreamRegistry.type "basic" }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_USERNAME
-          value: {{ .Values.upstreamRegistry.basicUsername | quote }}
+{{- if .Values.upstreamRegistry.basicUsername }}
+{{ toYaml .Values.upstreamRegistry.basicUsername | indent 10 }}
+{{- end }}
         - name: NP_REGISTRY_UPSTREAM_BASIC_PASSWORD
-          value: {{ .Values.upstreamRegistry.basicPassword | quote }}
+{{- if .Values.upstreamRegistry.basicPassword }}
+{{ toYaml .Values.upstreamRegistry.basicPassword | indent 10 }}
+{{- end }}
         {{- end }}
         {{- if eq .Values.upstreamRegistry.type "oauth" }}
         - name: NP_REGISTRY_UPSTREAM_TOKEN_SERVICE

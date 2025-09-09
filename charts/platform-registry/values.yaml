@@ -26,6 +26,8 @@ upstreamRegistry:
   tokenService: ""
   tokenUsername: {}
   tokenPassword: {}
+  basicUsername: {}
+  basicPassword: {}
 
 resources:
   requests:
