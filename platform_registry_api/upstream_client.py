@@ -109,7 +109,11 @@ class UpstreamV2ApiClient:
         await self.aclose()
 
     async def _create_http_client(self) -> aiohttp.ClientSession:
-        return aiohttp.ClientSession(raise_for_status=raise_for_status)
+        # Note: Harbor registry requires disable cookies for turn off
+        # csrf token validation
+        return aiohttp.ClientSession(
+            raise_for_status=raise_for_status, cookie_jar=aiohttp.DummyCookieJar()
+        )
 
     async def aclose(self) -> None:
         assert self._client

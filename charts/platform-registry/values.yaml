@@ -9,7 +9,7 @@ replicas: 2
 platform:
   clusterName: ""
   authUrl: ""
-  adminClientUrl: http://platform-admin:8080/apis/admin/v1
+  adminUrl: http://platform-admin:8080/apis/admin/v1
   eventsUrl: http://platform-events:8080/apis/events
   token: {}
 
@@ -26,6 +26,8 @@ upstreamRegistry:
   tokenService: ""
   tokenUsername: {}
   tokenPassword: {}
+  basicUsername: {}
+  basicPassword: {}
 
 resources:
   requests:
