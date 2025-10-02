@@ -24,7 +24,7 @@ RUN addgroup --gid $SERVICE_GID $SERVICE_NAME && \
     --home /home/$SERVICE_NAME --shell /bin/false \
     --disabled-password --gecos "" $SERVICE_NAME
 
-COPY --from=builder /root/.local /home/$SERVICE_NAME/.local
+COPY --from=builder --chown=$SERVICE_NAME:$SERVICE_GID /root/.local /home/$SERVICE_NAME/.local
 
 WORKDIR /app
 
