@@ -1010,22 +1010,21 @@ python-jose = ">=3.0.1"
 
 [[package]]
 name = "neuro-logging"
-version = "25.6.1"
+version = "25.10.0"
 description = "Logging client for Neu.ro platform services"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "neuro_logging-25.6.1-py3-none-any.whl", hash = "sha256:13a981110eb6fc21371c0691cf71280394652655c154e6fdc32d39177b89e19b"},
-    {file = "neuro_logging-25.6.1.tar.gz", hash = "sha256:934af7c79054530f774898da2d3692faae207a6233fd44dda80b40afbe00661b"},
+    {file = "neuro_logging-25.10.0-py3-none-any.whl", hash = "sha256:01c456a5ad2fb75b2e43bb2f619020acab0b342ea9a05344d5a367d1e0f57e07"},
+    {file = "neuro_logging-25.10.0.tar.gz", hash = "sha256:fb66b219d3916835a99dbbb6016388d1ead35eaff92ce7e6c4e9040fe7b4ba14"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.8,<4.0"
 orjson = ">=3.10.12"
 python-json-logger = ">=3.2.1"
-sentry-sdk = ">=2.19.2,<2.32"
-urllib3 = ">=2.5.0"
+sentry-sdk = ">=2.19.2,<2.40"
 
 [[package]]
 name = "nodeenv"
@@ -2140,4 +2139,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.13"
-content-hash = "8dc2e11c1b192e3ce76e2ee359e6a952f5b7af0aac652388af627b05f233295b"
+content-hash = "b65669c81c6221d5bf18716e9b30d5761f230e5af3c67bc2cbc65dae032fccff"
