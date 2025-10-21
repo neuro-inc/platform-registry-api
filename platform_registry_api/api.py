@@ -195,21 +195,17 @@ class V2Handler:
         repo = request.match_info["repo"]
         path_suffix = request.match_info["path_suffix"]
 
-        registry_repo = self._upstream_client._registry_repo_name(repo)
         permissions = [
             Permission(
-                uri=f"image://{self._config.cluster_name}/{registry_repo}",
+                uri=f"image://{self._config.cluster_name}/{repo}",
                 action="read" if self._is_pull_request(request) else "write",
             )
         ]
         if "blobs/uploads" in path_suffix:
             if mounted_repo := request.query.get("from"):
-                registry_mounted_repo = self._upstream_client._registry_repo_name(
-                    mounted_repo
-                )
                 permissions.append(
                     Permission(
-                        uri=f"image://{self._config.cluster_name}/{registry_mounted_repo}",
+                        uri=f"image://{self._config.cluster_name}/{mounted_repo}",
                         action="read",
                     )
                 )
