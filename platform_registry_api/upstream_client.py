@@ -37,13 +37,25 @@ class UpstreamV2ApiClient:
         self._config = config
 
     def _upstream_repo_name(self, repo: str) -> str:
-        if repo.startswith(str(self._repo_prefix)):
-            return repo
+        if len(repo.split("/")) > 3:
+            # There is a problem when registry project and org has the same name.
+            # this is temporary solution.
+            # when image name includes slash it will not work,
+            # need to find better solution or
+            # always create registry project with unique name.
+            if repo.startswith(str(self._repo_prefix)):
+                return repo
         return str(self._repo_prefix / repo)
 
     def _registry_repo_name(self, repo: str) -> str:
-        if repo.startswith(str(self._repo_prefix)):
-            return repo[len(str(self._repo_prefix)) :]
+        if len(repo.split("/")) > 3:
+            # There is a problem when registry project and org has the same name.
+            # this is temporary solution.
+            # when image name includes slash it will not work,
+            # need to find better solution or
+            # always create registry project with unique name.
+            if repo.startswith(str(self._repo_prefix)):
+                return repo[len(str(self._repo_prefix)) :]
         return repo
 
     @property
