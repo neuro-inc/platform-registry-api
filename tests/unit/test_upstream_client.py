@@ -54,16 +54,18 @@ class TestUpstreamV2APIClient:
     ) -> None:
         upstream_repo = upstream_client._upstream_repo_name("test-repo")
         assert upstream_repo == "testproject/test-repo"
-        upstream_repo = upstream_client._upstream_repo_name("testproject/test-repo")
-        assert upstream_repo == "testproject/test-repo"
+        upstream_repo = upstream_client._upstream_repo_name("org/project/test-repo")
+        assert upstream_repo == "testproject/org/project/test-repo"
 
     async def test_registry_repo_name(
         self, upstream_client: UpstreamV2ApiClient
     ) -> None:
         registry_repo = upstream_client._registry_repo_name("test-repo")
         assert registry_repo == "test-repo"
-        registry_repo = upstream_client._registry_repo_name("testproject/test-repo")
-        assert registry_repo == "test-repo"
+        registry_repo = upstream_client._registry_repo_name(
+            "testproject/org/proj/test-repo"
+        )
+        assert registry_repo == "org/proj/test-repo"
 
     async def test_endpoints(self, upstream_client: UpstreamV2ApiClient) -> None:
         repo = "repo-name"
