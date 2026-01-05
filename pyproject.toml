@@ -24,7 +24,7 @@ vcs = "git"
 [tool.poetry.dependencies]
 python = "^3.13"
 aiodns = "^3.6.1"
-aiohttp = {version = "^3.13.2", extras = ["speedups"]}
+aiohttp = {version = "^3.13.3", extras = ["speedups"]}
 aiohttp-remotes = "^1.3.0"
 neuro-auth-client = "^25.8.2"
 aiobotocore = "^3.0.0"
