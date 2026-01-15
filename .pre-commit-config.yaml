@@ -34,14 +34,14 @@ repos:
   - id: check-github-actions
   - id: check-github-workflows
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.14.10
+  rev: v0.14.11
   hooks:
   - id: ruff-format
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix, --show-fixes]
 - repo: https://github.com/mrtazz/checkmake.git
   # Or another commit hash or version
-  rev: 0.2.2
+  rev: v0.3.0
   hooks:
   # Use this hook to let pre-commit build checkmake in its sandbox
   - id: checkmake
