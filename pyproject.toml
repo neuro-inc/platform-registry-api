@@ -31,7 +31,7 @@ aiobotocore = "^3.3.0"
 neuro-logging = "^25.11.0"
 yarl = "^1.18.3"
 pydantic = "^2.12.5"
-pyjwt = "^2.10.1"
+pyjwt = "^2.12.1"
 apolo-events-client = "^25.10.0"
 neuro-admin-client = "^25.9.2"
 
