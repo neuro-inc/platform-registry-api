@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from unittest.mock import Mock
 
 import pytest
-from aiohttp import BasicAuth
+from aiohttp import encode_basic_auth, hdrs
 from jose import jwt
 from neuro_admin_client import AdminClient, ProjectUser, User as AdminUser
 from neuro_auth_client import AuthClient, User
@@ -32,8 +32,10 @@ class _User:
     name: str
     token: str
 
-    def to_basic_auth(self) -> BasicAuth:
-        return BasicAuth(login=self.name, password=self.token)
+    def get_auth_headers(self) -> dict[str, str]:
+        return {
+            hdrs.AUTHORIZATION: encode_basic_auth(login=self.name, password=self.token)
+        }
 
 
 @pytest.fixture

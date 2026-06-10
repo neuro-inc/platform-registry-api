@@ -6,7 +6,7 @@ from typing import Any, Self
 
 import jwt
 from aiobotocore.client import AioBaseClient
-from aiohttp import BasicAuth, ClientSession
+from aiohttp import ClientSession, encode_basic_auth
 from aiohttp.hdrs import AUTHORIZATION
 from neuro_auth_client.bearer_auth import BearerAuth
 from yarl import URL
@@ -27,8 +27,11 @@ class BasicAuthStrategy(AbstractAuthStrategy):
         self._password = password
 
     async def get_headers(self, scopes: Sequence[str] = ()) -> dict[str, str]:
-        auth = BasicAuth(login=self._username, password=self._password)
-        return {str(AUTHORIZATION): auth.encode()}
+        return {
+            str(AUTHORIZATION): encode_basic_auth(
+                login=self._username, password=self._password
+            ),
+        }
 
 
 @dataclass(frozen=True)
@@ -72,14 +75,18 @@ class OAuthStrategy(AbstractAuthStrategy):
     ) -> None:
         self._client = client
         self._token_url = token_url.with_query({"service": token_service})
-        self._auth = BasicAuth(login=token_username, password=token_password)
+        self._token_username = token_username
+        self._token_password = token_password
         self._cache = ExpiringCache[dict[str, str]]()
 
     async def get_token(self, scopes: Sequence[str] = ()) -> OAuthToken:
         url = self._token_url
         if scopes:
             url = url.update_query([("scope", s) for s in scopes])
-        async with self._client.get(url, auth=self._auth) as response:
+        upstream_headers = await BasicAuthStrategy(
+            username=self._token_username, password=self._token_password
+        ).get_headers()
+        async with self._client.get(url, headers=upstream_headers) as response:
             # check the status code, raise exceptions
             payload = await response.json()
         return OAuthToken.create_from_payload(payload)

@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import aiohttp.web
 import pytest
-from aiohttp import BasicAuth, hdrs, web
+from aiohttp import encode_basic_auth, hdrs, web
 from aiohttp.hdrs import LINK
 from aiohttp.test_utils import unused_port
 from aiohttp.web import (
@@ -67,7 +67,7 @@ class _TestUpstreamHandler:
 
     async def handle_catalog(self, request: Request) -> Response:
         auth_header_value = request.headers[hdrs.AUTHORIZATION]
-        assert BasicAuth.decode(auth_header_value) == BasicAuth(
+        assert auth_header_value == encode_basic_auth(
             login="testuser", password="testpassword"
         )
         number = int(request.query.get("n", 10))
@@ -106,7 +106,7 @@ class _TestUpstreamHandler:
 
     async def handle_repo_tags_list(self, request: Request) -> Response:
         auth_header_value = request.headers[hdrs.AUTHORIZATION]
-        assert BasicAuth.decode(auth_header_value) == BasicAuth(
+        assert auth_header_value == encode_basic_auth(
             login="testuser", password="testpassword"
         )
         repo = request.match_info["repo"]
@@ -219,7 +219,7 @@ class TestBasicUpstream:
         user = await regular_user_factory()
         params = {"org": org, "project": project}
         async with client.get(
-            "/v2/_catalog", auth=user.to_basic_auth(), params=params
+            "/v2/_catalog", headers=user.get_auth_headers(), params=params
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
@@ -241,7 +241,7 @@ class TestBasicUpstream:
         handler.images = [f"{org}/{project}/test"]
         params = {"org": org, "project": project}
         async with client.get(
-            "/v2/_catalog", auth=user.to_basic_auth(), params=params
+            "/v2/_catalog", headers=user.get_auth_headers(), params=params
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
             payload = await resp.json()
@@ -262,7 +262,7 @@ class TestBasicUpstream:
 
         async with client.get(
             "/v2/_catalog",
-            auth=user.to_basic_auth(),
+            headers=user.get_auth_headers(),
             params={
                 "last": f"{org}/{project}/whatever",
                 "org": org,
@@ -318,7 +318,7 @@ class TestBasicUpstream:
         while url:
             async with client.session.get(
                 url,
-                auth=user.to_basic_auth(),
+                headers=user.get_auth_headers(),
                 params={"n": str(number), "org": org, "project": project},
             ) as resp:
                 assert resp.status == HTTPOk.status_code, await resp.text()
@@ -346,7 +346,7 @@ class TestBasicUpstream:
 
         async with client.get(
             f"/v2/{repo}/tags/list",
-            auth=user.to_basic_auth(),
+            headers=user.get_auth_headers(),
             params={"org": org, "project": project},
         ) as resp:
             assert resp.status == HTTPOk.status_code, await resp.text()
@@ -376,7 +376,7 @@ class TestBasicUpstream:
         while url:
             async with client.session.get(
                 url,
-                auth=user.to_basic_auth(),
+                headers=user.get_auth_headers(),
                 params={"n": str(number), "org": org, "project": project},
             ) as resp:
                 assert resp.status == HTTPOk.status_code, await resp.text()
