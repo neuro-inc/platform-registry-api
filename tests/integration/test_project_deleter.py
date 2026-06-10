@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from aiohttp import BasicAuth
+from aiohttp import encode_basic_auth, hdrs
 from apolo_events_client import (
     Ack,
     EventsClientConfig,
@@ -59,9 +59,15 @@ async def test_deleter(
 ) -> None:
     app = await create_app(config)
     client = await aiohttp_client(app)
-    auth = BasicAuth(login="admin", password=config.auth.service_token)
+    headers = {
+        hdrs.AUTHORIZATION: encode_basic_auth(
+            login="admin", password=config.auth.service_token
+        )
+    }
     # check that image pushed by project_deleter_fixture.sh with tags exists
-    async with client.get("/v2/org/project/alpine/tags/list", auth=auth) as response:
+    async with client.get(
+        "/v2/org/project/alpine/tags/list", headers=headers
+    ) as response:
         resp = await response.json()
         assert response.status == 200
         assert set(resp["tags"]) == {"latest", "v1"}
@@ -92,7 +98,9 @@ async def test_deleter(
     assert ev.events[StreamType("platform-admin")] == ["123"]
 
     # check that image manifests are deleted
-    async with client.get("/v2/org/project/alpine/tags/list", auth=auth) as response:
+    async with client.get(
+        "/v2/org/project/alpine/tags/list", headers=headers
+    ) as response:
         resp = await response.json()
         assert response.status == 200
         assert not resp["tags"]

@@ -76,8 +76,8 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
-        async with client.get("/v2/", auth=auth) as resp:
+        headers = user.get_auth_headers()
+        async with client.get("/v2/", headers=headers) as resp:
             assert resp.status == 200
 
     async def test_version_check_includes_service_version(
@@ -89,8 +89,8 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
-        async with client.get("/v2/", auth=auth) as resp:
+        headers = user.get_auth_headers()
+        async with client.get("/v2/", headers=headers) as resp:
             assert resp.status == 200
             assert "platform-registry-api" in resp.headers["X-Service-Version"]
 
@@ -105,10 +105,10 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
+        headers = user.get_auth_headers()
         url = "/v2/_catalog"
         params = {"org": org, "project": project}
-        async with client.get(url, auth=auth, params=params) as resp:
+        async with client.get(url, headers=headers, params=params) as resp:
             assert resp.status == 200, await resp.text()
             data = await resp.json()
             assert "repositories" in data
@@ -116,16 +116,16 @@ class TestV2Api:
 
         # without org
         params = {"project": project}
-        async with client.get(url, auth=auth, params=params) as resp:
+        async with client.get(url, headers=headers, params=params) as resp:
             assert resp.status == 200
 
         # without project
         params = {"org": org}
-        async with client.get(url, auth=auth, params=params) as resp:
+        async with client.get(url, headers=headers, params=params) as resp:
             assert resp.status == 200
 
         # without project and org
-        async with client.get(url, auth=auth) as resp:
+        async with client.get(url, headers=headers) as resp:
             assert resp.status == 200
 
     async def test_catalog__no_auth(
@@ -158,10 +158,10 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
+        headers = user.get_auth_headers()
         repo = f"{org}/{project}/unknown"
         url = f"/v2/{repo}/tags/list"
-        async with client.get(url, auth=auth) as resp:
+        async with client.get(url, headers=headers) as resp:
             assert resp.status == 404
             payload = await resp.json()
             assert payload == {
@@ -185,10 +185,10 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
+        headers = user.get_auth_headers()
         repo = f"{org}/{project}/unknown"
         url = f"/v2/{repo}/blobs/uploads/?from={org}/{project}/unknown2"
-        async with client.post(url, auth=auth) as resp:
+        async with client.post(url, headers=headers) as resp:
             assert resp.status == 202, await resp.text()
 
     async def test_cross_repo_blob_mount_forbidden(
@@ -200,9 +200,9 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
+        headers = user.get_auth_headers()
         url = f"/v2/{user.name}/unknown/blobs/uploads/?from={user.name}-other/unknown"
-        async with client.post(url, auth=auth) as resp:
+        async with client.post(url, headers=headers) as resp:
             assert resp.status == 403
 
     async def test_x_forwarded_proto(
@@ -216,11 +216,10 @@ class TestV2Api:
         user = await regular_user_factory()
         app = await create_app(config)
         client = await aiohttp_client(app)
-        auth = user.to_basic_auth()
-        headers = {"X-Forwarded-Proto": "https"}
+        headers = {"X-Forwarded-Proto": "https"} | user.get_auth_headers()
         repo = f"{org}/{project}/unknown"
         url = f"/v2/{repo}/image/blobs/uploads/"
-        async with client.post(url, auth=auth, headers=headers) as resp:
+        async with client.post(url, headers=headers) as resp:
             assert resp.status == 202
             location_url = URL(resp.headers["Location"])
             assert location_url.scheme == "https"
