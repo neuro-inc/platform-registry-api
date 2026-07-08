@@ -261,7 +261,7 @@ class UpstreamV2ApiClient:
         for name in ("Host", "Transfer-Encoding", "Connection"):
             headers.pop(name, None)
 
-        if request.method == "HEAD":
+        if self._is_pull_request(request):
             data = None
         else:
             data = request.content.iter_any()
