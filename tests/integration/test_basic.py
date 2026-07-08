@@ -157,6 +157,19 @@ class _TestUpstreamHandler:
 
         return json_response({"name": repo, "tags": tags}, headers=response_headers)
 
+    async def handle_blob(self, request: Request) -> Response:
+        # Registries (or Harbor) with external storage answer a blob pull with a
+        # redirect to the backing store rather than the bytes themselves.
+        digest = request.match_info["digest"]
+        raise web.HTTPTemporaryRedirect(str(self.base_url / "storage" / digest))
+
+    async def handle_blob_storage(self, request: Request) -> Response:
+        return web.Response(body=BLOB_CONTENT)
+
+
+BLOB_DIGEST = "sha256:" + "0" * 64
+BLOB_CONTENT = b"registry blob payload"
+
 
 @pytest.fixture
 def handler(upstream_project: str) -> _TestUpstreamHandler:
@@ -170,6 +183,8 @@ async def upstream(handler: _TestUpstreamHandler) -> AsyncIterator[URL]:
         [
             web.get("/v2/_catalog", handler.handle_catalog),
             web.get(r"/v2/{repo:.+}/tags/list", handler.handle_repo_tags_list),
+            web.get(r"/v2/{repo:.+}/blobs/{digest}", handler.handle_blob),
+            web.get("/storage/{digest}", handler.handle_blob_storage),
         ]
     )
 
@@ -386,3 +401,24 @@ class TestBasicUpstream:
                 url = resp.links.getone("next", {}).get("url")  # type: ignore
 
         assert result == handler.tags
+
+    async def test_pull_blob_follows_upstream_redirect(
+        self,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        aiohttp_client: _TestClientFactory,
+        handler: _TestUpstreamHandler,
+        org: str,
+        project: str,
+    ) -> None:
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        user = await regular_user_factory()
+        repo = f"{org}/{project}/test"
+
+        async with client.get(
+            f"/v2/{repo}/blobs/{BLOB_DIGEST}",
+            headers=user.get_auth_headers(),
+        ) as resp:
+            assert resp.status == HTTPOk.status_code, await resp.text()
+            assert await resp.read() == BLOB_CONTENT
