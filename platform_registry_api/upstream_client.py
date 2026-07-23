@@ -16,6 +16,14 @@ from .config import UpstreamRegistryConfig
 
 LOGGER = logging.getLogger(__name__)
 
+PROXY_STRIP_REQUEST_HEADERS = ("Host", "Transfer-Encoding", "Connection", "Cookie")
+PROXY_STRIP_RESPONSE_HEADERS = (
+    "Transfer-Encoding",
+    "Content-Encoding",
+    "Connection",
+    "Set-Cookie",
+)
+
 
 class UpstreamApiException(Exception):
     def __init__(self, *, code: int, message: str):
@@ -258,7 +266,7 @@ class UpstreamV2ApiClient:
         path_suffix = request.match_info["path_suffix"]
 
         headers = request.headers.copy()
-        for name in ("Host", "Transfer-Encoding", "Connection", "Cookie"):
+        for name in PROXY_STRIP_REQUEST_HEADERS:
             headers.popall(name, None)
 
         if self._is_pull_request(request):
@@ -286,12 +294,7 @@ class UpstreamV2ApiClient:
             timeout=self._client_timeout(request),
         ) as client_response:
             response_headers = client_response.headers.copy()
-            for name in (
-                "Transfer-Encoding",
-                "Content-Encoding",
-                "Connection",
-                "Set-Cookie",
-            ):
+            for name in PROXY_STRIP_RESPONSE_HEADERS:
                 response_headers.popall(name, None)
 
             if "Location" in response_headers:
