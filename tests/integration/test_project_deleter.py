@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -105,3 +106,22 @@ async def test_deleter(
         assert response.status == 200
         assert not resp["tags"]
         assert resp["name"] == "org/project/alpine"
+
+
+async def test_deleter_survives_unreachable_events(
+    aiohttp_client: _TestClientFactory,
+    config: Config,
+) -> None:
+    # an unreachable events endpoint must not break service startup
+    config = replace(
+        config,
+        events=EventsClientConfig(
+            url=URL("http://platform-events.invalid:8080"),
+            token="token",  # noqa: S106
+            name="platform-registry",
+        ),
+    )
+    app = await create_app(config)
+    client = await aiohttp_client(app)
+    async with client.get("/v2/") as response:
+        assert response.status == 401
