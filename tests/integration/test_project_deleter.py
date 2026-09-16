@@ -85,7 +85,7 @@ async def test_deleter(
                     stream=StreamType("platform-admin"),
                     event_type=EventType("project-remove"),
                     org="org",
-                    cluster="cluster",
+                    cluster=config.cluster_name,
                     project="project",
                     user="user",
                 ),

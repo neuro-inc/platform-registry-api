@@ -23,10 +23,14 @@ class ProjectDeleter:
     PROJECT_REMOVE = EventType("project-remove")
 
     def __init__(
-        self, upstream_client: UpstreamV2ApiClient, config: EventsClientConfig | None
+        self,
+        upstream_client: UpstreamV2ApiClient,
+        config: EventsClientConfig | None,
+        cluster_name: str,
     ) -> None:
         self._upstream_client = upstream_client
         self._client = from_config(config)
+        self._cluster_name = cluster_name
         self._subscribe_task: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> Self:
@@ -67,6 +71,14 @@ class ProjectDeleter:
 
     async def _on_admin_event(self, ev: RecvEvent) -> None:
         if ev.event_type == self.PROJECT_REMOVE:
+            if ev.cluster != self._cluster_name:
+                logger.warning(
+                    "Skip %s for cluster %r, this is %r",
+                    ev.event_type,
+                    ev.cluster,
+                    self._cluster_name,
+                )
+                return
             assert ev.org
             assert ev.project
             await self._upstream_client.delete_project_images(

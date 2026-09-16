@@ -286,7 +286,7 @@ async def create_app(config: Config) -> aiohttp.web.Application:
             app[V2_APP][ADMIN] = admin
 
             await exit_stack.enter_async_context(
-                ProjectDeleter(upstream_client, config.events)
+                ProjectDeleter(upstream_client, config.events, config.cluster_name)
             )
 
             yield
