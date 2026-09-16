@@ -157,11 +157,13 @@ class EnvironConfigFactory:
         token = self._environ["NP_REGISTRY_ADMIN_TOKEN"]
         return AdminClientConfig(endpoint_url=url, token=token)
 
-    def create_events(self) -> EventsClientConfig | None:
+    def create_events(self, cluster_name: str) -> EventsClientConfig | None:
         if "NP_REGISTRY_EVENTS_URL" in self._environ:
             url = URL(self._environ["NP_REGISTRY_EVENTS_URL"])
             token = self._environ["NP_REGISTRY_EVENTS_TOKEN"]
-            return EventsClientConfig(url=url, token=token, name="platform-registry")
+            return EventsClientConfig(
+                url=url, token=token, name=f"platform-registry-{cluster_name}"
+            )
         return None
 
     def create(self) -> Config:
@@ -170,7 +172,7 @@ class EnvironConfigFactory:
         auth_config = self.create_auth()
         admin = self.create_admin()
         cluster_name = self._environ["NP_CLUSTER_NAME"]
-        events = self.create_events()
+        events = self.create_events(cluster_name)
         assert cluster_name
         return Config(
             server=server_config,

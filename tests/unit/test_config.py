@@ -196,3 +196,23 @@ class TestEnvironConfigFactory:
         )
         assert config.upstream_registry.is_basic
         assert not config.upstream_registry.is_oauth
+
+    def test_events_group_is_cluster_scoped(self) -> None:
+        environ = {
+            "NP_REGISTRY_UPSTREAM_URL": "https://test_host",
+            "NP_REGISTRY_UPSTREAM_PROJECT": "test_project",
+            "NP_REGISTRY_UPSTREAM_TOKEN_URL": "https://test_host/token",
+            "NP_REGISTRY_UPSTREAM_TOKEN_SERVICE": "test_host",
+            "NP_REGISTRY_UPSTREAM_TOKEN_USERNAME": "test_username",
+            "NP_REGISTRY_UPSTREAM_TOKEN_PASSWORD": "test_password",
+            "NP_REGISTRY_AUTH_URL": "-",
+            "NP_REGISTRY_ADMIN_URL": "-",
+            "NP_REGISTRY_AUTH_TOKEN": "test_auth_token",
+            "NP_REGISTRY_ADMIN_TOKEN": "admin_token",
+            "NP_CLUSTER_NAME": "apolo-main",
+            "NP_REGISTRY_EVENTS_URL": "http://platform-events/apis/events",
+            "NP_REGISTRY_EVENTS_TOKEN": "events-token",
+        }
+        config = EnvironConfigFactory(environ=environ).create()
+        assert config.events is not None
+        assert config.events.name == "platform-registry-apolo-main"
