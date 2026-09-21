@@ -46,7 +46,7 @@ repos:
   # Use this hook to let pre-commit build checkmake in its sandbox
   - id: checkmake
 - repo: https://github.com/python-poetry/poetry
-  rev: '2.2.1'
+  rev: '2.5.1'
   hooks:
   - id: poetry-check
   - id: poetry-lock
