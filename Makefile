@@ -1,10 +1,14 @@
 .PHONY: all test clean
 all test clean:
 
+# The Poetry that runs `poetry lock` must be the one the poetry-lock hook pins,
+# or the two rewrite each other's lock file and lint fails.
+POETRY_VERSION := $(shell awk '/python-poetry\/poetry/{f=1} f && /rev:/{gsub(/[^0-9.]/,"",$$2); print $$2; exit}' .pre-commit-config.yaml)
+
 .PHONY: install-poetry
 install-poetry:
 	pip install -U pip pipx
-	pipx install poetry
+	pipx install "poetry==$(POETRY_VERSION)"
 
 .PHONY: venv
 venv:
