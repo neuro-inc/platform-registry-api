@@ -36,6 +36,10 @@ spec:
       - name: platform-registry
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         imagePullPolicy: Always
+        {{- if .Values.securityContext.enabled }}
+        securityContext:
+          allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+        {{- end }}
         {{- if .Values.resources }}
         resources: {{ toYaml .Values.resources | nindent 10 }}
         {{- end }}
@@ -94,8 +98,10 @@ spec:
           value: {{ .Values.upstreamRegistry.url | quote }}
         - name: NP_REGISTRY_UPSTREAM_PROJECT
           value: {{ .Values.upstreamRegistry.project | quote }}
+        {{- if .Values.upstreamRegistry.repo }}
         - name: NP_REGISTRY_UPSTREAM_REPO
           value: {{ .Values.upstreamRegistry.repo | quote }}
+        {{- end }}
         - name: NP_REGISTRY_UPSTREAM_MAX_CATALOG_ENTRIES
           value: {{ .Values.upstreamRegistry.maxCatalogEntries | quote }}
         - name: NP_CLUSTER_NAME
@@ -142,7 +148,6 @@ spec:
         runAsGroup: {{ .Values.securityContext.runAsGroup }}
         runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
         fsGroup: {{ .Values.securityContext.fsGroup }}
-        allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
         fsGroupChangePolicy: {{ .Values.securityContext.fsGroupChangePolicy}}
       {{- end }}
       {{- if .Values.imagePullSecrets }}
