@@ -1,0 +1,6 @@
+dependencies:
+- name: k8s-resources
+  repository: https://neuro-inc.github.io/helm-charts
+  version: 1.0.1
+digest: sha256:b7235176cb0cd47c2c5ac86a6fbec6cb268fe777e40a905772d8549bb04d9715
+generated: "2026-10-01T13:03:13.298491+02:00"
