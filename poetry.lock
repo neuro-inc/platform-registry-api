@@ -241,19 +241,18 @@ speedups = ["Brotli (>=1.2) ; platform_python_implementation == \"CPython\" and 
 
 [[package]]
 name = "aiohttp-remotes"
-version = "1.3.0"
+version = "1.4.0"
 description = "Control remote side information."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.11"
 groups = ["main"]
 files = [
-    {file = "aiohttp_remotes-1.3.0-py3-none-any.whl", hash = "sha256:d01c5276a186084b6bd9ea6e7337cd2bcf8b1aee9c8e432ea8e18711a0bff110"},
-    {file = "aiohttp_remotes-1.3.0.tar.gz", hash = "sha256:4f8b95b02ed9126cf8f5f5a8f5e55c1b2d10fc5e7e7d421c172f9c7cd0719092"},
+    {file = "aiohttp_remotes-1.4.0-py3-none-any.whl", hash = "sha256:b40e6d3ba9255af850254e96aac61e0f689b2514d63aaaa271898e92faf983e8"},
+    {file = "aiohttp_remotes-1.4.0.tar.gz", hash = "sha256:f92395119699385fcb68e02f95f62da1e83a127cc5869f533224e8cc4c04f15e"},
 ]
 
 [package.dependencies]
 aiohttp = ">=3.8.1"
-typing-extensions = ">=3.7.4"
 
 [[package]]
 name = "aiohttp-security"
