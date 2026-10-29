@@ -35,7 +35,7 @@ lint:
 .PHONY: docker_build
 docker_build: .python-version dist
 	PY_VERSION=$$(cat .python-version) && \
-	docker build --pull --no-cache -t platformregistryapi:latest --build-arg PY_VERSION=$$PY_VERSION .
+	docker build --pull -t platformregistryapi:latest --build-arg PY_VERSION=$$PY_VERSION .
 
 .PHONY: build_up
 build_up: docker_build
