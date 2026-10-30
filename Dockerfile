@@ -33,5 +33,4 @@ ENV PATH=/home/$SERVICE_NAME/.local/bin:$PATH
 ENV REGISTRY_API_PORT=8080
 EXPOSE $REGISTRY_API_PORT
 
-
 CMD ["platform-registry-api"]
