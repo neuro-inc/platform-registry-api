@@ -5,6 +5,7 @@ set -x
 export SHELLOPTS
 
 source tests/test_utils.sh
+wait_for_registry
 
 # Push images to the registry for further project deletion tests
 

@@ -61,7 +61,7 @@ def config_oauth() -> Config:
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def upstream_client(config_oauth: Config) -> AsyncGenerator[UpstreamV2ApiClient]:
     async with UpstreamV2ApiClient(config=config_oauth.upstream_registry) as client:
         yield client

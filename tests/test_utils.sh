@@ -38,14 +38,15 @@ function share_resource_on_read() {
 }
 
 function wait_for_registry() {
-    local cmd="curl http://127.0.0.1:5000/v2/ &> /dev/null"
-    # this for loop waits until the registry api is available
+    local cmd="curl --fail --silent http://127.0.0.1:5000/ping &> /dev/null"
     for _ in {1..150}; do # timeout for 5 minutes
         if eval "$cmd"; then
-            break
+            return 0
         fi
         sleep 2
     done
+    docker compose -f tests/docker/docker-compose.yaml logs registry
+    return 1
 }
 
 

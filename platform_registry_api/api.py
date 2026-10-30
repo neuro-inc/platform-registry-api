@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
@@ -312,13 +311,12 @@ async def create_app(config: Config) -> aiohttp.web.Application:
 def main() -> None:
     init_logging()
 
-    loop = asyncio.get_event_loop()
-
     config = EnvironConfigFactory().create()
     logger.info("Loaded config: %r", config)
     setup_sentry(ignore_errors=[HTTPUnauthorized, HTTPForbidden])
-    app = loop.run_until_complete(create_app(config))
-    aiohttp.web.run_app(app, host=config.server.host, port=config.server.port)
+    aiohttp.web.run_app(
+        create_app(config), host=config.server.host, port=config.server.port
+    )
 
 
 if __name__ == "__main__":

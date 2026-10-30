@@ -7,7 +7,7 @@ POETRY_VERSION := $(shell awk '/python-poetry\/poetry/{f=1} f && /rev:/{gsub(/[^
 
 .PHONY: install-poetry
 install-poetry:
-	pip install -U pip pipx
+	python3 -m pip install -U pipx
 	pipx install "poetry==$(POETRY_VERSION)"
 
 .PHONY: venv
@@ -35,7 +35,7 @@ lint:
 .PHONY: docker_build
 docker_build: .python-version dist
 	PY_VERSION=$$(cat .python-version) && \
-	docker build -t platformregistryapi:latest --build-arg PY_VERSION=$$PY_VERSION .
+	docker build --pull -t platformregistryapi:latest --build-arg PY_VERSION=$$PY_VERSION .
 
 .PHONY: build_up
 build_up: docker_build
@@ -53,7 +53,7 @@ test_unit:
 
 .PHONY: test_integration
 test_integration: docker_build
-	docker compose -f tests/docker/docker-compose.yaml pull -q; \
+	docker compose -f tests/docker/docker-compose.yaml pull -q auth upstream auth_server; \
 	docker compose --project-directory=`pwd` -f tests/docker/docker-compose.yaml up -d; \
 	bash tests/integration/project_deleter_fixture.sh; \
 	poetry run pytest -vv tests/integration; \
