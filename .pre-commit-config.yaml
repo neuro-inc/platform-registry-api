@@ -31,7 +31,7 @@ repos:
       docs/spelling_wordlist.txt|
       .gitignore
 - repo: https://github.com/sirosen/check-jsonschema
-  rev: 0.36.0
+  rev: 0.39.0
   hooks:
   - id: check-github-actions
   - id: check-github-workflows
@@ -43,7 +43,7 @@ repos:
     args: [--fix, --exit-non-zero-on-fix, --show-fixes]
 - repo: https://github.com/mrtazz/checkmake.git
   # Or another commit hash or version
-  rev: 0.2.2
+  rev: v0.3.0
   hooks:
   # Use this hook to let pre-commit build checkmake in its sandbox
   - id: checkmake
