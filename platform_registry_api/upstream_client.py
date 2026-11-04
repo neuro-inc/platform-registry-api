@@ -277,11 +277,14 @@ class UpstreamV2ApiClient:
             ):
                 tg.create_task(self._delete_project_image(repo, digest, tags, failures))
         if failures:
-            msg = (
-                f"Failed to delete images of {org}/{project}, "
-                f"{len(failures)} failed: {', '.join(failures)}"
+            LOGGER.error(
+                "Failed to delete images of %s/%s, %d failed: %s",
+                org,
+                project,
+                len(failures),
+                ", ".join(failures),
             )
-            raise ProjectImagesDeleteError(msg)
+            raise ProjectImagesDeleteError
 
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")

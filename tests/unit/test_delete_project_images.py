@@ -109,7 +109,10 @@ class TestDeleteProjectImages:
         }
 
     async def test_continues_past_failures_then_raises(
-        self, client: UpstreamV2ApiClient, registry: _Registry
+        self,
+        client: UpstreamV2ApiClient,
+        registry: _Registry,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with pytest.raises(ProjectImagesDeleteError) as exc_info:
             await client.delete_project_images(org="org", project="project")
@@ -118,10 +121,11 @@ class TestDeleteProjectImages:
             ("testproject/org/project/alpine", "sha256:alpine"),
             ("testproject/org/project/index", "sha256:index"),
         ]
-        assert str(exc_info.value) == (
+        assert str(exc_info.value) == ""
+        assert (
             "Failed to delete images of org/project, 3 failed: org/project/broken, "
             "org/project/alpine:gone, org/project/alpine@sha256:bad"
-        )
+        ) in caplog.messages
 
     async def test_no_error_when_all_deleted(
         self, client: UpstreamV2ApiClient, registry: _Registry
