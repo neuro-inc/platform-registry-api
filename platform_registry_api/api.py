@@ -27,7 +27,7 @@ from aiohttp.web import (
     StreamResponse,
     json_response,
 )
-from aiohttp_security import check_authorized, check_permission
+from aiohttp_security import check_authorized, check_permission, permits
 from neuro_admin_client import AdminClient, ProjectUser, User as AdminUser
 from neuro_auth_client import AuthClient, Permission, User
 from neuro_auth_client.security import AuthScheme, setup_security
@@ -195,25 +195,27 @@ class V2Handler:
         path_suffix = request.match_info["path_suffix"]
 
         registry_repo = self._upstream_client._registry_repo_name(repo)
-        permissions = [
-            Permission(
-                uri=f"image://{self._config.cluster_name}/{registry_repo}",
-                action="read" if self._is_pull_request(request) else "write",
-            )
-        ]
+        permission = Permission(
+            uri=f"image://{self._config.cluster_name}/{registry_repo}",
+            action="read" if self._is_pull_request(request) else "write",
+        )
+        await self._check_user_permissions(request, [permission])
+
         if "blobs/uploads" in path_suffix:
             if mounted_repo := request.query.get("from"):
                 registry_mounted_repo = self._upstream_client._registry_repo_name(
                     mounted_repo
                 )
-                permissions.append(
-                    Permission(
-                        uri=f"image://{self._config.cluster_name}/{registry_mounted_repo}",
-                        action="read",
-                    )
+                mounted_permission = Permission(
+                    uri=f"image://{self._config.cluster_name}/{registry_mounted_repo}",
+                    action="read",
                 )
+                if not await self._has_user_permissions(request, [mounted_permission]):
+                    logger.info("No %s, starting a regular upload", mounted_permission)
+                    request = request.clone(
+                        rel_url=request.rel_url.without_query_params("mount", "from")
+                    )
 
-        await self._check_user_permissions(request, permissions)
         try:
             return await self._upstream_client.proxy_request(request)
         except UpstreamApiException as e:
@@ -232,6 +234,13 @@ class V2Handler:
             await check_permission(request, "ignored", permissions)
         except HTTPUnauthorized:
             self._raise_unauthorized()
+
+    @trace
+    async def _has_user_permissions(
+        self, request: Request, permissions: Sequence[Permission]
+    ) -> bool:
+        logger.info("Checking %s", permissions)
+        return await permits(request, "ignored", permissions)
 
 
 package_version = version("platform-registry-api")

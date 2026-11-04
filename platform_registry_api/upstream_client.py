@@ -23,6 +23,12 @@ PROXY_STRIP_RESPONSE_HEADERS = (
     "Connection",
     "Set-Cookie",
 )
+MANIFEST_MEDIA_TYPES = (
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
+)
 
 
 class UpstreamApiException(Exception):
@@ -196,7 +202,7 @@ class UpstreamV2ApiClient:
     async def image_digest(self, repo: str, tag: str) -> str:
         scopes = self._get_repo_scopes(repo)
         headers = await self.auth_headers(scopes)
-        headers["Accept"] = "application/vnd.docker.distribution.manifest.v2+json"
+        headers["Accept"] = ", ".join(MANIFEST_MEDIA_TYPES)
         async with self._client.get(
             self._v2_image_manifests_tag_url(repo, tag),
             headers=headers,
@@ -232,17 +238,34 @@ class UpstreamV2ApiClient:
         self, org: str, project: str
     ) -> AsyncIterator[tuple[str, str, list[str]]]:
         async for repo in self.list_images(org_project_filters=[f"{org}/{project}"]):
+            try:
+                repo_tags = await self.image_tags_list(repo)
+            except Exception:
+                LOGGER.exception("Failed to list tags of %r", repo)
+                continue
             digest_tags = defaultdict(list)
-            for tag in await self.image_tags_list(repo):
-                digest = await self.image_digest(repo, tag)
+            for tag in repo_tags:
+                try:
+                    digest = await self.image_digest(repo, tag)
+                except Exception:
+                    LOGGER.exception("Failed to get digest of %s:%s", repo, tag)
+                    continue
                 digest_tags[digest].append(tag)
             for digest, tags in digest_tags.items():
                 yield repo, digest, tags
 
+    async def _delete_project_image(
+        self, repo: str, digest: str, tags: list[str]
+    ) -> None:
+        try:
+            await self.delete_image_manifest(repo, digest, tags)
+        except Exception:
+            LOGGER.exception("Failed to delete %s@%s", repo, digest)
+
     async def delete_project_images(self, org: str, project: str) -> None:
         async with asyncio.TaskGroup() as tg:
             async for repo, digest, tags in self._get_images_for_delete(org, project):
-                tg.create_task(self.delete_image_manifest(repo, digest, tags))
+                tg.create_task(self._delete_project_image(repo, digest, tags))
 
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")
