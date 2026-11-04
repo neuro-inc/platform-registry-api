@@ -140,3 +140,35 @@ class TestDeleteProjectImages:
             ("testproject/org/project/alpine", "sha256:alpine"),
             ("testproject/org/project/index", "sha256:index"),
         ]
+
+    async def test_keeps_projects_with_the_same_prefix(
+        self, client: UpstreamV2ApiClient, registry: _Registry
+    ) -> None:
+        docker_v2 = "application/vnd.docker.distribution.manifest.v2+json"
+        registry.tags = {
+            "testproject/org/project/img": {"v1": ("sha256:project", docker_v2)},
+            "testproject/org/project2/img": {"v1": ("sha256:project2", docker_v2)},
+            "testproject/org/project-prod/img": {"v1": ("sha256:prod", docker_v2)},
+        }
+
+        await client.delete_project_images(org="org", project="project")
+
+        assert registry.deleted == [("testproject/org/project/img", "sha256:project")]
+
+    async def test_list_images_matches_whole_project(
+        self, client: UpstreamV2ApiClient, registry: _Registry
+    ) -> None:
+        registry.tags = {
+            "testproject/org/project/img": {},
+            "testproject/org/project/team/img": {},
+            "testproject/org/project2/img": {},
+            "testproject/org/project-prod/img": {},
+            "testproject/org/projectimg": {},
+        }
+
+        images = [
+            image
+            async for image in client.list_images(org_project_filters=["org/project"])
+        ]
+
+        assert images == ["org/project/img", "org/project/team/img"]
