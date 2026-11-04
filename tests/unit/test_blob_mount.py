@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+import aiohttp_remotes
 import pytest
 from aiohttp.test_utils import TestClient as _TestClient, TestServer as _TestServer
 from aiohttp.web import Application, Request, Response
@@ -28,6 +29,9 @@ from tests import _TestClientFactory
 _TestServerFactory = Callable[[Application], Awaitable[_TestServer]]
 
 UPLOAD_URL = "/v2/org/project/img/blobs/uploads/?mount=sha256:abc&from=org/other/img"
+UPSTREAM_LOCATION = "http://upstream.internal/v2/testproject/org/project/img/blobs/uploads/uuid?_state=s"
+WRITE_TARGET = ("image://test-cluster/org/project/img", "write")
+READ_SOURCE = ("image://test-cluster/org/other/img", "read")
 
 
 class _IdentityPolicy(AbstractIdentityPolicy):
@@ -61,7 +65,7 @@ class _Upstream:
 
     async def handle(self, request: Request) -> Response:
         self.queries.append(dict(request.query))
-        return Response(status=202, headers={"Location": "/v2/upload/uuid"})
+        return Response(status=202, headers={"Location": UPSTREAM_LOCATION})
 
 
 class TestBlobMount:
@@ -101,6 +105,7 @@ class TestBlobMount:
                 allowed: set[tuple[str, str]],
             ) -> _TestClient[Request, Application]:
                 app = Application()
+                await aiohttp_remotes.setup(app, aiohttp_remotes.XForwardedRelaxed())
                 setup_security(app, _IdentityPolicy(), _AuthorizationPolicy(allowed))
                 v2_app = Application()
                 V2Handler(app=v2_app, config=config).register(v2_app)
@@ -117,12 +122,7 @@ class TestBlobMount:
         ],
         upstream: _Upstream,
     ) -> None:
-        client = await client_factory(
-            {
-                ("image://test-cluster/org/project/img", "write"),
-                ("image://test-cluster/org/other/img", "read"),
-            }
-        )
+        client = await client_factory({WRITE_TARGET, READ_SOURCE})
 
         async with client.post(UPLOAD_URL) as resp:
             assert resp.status == 202
@@ -138,13 +138,11 @@ class TestBlobMount:
         ],
         upstream: _Upstream,
     ) -> None:
-        client = await client_factory(
-            {("image://test-cluster/org/project/img", "write")}
-        )
+        client = await client_factory({WRITE_TARGET})
 
         async with client.post(UPLOAD_URL) as resp:
             assert resp.status == 202
-            assert URL(resp.headers["Location"]).path == "/v2/upload/uuid"
+            assert URL(resp.headers["Location"]).path == URL(UPSTREAM_LOCATION).path
 
         assert upstream.queries == [{}]
 
@@ -155,9 +153,34 @@ class TestBlobMount:
         ],
         upstream: _Upstream,
     ) -> None:
-        client = await client_factory({("image://test-cluster/org/other/img", "read")})
+        client = await client_factory({READ_SOURCE})
 
         async with client.post(UPLOAD_URL) as resp:
             assert resp.status == 403
 
         assert upstream.queries == []
+
+    @pytest.mark.parametrize(
+        "allowed",
+        [{WRITE_TARGET, READ_SOURCE}, {WRITE_TARGET}],
+        ids=["mount", "regular-upload"],
+    )
+    async def test_location_follows_forwarded_origin(
+        self,
+        client_factory: Callable[
+            [set[tuple[str, str]]], Awaitable[_TestClient[Request, Application]]
+        ],
+        allowed: set[tuple[str, str]],
+    ) -> None:
+        client = await client_factory(allowed)
+        headers = {
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": "registry.example.com",
+        }
+
+        async with client.post(UPLOAD_URL, headers=headers) as resp:
+            assert resp.status == 202
+            assert resp.headers["Location"] == (
+                "https://registry.example.com/v2/testproject/org/project/img"
+                "/blobs/uploads/uuid?_state=s"
+            )

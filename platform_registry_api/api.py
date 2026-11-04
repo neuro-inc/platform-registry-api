@@ -201,6 +201,7 @@ class V2Handler:
         )
         await self._check_user_permissions(request, [permission])
 
+        drop_mount = False
         if "blobs/uploads" in path_suffix:
             if mounted_repo := request.query.get("from"):
                 registry_mounted_repo = self._upstream_client._registry_repo_name(
@@ -212,12 +213,12 @@ class V2Handler:
                 )
                 if not await self._has_user_permissions(request, [mounted_permission]):
                     logger.info("No %s, starting a regular upload", mounted_permission)
-                    request = request.clone(
-                        rel_url=request.rel_url.without_query_params("mount", "from")
-                    )
+                    drop_mount = True
 
         try:
-            return await self._upstream_client.proxy_request(request)
+            return await self._upstream_client.proxy_request(
+                request, drop_mount=drop_mount
+            )
         except UpstreamApiException as e:
             return self._upstream_exc_to_response(e)
 

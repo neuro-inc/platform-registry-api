@@ -5,7 +5,10 @@ from aiohttp.test_utils import TestServer as _TestServer
 from aiohttp.web import Application, Request, Response, json_response
 
 from platform_registry_api.config import UpstreamRegistryConfig, UpstreamType
-from platform_registry_api.upstream_client import UpstreamV2ApiClient
+from platform_registry_api.upstream_client import (
+    ProjectImagesDeleteError,
+    UpstreamV2ApiClient,
+)
 
 
 _TestServerFactory = Callable[[Application], Awaitable[_TestServer]]
@@ -105,9 +108,28 @@ class TestDeleteProjectImages:
             "application/vnd.docker.distribution.manifest.v2+json",
         }
 
-    async def test_continues_past_failures(
+    async def test_continues_past_failures_then_raises(
         self, client: UpstreamV2ApiClient, registry: _Registry
     ) -> None:
+        with pytest.raises(ProjectImagesDeleteError) as exc_info:
+            await client.delete_project_images(org="org", project="project")
+
+        assert sorted(registry.deleted) == [
+            ("testproject/org/project/alpine", "sha256:alpine"),
+            ("testproject/org/project/index", "sha256:index"),
+        ]
+        assert str(exc_info.value) == (
+            "Failed to delete images of org/project, 3 failed: org/project/broken, "
+            "org/project/alpine:gone, org/project/alpine@sha256:bad"
+        )
+
+    async def test_no_error_when_all_deleted(
+        self, client: UpstreamV2ApiClient, registry: _Registry
+    ) -> None:
+        del registry.tags["testproject/org/project/broken"]
+        del registry.tags["testproject/org/project/alpine"]["bad"]
+        del registry.tags["testproject/org/project/alpine"]["gone"]
+
         await client.delete_project_images(org="org", project="project")
 
         assert sorted(registry.deleted) == [

@@ -38,6 +38,10 @@ class UpstreamApiException(Exception):
         self.message = message
 
 
+class ProjectImagesDeleteError(Exception):
+    pass
+
+
 class UpstreamV2ApiClient:
     def __init__(self, config: UpstreamRegistryConfig) -> None:
         self._url = config.endpoint_url
@@ -235,13 +239,14 @@ class UpstreamV2ApiClient:
                 assert response.status == 202
 
     async def _get_images_for_delete(
-        self, org: str, project: str
+        self, org: str, project: str, failures: list[str]
     ) -> AsyncIterator[tuple[str, str, list[str]]]:
         async for repo in self.list_images(org_project_filters=[f"{org}/{project}"]):
             try:
                 repo_tags = await self.image_tags_list(repo)
             except Exception:
                 LOGGER.exception("Failed to list tags of %r", repo)
+                failures.append(repo)
                 continue
             digest_tags = defaultdict(list)
             for tag in repo_tags:
@@ -249,23 +254,34 @@ class UpstreamV2ApiClient:
                     digest = await self.image_digest(repo, tag)
                 except Exception:
                     LOGGER.exception("Failed to get digest of %s:%s", repo, tag)
+                    failures.append(f"{repo}:{tag}")
                     continue
                 digest_tags[digest].append(tag)
             for digest, tags in digest_tags.items():
                 yield repo, digest, tags
 
     async def _delete_project_image(
-        self, repo: str, digest: str, tags: list[str]
+        self, repo: str, digest: str, tags: list[str], failures: list[str]
     ) -> None:
         try:
             await self.delete_image_manifest(repo, digest, tags)
         except Exception:
             LOGGER.exception("Failed to delete %s@%s", repo, digest)
+            failures.append(f"{repo}@{digest}")
 
     async def delete_project_images(self, org: str, project: str) -> None:
+        failures: list[str] = []
         async with asyncio.TaskGroup() as tg:
-            async for repo, digest, tags in self._get_images_for_delete(org, project):
-                tg.create_task(self._delete_project_image(repo, digest, tags))
+            async for repo, digest, tags in self._get_images_for_delete(
+                org, project, failures
+            ):
+                tg.create_task(self._delete_project_image(repo, digest, tags, failures))
+        if failures:
+            msg = (
+                f"Failed to delete images of {org}/{project}, "
+                f"{len(failures)} failed: {', '.join(failures)}"
+            )
+            raise ProjectImagesDeleteError(msg)
 
     def _is_pull_request(self, request: Request) -> bool:
         return request.method in ("HEAD", "GET")
@@ -281,7 +297,21 @@ class UpstreamV2ApiClient:
             sock_read=sock_read_timeout_s,
         )
 
-    async def proxy_request(self, request: Request) -> StreamResponse:
+    def _proxy_params(
+        self, request: Request, *, drop_mount: bool
+    ) -> tuple[MultiDict[str], str | None]:
+        params = MultiDict(request.query)
+        if drop_mount:
+            params.popall("mount", None)
+            params.popall("from", None)
+        if mounted_repo := params.get("from"):
+            upstream_mounted_repo = self._upstream_repo_name(mounted_repo)
+            params["from"] = upstream_mounted_repo
+        return params, mounted_repo
+
+    async def proxy_request(
+        self, request: Request, *, drop_mount: bool = False
+    ) -> StreamResponse:
         """
         This method works only for /{repo:.+}/{path_suffix:(tags|manifests|blobs)/.*}
         """
@@ -297,10 +327,7 @@ class UpstreamV2ApiClient:
         else:
             data = request.content.iter_any()
 
-        params = MultiDict(request.query)
-        if mounted_repo := params.get("from"):
-            upstream_mounted_repo = self._upstream_repo_name(mounted_repo)
-            params["from"] = upstream_mounted_repo
+        params, mounted_repo = self._proxy_params(request, drop_mount=drop_mount)
         scopes = self._get_repo_scopes(repo, mounted_repo)
         auth_headers = await self.auth_headers(scopes)
         headers.update(auth_headers)

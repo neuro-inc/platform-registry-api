@@ -223,3 +223,25 @@ class TestV2Api:
             assert resp.status == 202
             location_url = URL(resp.headers["Location"])
             assert location_url.scheme == "https"
+
+    async def test_x_forwarded_proto_cross_repo_blob_mount_forbidden(
+        self,
+        aiohttp_client: _TestClientFactory,
+        config: Config,
+        regular_user_factory: Callable[[], Awaitable[_User]],
+        org: str,
+        project: str,
+    ) -> None:
+        user = await regular_user_factory()
+        app = await create_app(config)
+        client = await aiohttp_client(app)
+        headers = {"X-Forwarded-Proto": "https"} | user.get_auth_headers()
+        repo = f"{org}/{project}/unknown"
+        url = (
+            f"/v2/{repo}/blobs/uploads/"
+            f"?mount=sha256:{'0' * 64}&from={user.name}-other/unknown"
+        )
+        async with client.post(url, headers=headers) as resp:
+            assert resp.status == 202, await resp.text()
+            location_url = URL(resp.headers["Location"])
+            assert location_url.scheme == "https"
