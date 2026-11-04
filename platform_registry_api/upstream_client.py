@@ -184,7 +184,7 @@ class UpstreamV2ApiClient:
 
                 for image in response_json["repositories"]:
                     if any(
-                        image.startswith(str(self._repo_prefix / org_project))
+                        image.startswith(f"{self._repo_prefix / org_project}/")
                         for org_project in org_project_filters
                     ):
                         yield image[len(str(self._repo_prefix)) :]
