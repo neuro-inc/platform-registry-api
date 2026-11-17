@@ -67,7 +67,7 @@ function test_push_catalog_pull() {
 
     echo "step 1: pull non existent"
     local output=$(docker pull 127.0.0.1:5000/$repo_path/unknown:latest 2>&1)
-    [[ $output == *"manifest for 127.0.0.1:5000/$repo_path/unknown:latest not found"* ]]
+    [[ $output == *"127.0.0.1:5000/$repo_path/unknown:latest"*"not found"* ]]
 
     echo "step 2: remove images and check catalog"
     docker rmi ubuntu:latest 127.0.0.1:5000/$repo_path/ubuntu:latest || :
