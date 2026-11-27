@@ -33,7 +33,7 @@ yarl = "^1.18.3"
 pydantic = "^2.12.5"
 pyjwt = "^2.10.1"
 apolo-events-client = ">=26.9,<27.0"
-neuro-admin-client = "^25.9.2"
+neuro-admin-client = ">=25.9.2,<27.0.0"
 
 [tool.poetry.group.dev]
 optional = true
